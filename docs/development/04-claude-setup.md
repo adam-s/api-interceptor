@@ -63,9 +63,9 @@ A markdown file at the repo root that Claude Code reads on every session. It's a
 ### Example
 
 ```markdown
-# Deep Research
+# Interceptor
 
-pnpm + Turborepo monorepo. Each exploration adds one layer.
+pnpm + Turborepo monorepo for API interception and reverse engineering.
 
 ## Commands
 
@@ -77,14 +77,6 @@ pnpm + Turborepo monorepo. Each exploration adds one layer.
 
 **Always run `./scripts/ci-local.sh` before committing.**
 Use `/ci-check` to diagnose failures.
-
-## Blog Style Guides
-
-See `docs/blog/style-guide/` for full guides. Summary:
-- **Overreacted**: Narrative, personal story
-- **CSS-Tricks**: Complete reference guide, TOC
-- **Soshnikov**: Textbook deep-dive, formal, diagrams
-- **A List Apart**: Editorial essay, persuasive thesis
 ```
 
 ### What belongs in CLAUDE.md

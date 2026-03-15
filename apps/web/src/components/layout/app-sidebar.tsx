@@ -1,11 +1,9 @@
 'use client';
 
 import { TrendingUp } from 'lucide-react';
-import { signOut, useSession } from 'next-auth/react';
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -13,15 +11,8 @@ import {
 	SidebarRail,
 } from '@/components/ui/sidebar';
 import { NavMain } from './nav-main';
-import { NavUser } from './nav-user';
 
 export function AppSidebar() {
-	const { data: session } = useSession();
-
-	const user = session?.user
-		? { name: session.user.name ?? null, email: session.user.email ?? '' }
-		: null;
-
 	return (
 		<Sidebar collapsible="icon">
 			<SidebarHeader>
@@ -33,8 +24,8 @@ export function AppSidebar() {
 									<TrendingUp className="size-4" />
 								</div>
 								<div className="grid flex-1 text-left text-sm leading-tight">
-									<span className="truncate font-semibold">Deep Research</span>
-									<span className="truncate text-xs">Pattern Discovery</span>
+									<span className="truncate font-semibold">Interceptor</span>
+									<span className="truncate text-xs">API Discovery</span>
 								</div>
 							</a>
 						</SidebarMenuButton>
@@ -44,9 +35,6 @@ export function AppSidebar() {
 			<SidebarContent>
 				<NavMain />
 			</SidebarContent>
-			<SidebarFooter>
-				<NavUser user={user} onSignOut={() => signOut({ callbackUrl: '/login' })} />
-			</SidebarFooter>
 			<SidebarRail />
 		</Sidebar>
 	);

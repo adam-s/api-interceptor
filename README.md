@@ -26,10 +26,9 @@ open http://localhost:3000/browser
 
 ```text
 apps/api/          @interceptor/api — Hono API server + browser streaming
-apps/web/          @interceptor/web — Next.js 16 + shadcn/ui + NextAuth v5
+apps/web/          @interceptor/web — Next.js 16 + shadcn/ui (public dashboard)
 packages/browser/  @interceptor/browser — Patchright-based browser automation
 packages/shared/   @interceptor/shared — Shared types and utilities
-packages/db/       @interceptor/db — Drizzle ORM + database schema (optional)
 services/python/   Python worker for scientific computing via IPC bridge
 ```
 
@@ -52,10 +51,10 @@ Remote browser viewer with:
 
 ⚠️ **Before publishing to GitHub:**
 
-- [ ] Review `.env.example` for any exposed credentials
 - [ ] Verify no AWS account IDs or private domains in code
-- [ ] Run: `grep -r "todo\|fixme\|password\|secret" --include="*.ts"`
-- [ ] Check git history: `git log --all --full-history -- [path/to/file]`
+- [ ] Verify no credentials in code (API keys, domain names, instance IDs)
+- [ ] Check git history for sensitive data: `git log --all --full-history -- [path/to/file]`
+- [ ] Run: `grep -r "todo\|fixme" --include="*.ts" | grep -v "not implemented"`
 
 ## Development
 
@@ -73,23 +72,18 @@ docker build -f apps/web/Dockerfile .
 
 ## Environment Setup
 
-Copy `.env.example` to `.env` and fill in:
+Copy `.env.example` to `.env`. The dashboard is public with no authentication.
 
 ```bash
-AUTH_SECRET=generate-a-secret-with-openssl-rand-base64-32
-AUTH_URL=http://localhost:3000
 NODE_ENV=development
 ```
-
-For production, see `.env.production.example`.
 
 ## Packages
 
 - **@interceptor/api** — Hono server with WebSocket + browser streaming
-- **@interceptor/web** — Next.js frontend with authentication
+- **@interceptor/web** — Next.js frontend dashboard (public, no auth)
 - **@interceptor/browser** — Patchright browser + stealth automation
 - **@interceptor/shared** — Common types, debug logging, Python bridge
-- **@interceptor/db** — Database layer (Drizzle ORM + TimescaleDB)
 
 ## License
 

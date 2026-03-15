@@ -276,4 +276,4 @@ The pattern generalizes to any service that authenticates through browser sessio
 
 **Exercise:** Modify the interceptor to capture response headers in addition to request headers. Some services return session tokens in response headers (e.g., `X-Session-Token`) that must be included in subsequent requests.
 
-**Further reading:** The session manager in the `@volat/browser` package implements disk-based credential persistence with automatic expiry detection. See `src/robinhood/session-manager.ts`.
+**Further reading:** The session manager in the `@interceptor/browser` package implements disk-based credential persistence with automatic expiry detection.

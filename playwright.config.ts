@@ -25,26 +25,9 @@ export default defineConfig({
 	},
 
 	projects: [
-		// Setup project — authenticates once and saves session state
-		{
-			name: 'setup',
-			testMatch: /.*\.setup\.ts/,
-		},
-		// Dashboard/authenticated tests — use saved auth state
 		{
 			name: 'chromium',
-			use: {
-				...devices['Desktop Chrome'],
-				storageState: 'tests/e2e/.auth/user.json',
-			},
-			dependencies: ['setup'],
-			testIgnore: [/.*\.setup\.ts/, /auth\.spec\.ts/],
-		},
-		// Auth tests — run WITHOUT storageState (tests login/register flow)
-		{
-			name: 'auth-tests',
 			use: { ...devices['Desktop Chrome'] },
-			testMatch: [/auth\.spec\.ts/],
 		},
 	],
 
@@ -57,10 +40,6 @@ export default defineConfig({
 		timeout: 120_000, // Next.js cold start can be slow
 		stdout: 'ignore', // Prevent buffer blocking
 		stderr: 'pipe',
-		env: {
-			...process.env,
-			AUTH_SECRET: process.env.AUTH_SECRET || 'e2e-test-secret-interceptor',
-			AUTH_URL: `http://localhost:${E2E_PORT}`,
-		},
+		env: process.env,
 	},
 });

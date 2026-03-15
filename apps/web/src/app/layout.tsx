@@ -3,8 +3,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import './globals.css';
 
 export const metadata: Metadata = {
-	title: 'Deep Research',
-	description: 'Pattern discovery in financial data',
+	title: 'Interceptor',
+	description: 'Reverse-engineer web APIs through request interception and traffic analysis',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
