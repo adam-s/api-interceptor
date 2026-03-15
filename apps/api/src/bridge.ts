@@ -1,4 +1,4 @@
-import { PythonBridge } from "@volat/shared";
+import { PythonBridge } from "@interceptor/shared";
 import { resolve } from "node:path";
 
 let instance: PythonBridge | null = null;

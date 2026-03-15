@@ -6,7 +6,7 @@ import type { NextConfig } from "next";
 dotenv.config({ path: resolve(import.meta.dirname, "../../.env") });
 
 const nextConfig: NextConfig = {
-	transpilePackages: ["@volat/shared", "@volat/db"],
+	transpilePackages: ["@interceptor/shared", "@interceptor/db"],
 };
 
 export default nextConfig;

@@ -2,7 +2,7 @@
  * Unified DEBUG logging — writes to both console (cyan) and file.
  *
  * All DEBUG() calls from TypeScript and Python converge on the same
- * log file: /tmp/deep-research-debug/debug-YYYY-MM-DD.log
+ * log file: /tmp/interceptor-debug/debug-YYYY-MM-DD.log
  *
  * Enabled by default in development. Disabled in production and test.
  * Override with DEBUG_LOGGING=true or DEBUG_LOGGING=false.
@@ -14,7 +14,7 @@
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-export const DEBUG_DIR = "/tmp/deep-research-debug";
+export const DEBUG_DIR = "/tmp/interceptor-debug";
 
 const DEBUG_ENABLED =
 	globalThis.process?.env?.DEBUG_LOGGING === "true" ||

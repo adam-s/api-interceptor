@@ -2,7 +2,7 @@
  * Browser Configuration
  *
  * Inline config defaults for the browser package.
- * Replaces the @volatio/shared BrowserConfig dependency.
+ * Replaces the @interceptor/shared BrowserConfig dependency.
  */
 
 export interface BrowserConfig {

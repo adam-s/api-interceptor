@@ -1,5 +1,5 @@
 {
-	"name": "@volat/db",
+	"name": "@interceptor/db",
 	"version": "0.0.1",
 	"type": "module",
 	"main": "./src/index.ts",

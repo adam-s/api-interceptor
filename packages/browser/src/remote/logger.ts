@@ -22,7 +22,7 @@ import { appendFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Log file location - uses data directory in development, /var/log in production
-const LOG_DIR = process.env.NODE_ENV === 'production' ? '/var/log/volatio' : './data/logs';
+const LOG_DIR = process.env.NODE_ENV === 'production' ? '/var/log/interceptor' : './data/logs';
 const LOG_FILE = join(LOG_DIR, 'browser.log');
 
 // Ensure log directory exists

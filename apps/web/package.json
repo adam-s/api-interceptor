@@ -1,5 +1,5 @@
 {
-	"name": "@volat/web",
+	"name": "@interceptor/web",
 	"version": "0.0.1",
 	"private": true,
 	"type": "module",
@@ -13,8 +13,8 @@
 	"dependencies": {
 		"@auth/core": "^0.34.3",
 		"@hookform/resolvers": "^5.2.2",
-		"@volat/db": "workspace:*",
-		"@volat/shared": "workspace:*",
+		"@interceptor/db": "workspace:*",
+		"@interceptor/shared": "workspace:*",
 		"bcryptjs": "^3.0.3",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",

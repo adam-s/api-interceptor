@@ -4,7 +4,7 @@ const authFile = "tests/e2e/.auth/user.json";
 
 setup("authenticate", async ({ page }) => {
 	await page.goto("/login");
-	await page.getByLabel("Email").fill("admin@deep-research.dev");
+	await page.getByLabel("Email").fill("admin@example.com");
 	await page.getByLabel("Password").fill("Admin123!");
 	await page.getByRole("button", { name: /sign in/i }).click();
 

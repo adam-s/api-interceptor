@@ -1,5 +1,5 @@
 {
-	"name": "@volat/api",
+	"name": "@interceptor/api",
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
@@ -9,8 +9,8 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@volat/browser": "workspace:*",
-		"@volat/shared": "workspace:*",
+		"@interceptor/browser": "workspace:*",
+		"@interceptor/shared": "workspace:*",
 		"hono": "^4.7.0"
 	},
 	"devDependencies": {

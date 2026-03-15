@@ -2,8 +2,8 @@ import NextAuth from "next-auth";
 import type { NextAuthResult } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
-import { db, eq } from "@volat/db";
-import { users } from "@volat/db/schema";
+import { db, eq } from "@interceptor/db";
+import { users } from "@interceptor/db/schema";
 
 const nextAuth = NextAuth({
 	trustHost: true,

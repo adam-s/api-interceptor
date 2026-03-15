@@ -1,5 +1,5 @@
 /**
- * @volat/browser — Stealth browser automation package
+ * @interceptor/browser — Stealth browser automation package
  *
  * Core primitives for Patchright-based browser automation:
  * - Stealth browser launcher with proxy support

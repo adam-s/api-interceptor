@@ -2,8 +2,8 @@
 
 import { AuthError } from "next-auth";
 import { hash } from "bcryptjs";
-import { db, eq } from "@volat/db";
-import { users } from "@volat/db/schema";
+import { db, eq } from "@interceptor/db";
+import { users } from "@interceptor/db/schema";
 import { signIn } from "@/auth";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 

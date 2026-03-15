@@ -9,7 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "../../../.env") });
 
 async function seed() {
-	const email = "admin@deep-research.dev";
+	const email = "admin@example.com";
 	const password = "Admin123!";
 
 	const existing = await db

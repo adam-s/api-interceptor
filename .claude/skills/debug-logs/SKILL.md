@@ -12,7 +12,7 @@ When you can't solve a problem by reading code alone, use DEBUG() to observe run
 Canonical implementation at `packages/shared/src/debug.ts`. Import from the shared package or the web app re-export:
 
 ```typescript
-import { DEBUG } from "@volat/shared";        // shared package
+import { DEBUG } from "@interceptor/shared";        // shared package
 import { DEBUG } from "@/lib/debug";           // web app re-export
 ```
 
@@ -27,7 +27,7 @@ DEBUG('location', 'message', () => ({ data: value }))
 
 The data argument is a factory function (lambda) — expensive computation is deferred and only runs when logging is enabled. DEBUG is disabled in test and production (`NODE_ENV`).
 
-Output goes to `/tmp/deep-research-debug/debug-YYYY-MM-DD.log` and console (cyan).
+Output goes to `/tmp/interceptor-debug/debug-YYYY-MM-DD.log` and console (cyan).
 
 ## The Process
 
@@ -58,17 +58,17 @@ Bad placement:
 Reproduce the bug. Then read the log:
 
 ```bash
-cat /tmp/deep-research-debug/debug-$(date +%Y-%m-%d).log
+cat /tmp/interceptor-debug/debug-$(date +%Y-%m-%d).log
 ```
 
 If the file is missing or empty:
 ```bash
-ls -la /tmp/deep-research-debug/
+ls -la /tmp/interceptor-debug/
 ```
 
 For live tailing while reproducing:
 ```bash
-tail -f /tmp/deep-research-debug/debug-*.log
+tail -f /tmp/interceptor-debug/debug-*.log
 ```
 
 ### Step 4: Narrow or widen
@@ -96,7 +96,7 @@ When in doubt, remove it. The calls are easy to add back.
 ### Step 6: Clear logs
 
 ```bash
-rm -f /tmp/deep-research-debug/*.log
+rm -f /tmp/interceptor-debug/*.log
 ```
 
 ## Example

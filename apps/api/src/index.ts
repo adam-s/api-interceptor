@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createBunWebSocket } from "hono/bun";
-import { validateConfig } from "@volat/shared";
+import { validateConfig } from "@interceptor/shared";
 import { formatStartupBanner } from "./format";
 import { createWsApp } from "./ws";
 import { createBrowserApp } from "./browser";
 
 const config = validateConfig({
-	name: "volat-api",
+	name: "interceptor-api",
 	version: "0.0.1",
 	environment: process.env.NODE_ENV ?? "development",
 });

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { existsSync, readFileSync, rmSync } from "node:fs";
 
-const DEBUG_DIR = "/tmp/deep-research-debug";
+const DEBUG_DIR = "/tmp/interceptor-debug";
 
 describe("debug", () => {
 	beforeEach(() => {

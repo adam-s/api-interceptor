@@ -40,7 +40,7 @@ test.describe("Authentication", () => {
 
 	test("successful login redirects to /dashboard", async ({ page }) => {
 		await page.goto("/login");
-		await page.getByLabel("Email").fill("admin@deep-research.dev");
+		await page.getByLabel("Email").fill("admin@example.com");
 		await page.getByLabel("Password").fill("Admin123!");
 		await page.getByRole("button", { name: /sign in/i }).click();
 
@@ -85,7 +85,7 @@ test.describe("Authentication", () => {
 
 			// Login first
 			await page.goto("/login");
-			await page.getByLabel("Email").fill("admin@deep-research.dev");
+			await page.getByLabel("Email").fill("admin@example.com");
 			await page.getByLabel("Password").fill("Admin123!");
 			await page.getByRole("button", { name: /sign in/i }).click();
 			await page.waitForURL("**/dashboard", { timeout: 30_000 });
@@ -95,7 +95,7 @@ test.describe("Authentication", () => {
 
 			// Click user email in sidebar to open dropdown
 			const userButton = page
-				.getByText("admin@deep-research.dev")
+				.getByText("admin@example.com")
 				.first();
 			await expect(userButton).toBeVisible({ timeout: 10_000 });
 			await userButton.click();

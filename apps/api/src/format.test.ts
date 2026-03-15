@@ -4,11 +4,11 @@ import { formatStartupBanner } from "./format";
 describe("formatStartupBanner", () => {
 	it("formats config into a startup banner", () => {
 		const result = formatStartupBanner({
-			name: "volat-api",
+			name: "interceptor-api",
 			version: "0.0.1",
 			environment: "development",
 		});
-		expect(result).toBe("volat-api v0.0.1 [development]");
+		expect(result).toBe("interceptor-api v0.0.1 [development]");
 	});
 
 	it("reflects the environment in the output", () => {

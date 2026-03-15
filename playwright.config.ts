@@ -51,7 +51,7 @@ export default defineConfig({
 	// Single webServer — Next.js handles both pages and API routes
 	// IMPORTANT: Use `port` not `url` for readiness check — `url` can hang
 	webServer: {
-		command: `pnpm --filter @volat/web dev --port ${E2E_PORT}`,
+		command: `pnpm --filter @interceptor/web dev --port ${E2E_PORT}`,
 		port: E2E_PORT,
 		reuseExistingServer: !IS_CI,
 		timeout: 120_000, // Next.js cold start can be slow
@@ -60,7 +60,7 @@ export default defineConfig({
 		env: {
 			...process.env,
 			AUTH_SECRET:
-				process.env.AUTH_SECRET || "e2e-test-secret-deep-research",
+				process.env.AUTH_SECRET || "e2e-test-secret-interceptor",
 			AUTH_URL: `http://localhost:${E2E_PORT}`,
 		},
 	},

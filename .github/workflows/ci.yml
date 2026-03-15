@@ -23,6 +23,7 @@ jobs:
 
       - run: pip install pytest
       - run: pnpm install --frozen-lockfile
+      - run: pnpm biome ci .
       - run: pnpm turbo build
       - run: pnpm turbo typecheck
       - run: pnpm turbo test

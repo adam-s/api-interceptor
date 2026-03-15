@@ -1,5 +1,5 @@
 /**
- * Re-export DEBUG from @volat/shared so all layers use the same implementation.
- * Log file: /tmp/deep-research-debug/debug-YYYY-MM-DD.log
+ * Re-export DEBUG from @interceptor/shared so all layers use the same implementation.
+ * Log file: /tmp/interceptor-debug/debug-YYYY-MM-DD.log
  */
-export { DEBUG, DEBUG_DIR } from "@volat/shared";
+export { DEBUG, DEBUG_DIR } from "@interceptor/shared";

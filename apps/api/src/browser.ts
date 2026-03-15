@@ -23,14 +23,14 @@ import {
 	getProfilePath,
 	profileExists,
 	RemoteBrowserService,
-} from "@volat/browser/remote";
+} from "@interceptor/browser/remote";
 import {
 	RobinhoodApiClient,
 	RobinhoodInterceptor,
 	RobinhoodSessionManager,
 	type InterceptedRequest,
 	type InterceptedResponse,
-} from "@volat/browser/robinhood";
+} from "@interceptor/browser/robinhood";
 import { Hono } from "hono";
 import type { UpgradeWebSocket } from "hono/ws";
 

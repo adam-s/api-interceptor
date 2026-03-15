@@ -29,7 +29,7 @@ test.describe("Dashboard", () => {
 
 	test("user info displayed in sidebar", async ({ page }) => {
 		await expect(
-			page.getByText("admin@deep-research.dev").first(),
+			page.getByText("admin@example.com").first(),
 		).toBeVisible({ timeout: 10_000 });
 	});
 
