@@ -1,0 +1,37 @@
+# Interceptor Documentation
+
+Technical explorations and guides for the Interceptor framework.
+
+## Architecture
+Design decisions and infrastructure foundations.
+- [01: Runtime Choice (Bun vs Node)](architecture/01-runtime.md)
+- [02: Docker & Monorepo](architecture/02-docker.md)
+- [03: Local CI Pipeline](architecture/03-local-ci.md)
+
+## Features
+Core capabilities and system design.
+- [08: Real-time Streaming (SSE/WebSocket)](features/08-streaming.md)
+- [09: Skills & Automation](features/09-skills.md)
+- [10: Python Bridge (IPC)](features/10-python-bridge.md)
+- [15: Authentication (NextAuth v5)](features/15-authentication.md)
+
+## Development
+Setup, tooling, and workflow.
+- [04: Claude Code Setup](development/04-claude-setup.md)
+- [05: Project Memory](development/05-memory.md)
+- [17: Visual Development](development/17-visual-dev.md)
+- [18: GitHub CLI](development/18-gh-cli.md)
+
+## Testing
+Test infrastructure and approaches.
+- [06: Vitest Setup](testing/06-vitest.md)
+- [16: E2E Testing with Playwright](testing/16-e2e.md)
+
+## Guides
+Deep dives into specific areas.
+- [07: Next.js & Frontend Architecture](guides/07-nextjs.md)
+- [11: Unified Debug Logging](guides/11-debug-logging.md)
+
+---
+
+**Note**: These are technical explorations documenting decisions made during development. They're preserved for reference on architecture, tooling, and approach decisions.
