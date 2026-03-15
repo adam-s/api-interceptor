@@ -1,11 +1,11 @@
 ---
 name: systematic-testing
-description: Bottom-up systematic validation for the deep-research pipeline. Use when asked to test, debug, or verify any layer from Python worker through to the dashboard UI.
+description: Bottom-up systematic validation for multi-layer architectures. Use when asked to test, debug, or verify any layer from backend worker through to frontend UI.
 ---
 
 # Systematic Validation
 
-When testing or debugging the pipeline, work bottom-up. Never test a higher layer until the layer below it is verified.
+When testing or debugging a multi-layer system, work bottom-up. Never test a higher layer until the layer below it is verified. This approach isolates failures to the specific layer where they occur.
 
 ## The Five Layers
 
