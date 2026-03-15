@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - '3001:3001'
+
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: deepresearch
+      POSTGRES_PASSWORD: research123
+      POSTGRES_DB: deep_research
+    volumes:
+      - deep_research_postgres_data:/var/lib/postgresql/data
+    shm_size: '1gb'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U deepresearch -d deep_research']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  deep_research_postgres_data:

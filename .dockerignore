@@ -1,0 +1,8 @@
+node_modules
+dist
+.turbo
+.next
+.git
+exploration
+*.md
+.github

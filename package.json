@@ -1,0 +1,19 @@
+{
+	"name": "volat",
+	"private": true,
+	"scripts": {
+		"build": "turbo build",
+		"dev": "turbo dev",
+		"test": "vitest",
+		"typecheck": "turbo typecheck",
+		"e2e": "npx playwright test",
+		"e2e:ui": "npx playwright test --ui"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.52.0",
+		"turbo": "^2.7.3",
+		"typescript": "5.9.3",
+		"vitest": "^4.0.18"
+	},
+	"packageManager": "pnpm@10.11.0"
+}

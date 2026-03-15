@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./scripts/ci-local.sh:*)",
+      "Bash(gh run:*)",
+      "Bash(gh pr:*)",
+      "Bash(pnpm turbo:*)",
+      "Bash(pnpm install:*)",
+      "Bash(docker build:*)"
+    ]
+  }
+}

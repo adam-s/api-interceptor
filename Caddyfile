@@ -1,0 +1,25 @@
+{
+    email admin@volat.io
+}
+
+www.volat.io {
+    redir https://volat.io{uri}
+}
+
+volat.io {
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Host {host}
+    }
+
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    log {
+        format json
+    }
+}

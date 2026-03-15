@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.turbo/
+*.tsbuildinfo
+.next/
+coverage/
+.claude/settings.local.json
+.env
+test-results/
+playwright-report/
+tests/e2e/.auth/
