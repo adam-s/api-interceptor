@@ -11,13 +11,13 @@
 	"dependencies": {
 		"@interceptor/browser": "workspace:*",
 		"@interceptor/shared": "workspace:*",
-		"hono": "^4.7.0",
-		"ws": "^8.16.0"
+		"hono": "^4.12.8",
+		"ws": "^8.19.0"
 	},
 	"devDependencies": {
-		"@types/node": "22.15.21",
-		"@types/ws": "^8.5.12",
-		"tsx": "^4.19.0",
+		"@types/node": "25.5.0",
+		"@types/ws": "^8.18.1",
+		"tsx": "^4.21.0",
 		"typescript": "5.9.3"
 	}
 }

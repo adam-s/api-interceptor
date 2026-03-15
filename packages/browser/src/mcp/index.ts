@@ -1,8 +1,8 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * Browser MCP Server Entry Point
  *
- * Run via: bun packages/browser/src/mcp/index.ts
+ * Run via: node packages/browser/src/mcp/index.ts
  *
  * This process communicates with Claude Code via stdio (JSON-RPC).
  * NEVER log to stdout — use console.error for all diagnostics.
@@ -14,7 +14,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createBrowserMcpServer } from './server';
 
 async function main() {
-	const apiUrl = process.env.VOLATIO_API_URL || 'http://localhost:3001';
+	const apiUrl = process.env.INTERCEPTOR_API_URL || 'http://localhost:3001';
 	console.error(`[browser-mcp] Starting MCP server (API: ${apiUrl})...`);
 
 	const server = createBrowserMcpServer();

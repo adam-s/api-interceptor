@@ -16,16 +16,16 @@
 		"postinstall": "npx patchright install chromium"
 	},
 	"dependencies": {
-		"@ghostery/adblocker-playwright": "2.13.2",
-		"@modelcontextprotocol/sdk": "1.6.1",
+		"@ghostery/adblocker-playwright": "2.14.1",
+		"@modelcontextprotocol/sdk": "1.27.1",
 		"cross-fetch": "4.1.0",
-		"patchright": "1.57.0",
-		"zod": "4.3.5"
+		"patchright": "1.58.2",
+		"zod": "4.3.6"
 	},
 	"devDependencies": {
-		"@types/node": "22.15.21",
+		"@types/node": "25.5.0",
 		"typescript": "5.9.3",
-		"vitest": "4.0.18"
+		"vitest": "4.1.0"
 	},
 	"overrides": {
 		"@ghostery/adblocker-playwright": {
