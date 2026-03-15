@@ -1,19 +1,14 @@
-"use client";
+'use client';
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Omnibar } from "@/components/browser/omnibar";
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Omnibar } from '@/components/browser/omnibar';
 import {
 	RemoteBrowserViewer,
 	type RemoteBrowserViewerHandle,
-} from "@/components/browser/remote-viewer";
+} from '@/components/browser/remote-viewer';
+import { Button } from '@/components/ui/button';
 
-type ConnectionStatus =
-	| "connecting"
-	| "connected"
-	| "ready"
-	| "disconnected"
-	| "error";
+type ConnectionStatus = 'connecting' | 'connected' | 'ready' | 'disconnected' | 'error';
 
 /** Robinhood verification data from the interceptor */
 interface RobinhoodInfo {
@@ -25,12 +20,10 @@ interface RobinhoodInfo {
 }
 
 export default function BrowserContent() {
-	const [status, setStatus] = useState<ConnectionStatus>("disconnected");
-	const [url, setUrl] = useState("");
+	const [status, setStatus] = useState<ConnectionStatus>('disconnected');
+	const [url, setUrl] = useState('');
 	const [frameCount, setFrameCount] = useState(0);
-	const [robinhoodInfo, setRobinhoodInfo] = useState<RobinhoodInfo | null>(
-		null,
-	);
+	const [robinhoodInfo, setRobinhoodInfo] = useState<RobinhoodInfo | null>(null);
 	const [warmingUp, setWarmingUp] = useState(false);
 	const wsRef = useRef<WebSocket | null>(null);
 	const viewerRef = useRef<RemoteBrowserViewerHandle | null>(null);
@@ -38,7 +31,7 @@ export default function BrowserContent() {
 	// Build WebSocket URL with robinhood-trading profile
 	const wsUrl = useMemo(() => {
 		const params = new URLSearchParams();
-		params.set("profile", "robinhood-trading");
+		params.set('profile', 'robinhood-trading');
 		return `ws://localhost:3001/browser/stream?${params.toString()}`;
 	}, []);
 
@@ -47,7 +40,7 @@ export default function BrowserContent() {
 	}, []);
 
 	const handleUrlChange = useCallback((newUrl: string) => {
-		if (newUrl.startsWith("data:") || newUrl === "about:blank") return;
+		if (newUrl.startsWith('data:') || newUrl === 'about:blank') return;
 		setUrl(newUrl);
 	}, []);
 
@@ -61,32 +54,23 @@ export default function BrowserContent() {
 	const handleNavigate = useCallback(
 		(targetUrl: string) => {
 			setUrl(targetUrl);
-			sendMessage({ type: "navigate", url: targetUrl });
+			sendMessage({ type: 'navigate', url: targetUrl });
 		},
 		[sendMessage],
 	);
 
-	const handleBack = useCallback(
-		() => sendMessage({ type: "back" }),
-		[sendMessage],
-	);
-	const handleForward = useCallback(
-		() => sendMessage({ type: "forward" }),
-		[sendMessage],
-	);
-	const handleReload = useCallback(
-		() => sendMessage({ type: "reload" }),
-		[sendMessage],
-	);
+	const handleBack = useCallback(() => sendMessage({ type: 'back' }), [sendMessage]);
+	const handleForward = useCallback(() => sendMessage({ type: 'forward' }), [sendMessage]);
+	const handleReload = useCallback(() => sendMessage({ type: 'reload' }), [sendMessage]);
 	const handleHome = useCallback(() => {
-		setUrl("");
-		sendMessage({ type: "navigate", url: "about:blank" });
+		setUrl('');
+		sendMessage({ type: 'navigate', url: 'about:blank' });
 	}, [sendMessage]);
 
 	// Warmup — visit a few sites to build browsing history
 	const handleWarmup = useCallback(() => {
 		setWarmingUp(true);
-		sendMessage({ type: "warmup", sites: 3, delay: 2000 });
+		sendMessage({ type: 'warmup', sites: 3, delay: 2000 });
 	}, [sendMessage]);
 
 	// Connect/disconnect
@@ -99,38 +83,32 @@ export default function BrowserContent() {
 		viewerRef.current?.disconnect();
 	}, []);
 
-	const handleConnectRef = useCallback(
-		(handle: RemoteBrowserViewerHandle) => {
-			viewerRef.current = handle;
-		},
-		[],
-	);
+	const handleConnectRef = useCallback((handle: RemoteBrowserViewerHandle) => {
+		viewerRef.current = handle;
+	}, []);
 
 	// Handle messages from the browser stream
-	const handleMessage = useCallback(
-		(message: { type: string; [key: string]: unknown }) => {
-			if (message.type === "robinhood_verified") {
-				setRobinhoodInfo({
-					accountNumber: message.accountNumber as string,
-					firstName: message.firstName as string,
-					lastName: message.lastName as string,
-					buyingPower: message.buyingPower as string,
-				});
-			} else if (message.type === "robinhood_verification_failed") {
-				setRobinhoodInfo({
-					error: message.error as string,
-				});
-			} else if (message.type === "robinhood_login_page_detected") {
-				setRobinhoodInfo(null);
-			} else if (message.type === "warmup_complete") {
-				setWarmingUp(false);
-			}
-		},
-		[],
-	);
+	const handleMessage = useCallback((message: { type: string; [key: string]: unknown }) => {
+		if (message.type === 'robinhood_verified') {
+			setRobinhoodInfo({
+				accountNumber: message.accountNumber as string,
+				firstName: message.firstName as string,
+				lastName: message.lastName as string,
+				buyingPower: message.buyingPower as string,
+			});
+		} else if (message.type === 'robinhood_verification_failed') {
+			setRobinhoodInfo({
+				error: message.error as string,
+			});
+		} else if (message.type === 'robinhood_login_page_detected') {
+			setRobinhoodInfo(null);
+		} else if (message.type === 'warmup_complete') {
+			setWarmingUp(false);
+		}
+	}, []);
 
-	const isReady = status === "ready";
-	const isConnected = status === "connected" || status === "ready";
+	const isReady = status === 'ready';
+	const isConnected = status === 'connected' || status === 'ready';
 
 	return (
 		<div className="flex flex-1 flex-col">
@@ -138,43 +116,34 @@ export default function BrowserContent() {
 			<div className="flex items-center gap-3 border-b border-border bg-card px-4 py-2">
 				<Button
 					onClick={isConnected ? handleDisconnect : handleConnect}
-					variant={isConnected ? "destructive" : "default"}
+					variant={isConnected ? 'destructive' : 'default'}
 					size="sm"
 				>
-					{isConnected ? "Disconnect" : "Connect"}
+					{isConnected ? 'Disconnect' : 'Connect'}
 				</Button>
 
 				{isReady && (
-					<Button
-						onClick={handleWarmup}
-						variant="outline"
-						size="sm"
-						disabled={warmingUp}
-					>
-						{warmingUp ? "Warming up..." : "Warmup"}
+					<Button onClick={handleWarmup} variant="outline" size="sm" disabled={warmingUp}>
+						{warmingUp ? 'Warming up...' : 'Warmup'}
 					</Button>
 				)}
 
 				<span className="text-xs text-muted-foreground">
-					{status === "disconnected" && "Not connected"}
-					{status === "connecting" && "Connecting..."}
-					{status === "connected" && "Starting browser..."}
-					{status === "ready" &&
-						(warmingUp
-							? "Building browsing history..."
-							: `Browser ready (${frameCount} frames)`)}
-					{status === "error" && "Connection error"}
+					{status === 'disconnected' && 'Not connected'}
+					{status === 'connecting' && 'Connecting...'}
+					{status === 'connected' && 'Starting browser...'}
+					{status === 'ready' &&
+						(warmingUp ? 'Building browsing history...' : `Browser ready (${frameCount} frames)`)}
+					{status === 'error' && 'Connection error'}
 				</span>
 
 				{/* Robinhood status */}
 				{robinhoodInfo && !robinhoodInfo.error && (
 					<span className="ml-auto rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-						Robinhood: {robinhoodInfo.firstName}{" "}
-						{robinhoodInfo.lastName} — $
-						{Number(robinhoodInfo.buyingPower || 0).toLocaleString(
-							"en-US",
-							{ minimumFractionDigits: 2 },
-						)}
+						Robinhood: {robinhoodInfo.firstName} {robinhoodInfo.lastName} — $
+						{Number(robinhoodInfo.buyingPower || 0).toLocaleString('en-US', {
+							minimumFractionDigits: 2,
+						})}
 					</span>
 				)}
 				{robinhoodInfo?.error && (

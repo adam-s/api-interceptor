@@ -6,25 +6,25 @@
  * This runs non-interactively and exits cleanly.
  */
 
-import * as dotenv from "dotenv";
-import { drizzle } from "drizzle-orm/postgres-js";
-import { migrate } from "drizzle-orm/postgres-js/migrator";
-import { existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import postgres from "postgres";
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as dotenv from 'dotenv';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
+import postgres from 'postgres';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({ path: join(__dirname, "../../../.env") });
+dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
-	console.error("DATABASE_URL is not set");
+	console.error('DATABASE_URL is not set');
 	process.exit(1);
 }
 
-const migrationsFolder = join(__dirname, "../drizzle");
+const migrationsFolder = join(__dirname, '../drizzle');
 
 if (!existsSync(migrationsFolder)) {
 	console.log("No migrations directory found. Run 'pnpm run generate' first.");
@@ -34,8 +34,8 @@ if (!existsSync(migrationsFolder)) {
 const client = postgres(dbUrl, { max: 1 });
 const db = drizzle(client);
 
-console.log("Running migrations...");
+console.log('Running migrations...');
 await migrate(db, { migrationsFolder });
-console.log("Migrations complete.");
+console.log('Migrations complete.');
 
 await client.end();

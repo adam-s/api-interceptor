@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { Globe, LayoutDashboard } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Globe, LayoutDashboard } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
 	SidebarGroup,
 	SidebarGroupLabel,
@@ -10,11 +10,11 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	useSidebar,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar';
 
 const items = [
-	{ title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-	{ title: "Browser", href: "/browser", icon: Globe },
+	{ title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+	{ title: 'Browser', href: '/browser', icon: Globe },
 ];
 
 export function NavMain() {

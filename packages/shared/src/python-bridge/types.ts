@@ -26,7 +26,7 @@ export interface BridgeResponse {
 
 /** Ready message sent by the worker on startup */
 export interface BridgeReadyMessage {
-	type: "ready";
+	type: 'ready';
 	methods: string[];
 }
 
@@ -37,6 +37,6 @@ export class BridgeError extends Error {
 		public readonly code: number = -1,
 	) {
 		super(message);
-		this.name = "BridgeError";
+		this.name = 'BridgeError';
 	}
 }

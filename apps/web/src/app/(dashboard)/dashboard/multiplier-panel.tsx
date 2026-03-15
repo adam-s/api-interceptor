@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Stats {
 	mean: number;
@@ -34,18 +34,18 @@ export default function MultiplierPanel() {
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [connected, setConnected] = useState(false);
 	const wsRef = useRef<WebSocket | null>(null);
-	const lastJsonRef = useRef("");
+	const lastJsonRef = useRef('');
 	const computingRef = useRef(false);
 
 	useEffect(() => {
-		const ws = new WebSocket("ws://localhost:3001/ws");
+		const ws = new WebSocket('ws://localhost:3001/ws');
 		wsRef.current = ws;
 
-		ws.addEventListener("open", () => setConnected(true));
-		ws.addEventListener("close", () => setConnected(false));
-		ws.addEventListener("error", () => setConnected(false));
+		ws.addEventListener('open', () => setConnected(true));
+		ws.addEventListener('close', () => setConnected(false));
+		ws.addEventListener('error', () => setConnected(false));
 
-		ws.addEventListener("message", (e: MessageEvent) => {
+		ws.addEventListener('message', (e: MessageEvent) => {
 			let msg: { type: string; data?: unknown; requestId?: string };
 			try {
 				msg = JSON.parse(e.data as string);
@@ -53,16 +53,16 @@ export default function MultiplierPanel() {
 				return;
 			}
 
-			if (msg.type === "state") {
+			if (msg.type === 'state') {
 				const json = JSON.stringify(msg.data);
 				if (json === lastJsonRef.current) return;
 				lastJsonRef.current = json;
 				setState(msg.data as State);
-			} else if (msg.type === "compute:result") {
+			} else if (msg.type === 'compute:result') {
 				const data = msg.data as Stats;
 				if (data.mean !== undefined) setStats(data);
 				computingRef.current = false;
-			} else if (msg.type === "compute:error") {
+			} else if (msg.type === 'compute:error') {
 				computingRef.current = false;
 			}
 		});
@@ -82,7 +82,7 @@ export default function MultiplierPanel() {
 		computingRef.current = true;
 		wsRef.current.send(
 			JSON.stringify({
-				type: "compute",
+				type: 'compute',
 				requestId: crypto.randomUUID(),
 				numbers: state.history,
 			}),
@@ -91,14 +91,13 @@ export default function MultiplierPanel() {
 
 	const sendAction = useCallback((action: string, value?: number) => {
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-		const msg =
-			value !== undefined ? { type: action, value } : { type: action };
+		const msg = value !== undefined ? { type: action, value } : { type: action };
 		wsRef.current.send(JSON.stringify(msg));
 	}, []);
 
 	const handleReset = useCallback(() => {
 		setStats(null);
-		sendAction("reset");
+		sendAction('reset');
 	}, [sendAction]);
 
 	if (!state) {
@@ -121,7 +120,7 @@ export default function MultiplierPanel() {
 			<div className="flex items-center justify-center gap-4">
 				<button
 					type="button"
-					onClick={() => sendAction("decrement")}
+					onClick={() => sendAction('decrement')}
 					className="rounded-lg border border-border px-4 py-2 text-lg font-bold hover:bg-muted active:bg-muted/80"
 				>
 					−
@@ -129,13 +128,13 @@ export default function MultiplierPanel() {
 				<div className="text-center">
 					<p className="text-sm font-medium text-muted-foreground">Multiplier</p>
 					<p className="text-2xl font-bold tabular-nums">
-						{state.multiplier > 0 ? "+" : ""}
+						{state.multiplier > 0 ? '+' : ''}
 						{state.multiplier}
 					</p>
 				</div>
 				<button
 					type="button"
-					onClick={() => sendAction("increment")}
+					onClick={() => sendAction('increment')}
 					className="rounded-lg border border-border px-4 py-2 text-lg font-bold hover:bg-muted active:bg-muted/80"
 				>
 					+
@@ -146,10 +145,10 @@ export default function MultiplierPanel() {
 			<div className="flex justify-center gap-3">
 				<button
 					type="button"
-					onClick={() => sendAction(state.running ? "pause" : "play")}
+					onClick={() => sendAction(state.running ? 'pause' : 'play')}
 					className="rounded-lg border border-border px-6 py-2 font-medium hover:bg-muted active:bg-muted/80"
 				>
-					{state.running ? "Pause" : "Play"}
+					{state.running ? 'Pause' : 'Play'}
 				</button>
 				<button
 					type="button"
@@ -163,34 +162,25 @@ export default function MultiplierPanel() {
 			{/* Python-computed stats — always visible */}
 			<div className="rounded-lg border border-blue-500/20 bg-blue-950/30 p-4">
 				<p className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-blue-500">
-					Python Analysis{stats ? ` (last ${stats.count} ticks)` : ""}
+					Python Analysis{stats ? ` (last ${stats.count} ticks)` : ''}
 				</p>
 				<div className="grid grid-cols-3 gap-3">
-					<StatCell label="Mean" value={stats ? stats.mean.toFixed(1) : "--"} />
-					<StatCell
-						label="Median"
-						value={stats ? stats.median.toFixed(1) : "--"}
-					/>
-					<StatCell
-						label="Stdev"
-						value={stats ? stats.stdev.toFixed(1) : "--"}
-					/>
-					<StatCell label="Min" value={stats ? String(stats.min) : "--"} />
-					<StatCell label="Max" value={stats ? String(stats.max) : "--"} />
-					<StatCell
-						label="Samples"
-						value={stats ? String(stats.count) : "--"}
-					/>
+					<StatCell label="Mean" value={stats ? stats.mean.toFixed(1) : '--'} />
+					<StatCell label="Median" value={stats ? stats.median.toFixed(1) : '--'} />
+					<StatCell label="Stdev" value={stats ? stats.stdev.toFixed(1) : '--'} />
+					<StatCell label="Min" value={stats ? String(stats.min) : '--'} />
+					<StatCell label="Max" value={stats ? String(stats.max) : '--'} />
+					<StatCell label="Samples" value={stats ? String(stats.count) : '--'} />
 				</div>
 			</div>
 
 			{/* Status bar */}
 			<div className="flex items-center justify-between text-xs text-muted-foreground">
 				<span>
-					{connected ? "Connected" : "Disconnected"} · {state.connections}{" "}
-					{state.connections === 1 ? "client" : "clients"}
+					{connected ? 'Connected' : 'Disconnected'} · {state.connections}{' '}
+					{state.connections === 1 ? 'client' : 'clients'}
 				</span>
-				<span>{state.running ? "Running" : "Paused"}</span>
+				<span>{state.running ? 'Running' : 'Paused'}</span>
 			</div>
 		</div>
 	);

@@ -11,32 +11,12 @@
  * @module browser
  */
 
-// Config
-export { type BrowserConfig, getBrowserConfig } from './config';
-
-// Stealth browser
-export { createBrowser, createBrowserContext, type BrowserOptions } from './stealth-browser';
-
-// Stealth configuration (UA pools, args, headers)
-export {
-	DESKTOP_USER_AGENTS,
-	MOBILE_USER_AGENTS,
-	STEALTH_BROWSER_ARGS,
-	COMMON_VIEWPORTS,
-	getRandomDesktopUA,
-	getRandomMobileUA,
-	getMostCommonDesktopUA,
-	buildFetchHeaders,
-	buildXhrHeaders,
-	buildHtmlHeaders,
-} from './stealth';
-
-// Browser pool
-export { BrowserPool, getBrowserPool } from './pool';
-
 // Blocker
 export { BlockerManager, getBlockerManager } from './blocker';
-
+// Config
+export { type BrowserConfig, getBrowserConfig } from './config';
+// Browser pool
+export { BrowserPool, getBrowserPool } from './pool';
 // Scraper Registry
 export {
 	createHealthCheck,
@@ -51,19 +31,34 @@ export {
 	ScraperRegistry,
 	type ScraperSchedule,
 } from './registry';
+// Stealth configuration (UA pools, args, headers)
+export {
+	buildFetchHeaders,
+	buildHtmlHeaders,
+	buildXhrHeaders,
+	COMMON_VIEWPORTS,
+	DESKTOP_USER_AGENTS,
+	getMostCommonDesktopUA,
+	getRandomDesktopUA,
+	getRandomMobileUA,
+	MOBILE_USER_AGENTS,
+	STEALTH_BROWSER_ARGS,
+} from './stealth';
+// Stealth browser
+export { type BrowserOptions, createBrowser, createBrowserContext } from './stealth-browser';
 
 // Types
 export {
-	type Result,
-	ok,
-	err,
-	type ScraperErrorType,
-	type ScraperError,
-	scraperError,
-	type ScraperOptions,
-	type DataSource,
-	type ImpactLevel,
-	type CalendarEvent,
 	type BrowserLaunchOptions,
 	type BrowserSession,
+	type CalendarEvent,
+	type DataSource,
+	err,
+	type ImpactLevel,
+	ok,
+	type Result,
+	type ScraperError,
+	type ScraperErrorType,
+	type ScraperOptions,
+	scraperError,
 } from './types';

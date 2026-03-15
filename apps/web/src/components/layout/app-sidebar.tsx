@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { TrendingUp } from "lucide-react";
-import { signOut, useSession } from "next-auth/react";
+import { TrendingUp } from 'lucide-react';
+import { signOut, useSession } from 'next-auth/react';
 import {
 	Sidebar,
 	SidebarContent,
@@ -11,15 +11,15 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarRail,
-} from "@/components/ui/sidebar";
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
+} from '@/components/ui/sidebar';
+import { NavMain } from './nav-main';
+import { NavUser } from './nav-user';
 
 export function AppSidebar() {
 	const { data: session } = useSession();
 
 	const user = session?.user
-		? { name: session.user.name ?? null, email: session.user.email ?? "" }
+		? { name: session.user.name ?? null, email: session.user.email ?? '' }
 		: null;
 
 	return (
@@ -45,10 +45,7 @@ export function AppSidebar() {
 				<NavMain />
 			</SidebarContent>
 			<SidebarFooter>
-				<NavUser
-					user={user}
-					onSignOut={() => signOut({ callbackUrl: "/login" })}
-				/>
+				<NavUser user={user} onSignOut={() => signOut({ callbackUrl: '/login' })} />
 			</SidebarFooter>
 			<SidebarRail />
 		</Sidebar>

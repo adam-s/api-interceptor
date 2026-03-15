@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ViewportInfo {
 	width: number;
@@ -22,7 +22,7 @@ interface RemoteBrowserViewerProps {
 	height?: number;
 	/** Called when connection status changes */
 	onStatusChange?: (
-		status: "connecting" | "connected" | "ready" | "disconnected" | "error",
+		status: 'connecting' | 'connected' | 'ready' | 'disconnected' | 'error',
 	) => void;
 	/** Called with WebSocket reference for external control */
 	onWsRef?: (ws: WebSocket | null) => void;
@@ -93,7 +93,7 @@ export function RemoteBrowserViewer({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
-		const ctx = canvas.getContext("2d");
+		const ctx = canvas.getContext('2d');
 		if (!ctx) return;
 
 		pendingFrameRef.current = data;
@@ -104,7 +104,7 @@ export function RemoteBrowserViewer({
 		const frameToRender = pendingFrameRef.current;
 		pendingFrameRef.current = null;
 
-		const blob = new Blob([frameToRender], { type: "image/jpeg" });
+		const blob = new Blob([frameToRender], { type: 'image/jpeg' });
 		const url = URL.createObjectURL(blob);
 		const img = new Image();
 
@@ -134,51 +134,49 @@ export function RemoteBrowserViewer({
 	const connect = useCallback(() => {
 		if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-		onStatusChange?.("connecting");
+		onStatusChange?.('connecting');
 		setIsReady(false);
 		const ws = new WebSocket(wsUrl);
-		ws.binaryType = "arraybuffer";
+		ws.binaryType = 'arraybuffer';
 		wsRef.current = ws;
 		onWsRef?.(ws);
 
 		ws.onopen = () => {
 			setIsConnected(true);
-			onStatusChange?.("connected");
+			onStatusChange?.('connected');
 		};
 
 		ws.onmessage = (event) => {
 			if (event.data instanceof ArrayBuffer) {
 				renderFrame(event.data);
 				setFrameCount((c) => c + 1);
-			} else if (typeof event.data === "string") {
+			} else if (typeof event.data === 'string') {
 				try {
 					const message = JSON.parse(event.data);
 					onMessage?.(message);
 
-					if (message.type === "ready") {
+					if (message.type === 'ready') {
 						setViewport({
 							width: message.viewport.width,
 							height: message.viewport.height,
 						});
 						setIsReady(true);
-						onStatusChange?.("ready");
-					} else if (message.type === "viewport") {
+						onStatusChange?.('ready');
+					} else if (message.type === 'viewport') {
 						setViewport({
 							width: message.width,
 							height: message.height,
 						});
-					} else if (message.type === "url") {
+					} else if (message.type === 'url') {
 						onUrl?.(message.url);
-					} else if (message.type === "clipboard") {
+					} else if (message.type === 'clipboard') {
 						if (message.text) {
-							navigator.clipboard
-								.writeText(message.text as string)
-								.catch(() => {});
+							navigator.clipboard.writeText(message.text as string).catch(() => {});
 						}
-					} else if (message.type === "crash") {
+					} else if (message.type === 'crash') {
 						setIsConnected(false);
 						setIsReady(false);
-						onStatusChange?.("error");
+						onStatusChange?.('error');
 					}
 				} catch {
 					// Ignore parse errors
@@ -189,15 +187,13 @@ export function RemoteBrowserViewer({
 		ws.onclose = (event) => {
 			setIsConnected(false);
 			setIsReady(false);
-			onStatusChange?.(
-				event.code === 1000 ? "disconnected" : "error",
-			);
+			onStatusChange?.(event.code === 1000 ? 'disconnected' : 'error');
 			wsRef.current = null;
 			onWsRef?.(null);
 		};
 
 		ws.onerror = () => {
-			onStatusChange?.("error");
+			onStatusChange?.('error');
 		};
 	}, [wsUrl, onStatusChange, onWsRef, onUrl, onMessage, renderFrame]);
 
@@ -248,7 +244,7 @@ export function RemoteBrowserViewer({
 
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
-				sendMessage({ type: "mousemove", x: coords.x, y: coords.y });
+				sendMessage({ type: 'mousemove', x: coords.x, y: coords.y });
 			}
 		},
 		[screenToViewport, sendMessage],
@@ -258,14 +254,9 @@ export function RemoteBrowserViewer({
 		(e: React.MouseEvent<HTMLCanvasElement>) => {
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
-				const button =
-					e.button === 2
-						? "right"
-						: e.button === 1
-							? "middle"
-							: "left";
+				const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
 				sendMessage({
-					type: "click",
+					type: 'click',
 					x: coords.x,
 					y: coords.y,
 					button,
@@ -280,7 +271,7 @@ export function RemoteBrowserViewer({
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
 				sendMessage({
-					type: "dblclick",
+					type: 'dblclick',
 					x: coords.x,
 					y: coords.y,
 				});
@@ -295,10 +286,10 @@ export function RemoteBrowserViewer({
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
 				sendMessage({
-					type: "click",
+					type: 'click',
 					x: coords.x,
 					y: coords.y,
-					button: "right",
+					button: 'right',
 				});
 			}
 		},
@@ -310,12 +301,12 @@ export function RemoteBrowserViewer({
 			e.preventDefault();
 
 			// Handle Cmd/Ctrl+V paste
-			if ((e.metaKey || e.ctrlKey) && e.key === "v") {
+			if ((e.metaKey || e.ctrlKey) && e.key === 'v') {
 				navigator.clipboard
 					.readText()
 					.then((text) => {
 						if (text) {
-							sendMessage({ type: "paste", text });
+							sendMessage({ type: 'paste', text });
 						}
 					})
 					.catch(() => {});
@@ -323,16 +314,16 @@ export function RemoteBrowserViewer({
 			}
 
 			// Handle Cmd/Ctrl+C copy
-			if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-				sendMessage({ type: "copy" });
+			if ((e.metaKey || e.ctrlKey) && e.key === 'c') {
+				sendMessage({ type: 'copy' });
 				return;
 			}
 
 			// Special keys
 			if (e.key.length > 1) {
-				sendMessage({ type: "key", key: e.key });
+				sendMessage({ type: 'key', key: e.key });
 			} else {
-				sendMessage({ type: "type", text: e.key });
+				sendMessage({ type: 'type', text: e.key });
 			}
 		},
 		[sendMessage],
@@ -347,7 +338,7 @@ export function RemoteBrowserViewer({
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
 				sendMessage({
-					type: "scroll",
+					type: 'scroll',
 					x: coords.x,
 					y: coords.y,
 					deltaX: Math.round(e.deltaX),
@@ -363,9 +354,9 @@ export function RemoteBrowserViewer({
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
-		canvas.addEventListener("wheel", handleWheel, { passive: false });
+		canvas.addEventListener('wheel', handleWheel, { passive: false });
 		return () => {
-			canvas.removeEventListener("wheel", handleWheel);
+			canvas.removeEventListener('wheel', handleWheel);
 		};
 	}, [handleWheel]);
 
@@ -394,7 +385,7 @@ export function RemoteBrowserViewer({
 	}, [autoConnect, connect]);
 
 	return (
-		<div className={className || "flex flex-col gap-4"}>
+		<div className={className || 'flex flex-col gap-4'}>
 			<canvas
 				ref={canvasRef}
 				width={viewport.width}
@@ -406,9 +397,8 @@ export function RemoteBrowserViewer({
 				onKeyDown={handleKeyDown}
 				tabIndex={0}
 				className="cursor-crosshair rounded border border-border focus:outline-none focus:ring-2 focus:ring-ring"
-				style={{ maxWidth: "100%", height: "auto" }}
+				style={{ maxWidth: '100%', height: 'auto' }}
 			/>
-
 		</div>
 	);
 }

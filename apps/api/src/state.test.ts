@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { WSContext } from 'hono/ws';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	_getClients,
 	_reset,
@@ -7,8 +8,7 @@ import {
 	removeClient,
 	setMultiplier,
 	setRunning,
-} from "./state";
-import type { WSContext } from "hono/ws";
+} from './state';
 
 function mockWs() {
 	return {
@@ -18,7 +18,7 @@ function mockWs() {
 	} as unknown as WSContext;
 }
 
-describe("state", () => {
+describe('state', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 		_reset();
@@ -29,7 +29,7 @@ describe("state", () => {
 		vi.useRealTimers();
 	});
 
-	it("has correct initial state", () => {
+	it('has correct initial state', () => {
 		const s = getState();
 		expect(s.multiplier).toBe(1);
 		expect(s.count).toBe(0);
@@ -37,26 +37,26 @@ describe("state", () => {
 		expect(s.connections).toBe(0);
 	});
 
-	it("setMultiplier updates the value", () => {
+	it('setMultiplier updates the value', () => {
 		setMultiplier(2.5);
 		expect(getState().multiplier).toBe(2.5);
 	});
 
-	it("setMultiplier clamps to range [-10, 10]", () => {
+	it('setMultiplier clamps to range [-10, 10]', () => {
 		setMultiplier(99);
 		expect(getState().multiplier).toBe(10);
 		setMultiplier(-99);
 		expect(getState().multiplier).toBe(-10);
 	});
 
-	it("increment and decrement via setMultiplier", () => {
+	it('increment and decrement via setMultiplier', () => {
 		setMultiplier(getState().multiplier + 1);
 		expect(getState().multiplier).toBe(2);
 		setMultiplier(getState().multiplier - 1);
 		expect(getState().multiplier).toBe(1);
 	});
 
-	it("broadcasts to connected clients on state change", () => {
+	it('broadcasts to connected clients on state change', () => {
 		const ws = mockWs();
 		addClient(ws);
 		// addClient sends initial state — clear that call
@@ -65,10 +65,8 @@ describe("state", () => {
 		setMultiplier(5);
 		expect(ws.send).toHaveBeenCalledTimes(1);
 
-		const message = JSON.parse(
-			(ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0],
-		);
-		expect(message.type).toBe("state");
+		const message = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+		expect(message.type).toBe('state');
 		expect(message.data.multiplier).toBe(5);
 	});
 
@@ -78,17 +76,14 @@ describe("state", () => {
 		(ws.send as ReturnType<typeof vi.fn>).mockClear();
 
 		setMultiplier(3);
-		const callsAfterFirst = (ws.send as ReturnType<typeof vi.fn>).mock
-			.calls.length;
+		const callsAfterFirst = (ws.send as ReturnType<typeof vi.fn>).mock.calls.length;
 
 		// Setting same value again — should not broadcast
 		setMultiplier(3);
-		expect((ws.send as ReturnType<typeof vi.fn>).mock.calls.length).toBe(
-			callsAfterFirst,
-		);
+		expect((ws.send as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsAfterFirst);
 	});
 
-	it("tracks client connections", () => {
+	it('tracks client connections', () => {
 		const ws1 = mockWs();
 		const ws2 = mockWs();
 		const ws3 = mockWs();
@@ -102,7 +97,7 @@ describe("state", () => {
 		expect(getState().connections).toBe(2);
 	});
 
-	it("removes client on add and remove", () => {
+	it('removes client on add and remove', () => {
 		const ws = mockWs();
 		const client = addClient(ws);
 		expect(_getClients().size).toBe(1);
@@ -111,7 +106,7 @@ describe("state", () => {
 		expect(_getClients().size).toBe(0);
 	});
 
-	it("tick increments count by multiplier", () => {
+	it('tick increments count by multiplier', () => {
 		const ws = mockWs();
 		addClient(ws); // starts tick since running=true
 
@@ -122,7 +117,7 @@ describe("state", () => {
 		expect(getState().count).toBe(2);
 	});
 
-	it("tick respects multiplier value", () => {
+	it('tick respects multiplier value', () => {
 		const ws = mockWs();
 		addClient(ws);
 		setMultiplier(3);
@@ -133,7 +128,7 @@ describe("state", () => {
 		expect(getState().count).toBe(6);
 	});
 
-	it("pause stops ticking", () => {
+	it('pause stops ticking', () => {
 		const ws = mockWs();
 		addClient(ws);
 
@@ -148,7 +143,7 @@ describe("state", () => {
 		expect(getState().count).toBe(countBefore); // unchanged
 	});
 
-	it("play resumes ticking", () => {
+	it('play resumes ticking', () => {
 		const ws = mockWs();
 		addClient(ws);
 

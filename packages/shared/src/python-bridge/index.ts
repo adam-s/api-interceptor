@@ -1,8 +1,8 @@
-export { PythonBridge } from "./bridge";
-export { BridgeError } from "./types";
+export { PythonBridge } from './bridge';
 export type {
-	PythonBridgeConfig,
+	BridgeReadyMessage,
 	BridgeRequest,
 	BridgeResponse,
-	BridgeReadyMessage,
-} from "./types";
+	PythonBridgeConfig,
+} from './types';
+export { BridgeError } from './types';

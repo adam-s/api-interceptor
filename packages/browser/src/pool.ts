@@ -7,9 +7,9 @@
  * @module browser
  */
 
-import { type BrowserConfig, getBrowserConfig } from './config';
 import type { Browser, BrowserContext, Page } from 'patchright';
 import { chromium } from 'patchright';
+import { type BrowserConfig, getBrowserConfig } from './config';
 
 // =============================================================================
 // Types

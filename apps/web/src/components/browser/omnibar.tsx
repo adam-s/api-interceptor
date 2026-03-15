@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { ArrowLeft, ArrowRight, Home, RotateCw } from "lucide-react";
-import { useCallback, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowLeft, ArrowRight, Home, RotateCw } from 'lucide-react';
+import { useCallback, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface OmnibarProps {
 	url: string;
@@ -14,12 +14,7 @@ interface OmnibarProps {
 	onReload: () => void;
 	onHome: () => void;
 	disabled?: boolean;
-	status?:
-		| "connecting"
-		| "connected"
-		| "ready"
-		| "disconnected"
-		| "error";
+	status?: 'connecting' | 'connected' | 'ready' | 'disconnected' | 'error';
 }
 
 /**
@@ -34,7 +29,7 @@ export function Omnibar({
 	onReload,
 	onHome,
 	disabled = false,
-	status = "disconnected",
+	status = 'disconnected',
 }: OmnibarProps) {
 	const [inputValue, setInputValue] = useState(url);
 
@@ -61,20 +56,20 @@ export function Omnibar({
 	);
 
 	// Update input when URL prop changes (e.g., from navigation)
-	if (url !== inputValue && url !== "") {
+	if (url !== inputValue && url !== '') {
 		setInputValue(url);
 	}
 
 	const statusColor =
-		status === "ready"
-			? "bg-green-500"
-			: status === "connected"
-				? "bg-yellow-500"
-				: status === "connecting"
-					? "bg-yellow-500 animate-pulse"
-					: status === "error"
-						? "bg-red-500"
-						: "bg-muted-foreground";
+		status === 'ready'
+			? 'bg-green-500'
+			: status === 'connected'
+				? 'bg-yellow-500'
+				: status === 'connecting'
+					? 'bg-yellow-500 animate-pulse'
+					: status === 'error'
+						? 'bg-red-500'
+						: 'bg-muted-foreground';
 
 	return (
 		<div className="flex items-center gap-2 border-b border-border bg-card px-4 py-2">
@@ -123,10 +118,7 @@ export function Omnibar({
 			</div>
 
 			{/* URL input */}
-			<form
-				onSubmit={handleSubmit}
-				className="flex flex-1 items-center gap-2"
-			>
+			<form onSubmit={handleSubmit} className="flex flex-1 items-center gap-2">
 				<div className="relative flex-1">
 					<Input
 						type="text"

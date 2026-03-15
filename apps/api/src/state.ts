@@ -1,4 +1,4 @@
-import type { WSContext } from "hono/ws";
+import type { WSContext } from 'hono/ws';
 
 // --- Mutable server-side state ---
 
@@ -6,7 +6,7 @@ let multiplier = 1;
 let count = 0;
 let running = true;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
-let lastJson = "";
+let lastJson = '';
 let history: number[] = [];
 
 const MAX_HISTORY = 20;
@@ -52,7 +52,7 @@ export function resetState(): State {
 	multiplier = 1;
 	count = 0;
 	running = true;
-	lastJson = "";
+	lastJson = '';
 	history = [];
 	stopTick();
 	if (clients.size > 0) startTick();
@@ -98,7 +98,7 @@ export function _reset(): void {
 	multiplier = 1;
 	count = 0;
 	running = true;
-	lastJson = "";
+	lastJson = '';
 	history = [];
 	stopTick();
 	clients.clear();
@@ -130,7 +130,7 @@ function stopTick(): void {
 
 function broadcast(): void {
 	const state = getState();
-	const json = JSON.stringify({ type: "state", data: state });
+	const json = JSON.stringify({ type: 'state', data: state });
 	// Dedup: don't send if nothing changed (prevents React flashing)
 	if (json === lastJson) return;
 	lastJson = json;
@@ -143,7 +143,7 @@ function broadcast(): void {
 function sendTo(client: WsClient, state: State): void {
 	if (client.closed) return;
 	try {
-		client.ws.send(JSON.stringify({ type: "state", data: state }));
+		client.ws.send(JSON.stringify({ type: 'state', data: state }));
 	} catch {
 		// Client disconnected — remove silently
 		client.closed = true;

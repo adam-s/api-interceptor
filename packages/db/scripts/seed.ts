@@ -1,16 +1,16 @@
-import * as dotenv from "dotenv";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { hash } from "bcryptjs";
-import { db, eq, closeDb } from "../src/index";
-import { users } from "../src/schema";
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { hash } from 'bcryptjs';
+import * as dotenv from 'dotenv';
+import { closeDb, db, eq } from '../src/index';
+import { users } from '../src/schema';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: join(__dirname, "../../../.env") });
+dotenv.config({ path: join(__dirname, '../../../.env') });
 
 async function seed() {
-	const email = "admin@example.com";
-	const password = "Admin123!";
+	const email = 'admin@example.com';
+	const password = 'Admin123!';
 
 	const existing = await db
 		.select({ id: users.id })
@@ -25,8 +25,8 @@ async function seed() {
 		await db.insert(users).values({
 			email,
 			passwordHash,
-			name: "Admin",
-			role: "admin",
+			name: 'Admin',
+			role: 'admin',
 		});
 		console.log(`Admin user created: ${email} / ${password}`);
 	}
@@ -35,6 +35,6 @@ async function seed() {
 }
 
 seed().catch((err) => {
-	console.error("Seed failed:", err);
+	console.error('Seed failed:', err);
 	process.exit(1);
 });

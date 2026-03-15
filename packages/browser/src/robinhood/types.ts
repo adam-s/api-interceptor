@@ -150,24 +150,26 @@ export const StrategyTemplateLegSchema = z.object({
 });
 
 /** Strategy chain template from bonfire /options/strategy_chain_template/v1/ */
-export const StrategyChainTemplateResponseSchema = z.object({
-	allowed_levels: z.array(z.string()),
-	strategy: z.string(),
-	intended_direction: z.string(),
-	strategy_display_name: z.string(),
-	subtitle: z.string().optional(),
-	chain_header: z.string().optional(),
-	edu_contentful_id: z.string().optional(),
-	strategy_template: z.object({
-		template_type: z.string(),
-		first_leg: StrategyTemplateLegSchema.optional(),
-		second_leg: StrategyTemplateLegSchema.optional(),
-		third_leg: StrategyTemplateLegSchema.optional(),
-		fourth_leg: StrategyTemplateLegSchema.optional(),
-		strike_condition: z.string().optional(),
-	}),
-	sentiment: z.string(),
-}).passthrough();
+export const StrategyChainTemplateResponseSchema = z
+	.object({
+		allowed_levels: z.array(z.string()),
+		strategy: z.string(),
+		intended_direction: z.string(),
+		strategy_display_name: z.string(),
+		subtitle: z.string().optional(),
+		chain_header: z.string().optional(),
+		edu_contentful_id: z.string().optional(),
+		strategy_template: z.object({
+			template_type: z.string(),
+			first_leg: StrategyTemplateLegSchema.optional(),
+			second_leg: StrategyTemplateLegSchema.optional(),
+			third_leg: StrategyTemplateLegSchema.optional(),
+			fourth_leg: StrategyTemplateLegSchema.optional(),
+			strike_condition: z.string().optional(),
+		}),
+		sentiment: z.string(),
+	})
+	.passthrough();
 export type StrategyChainTemplateResponse = z.infer<typeof StrategyChainTemplateResponseSchema>;
 
 // =============================================================================

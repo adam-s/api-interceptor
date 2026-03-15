@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import dynamic from "next/dynamic";
+import dynamic from 'next/dynamic';
 
-const BrowserContent = dynamic(() => import("./browser-content"), {
+const BrowserContent = dynamic(() => import('./browser-content'), {
 	ssr: false,
 });
 

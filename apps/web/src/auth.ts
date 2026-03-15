@@ -1,17 +1,17 @@
-import NextAuth from "next-auth";
-import type { NextAuthResult } from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
-import { db, eq } from "@interceptor/db";
-import { users } from "@interceptor/db/schema";
+import { db, eq } from '@interceptor/db';
+import { users } from '@interceptor/db/schema';
+import { compare } from 'bcryptjs';
+import type { NextAuthResult } from 'next-auth';
+import NextAuth from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 
 const nextAuth = NextAuth({
 	trustHost: true,
 	pages: {
-		signIn: "/login",
+		signIn: '/login',
 	},
 	session: {
-		strategy: "jwt",
+		strategy: 'jwt',
 	},
 	providers: [
 		Credentials({
@@ -25,11 +25,7 @@ const nextAuth = NextAuth({
 
 				if (!email || !password) return null;
 
-				const [user] = await db
-					.select()
-					.from(users)
-					.where(eq(users.email, email))
-					.limit(1);
+				const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
 				if (!user) return null;
 
@@ -64,7 +60,7 @@ const nextAuth = NextAuth({
 });
 
 // Explicit typed exports to avoid TS2742 in pnpm monorepos
-export const handlers: NextAuthResult["handlers"] = nextAuth.handlers;
-export const auth: NextAuthResult["auth"] = nextAuth.auth;
-export const signIn: NextAuthResult["signIn"] = nextAuth.signIn;
-export const signOut: NextAuthResult["signOut"] = nextAuth.signOut;
+export const handlers: NextAuthResult['handlers'] = nextAuth.handlers;
+export const auth: NextAuthResult['auth'] = nextAuth.auth;
+export const signIn: NextAuthResult['signIn'] = nextAuth.signIn;
+export const signOut: NextAuthResult['signOut'] = nextAuth.signOut;

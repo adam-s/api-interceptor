@@ -7,17 +7,17 @@
  */
 
 export { RobinhoodApiClient, type VerificationResult } from './api-client';
-export { RobinhoodAuthService, type RobinhoodAuthConfig } from './auth';
+export { type RobinhoodAuthConfig, RobinhoodAuthService } from './auth';
 export {
-	RobinhoodInterceptor,
 	type InterceptedRequest,
 	type InterceptedResponse,
 	type InterceptionCallback,
+	RobinhoodInterceptor,
 } from './interceptor';
 export { RobinhoodSessionManager } from './session-manager';
 export {
 	type AuthState,
+	REQUIRED_HEADER_NAMES,
 	type RobinhoodHeaders,
 	RobinhoodHeadersSchema,
-	REQUIRED_HEADER_NAMES,
 } from './types';

@@ -1,33 +1,33 @@
-"use server";
+'use server';
 
-import { AuthError } from "next-auth";
-import { hash } from "bcryptjs";
-import { db, eq } from "@interceptor/db";
-import { users } from "@interceptor/db/schema";
-import { signIn } from "@/auth";
-import { loginSchema, registerSchema } from "@/lib/validations/auth";
+import { db, eq } from '@interceptor/db';
+import { users } from '@interceptor/db/schema';
+import { hash } from 'bcryptjs';
+import { AuthError } from 'next-auth';
+import { signIn } from '@/auth';
+import { loginSchema, registerSchema } from '@/lib/validations/auth';
 
 export async function login(_prevState: unknown, formData: FormData) {
 	const raw = {
-		email: formData.get("email") as string,
-		password: formData.get("password") as string,
+		email: formData.get('email') as string,
+		password: formData.get('password') as string,
 	};
 
 	const parsed = loginSchema.safeParse(raw);
 	if (!parsed.success) {
-		return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+		return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 	}
 
 	try {
-		await signIn("credentials", {
+		await signIn('credentials', {
 			email: parsed.data.email,
 			password: parsed.data.password,
-			redirectTo: "/dashboard",
+			redirectTo: '/dashboard',
 		});
 	} catch (error) {
 		// AuthError = invalid credentials. Re-throw everything else (including NEXT_REDIRECT).
 		if (error instanceof AuthError) {
-			return { error: "Invalid email or password" };
+			return { error: 'Invalid email or password' };
 		}
 		throw error;
 	}
@@ -35,15 +35,15 @@ export async function login(_prevState: unknown, formData: FormData) {
 
 export async function register(_prevState: unknown, formData: FormData) {
 	const raw = {
-		name: formData.get("name") as string,
-		email: formData.get("email") as string,
-		password: formData.get("password") as string,
-		confirmPassword: formData.get("confirmPassword") as string,
+		name: formData.get('name') as string,
+		email: formData.get('email') as string,
+		password: formData.get('password') as string,
+		confirmPassword: formData.get('confirmPassword') as string,
 	};
 
 	const parsed = registerSchema.safeParse(raw);
 	if (!parsed.success) {
-		return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+		return { error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 	}
 
 	const existing = await db
@@ -53,7 +53,7 @@ export async function register(_prevState: unknown, formData: FormData) {
 		.limit(1);
 
 	if (existing.length > 0) {
-		return { error: "An account with this email already exists" };
+		return { error: 'An account with this email already exists' };
 	}
 
 	const passwordHash = await hash(parsed.data.password, 12);
@@ -65,14 +65,14 @@ export async function register(_prevState: unknown, formData: FormData) {
 	});
 
 	try {
-		await signIn("credentials", {
+		await signIn('credentials', {
 			email: parsed.data.email,
 			password: parsed.data.password,
-			redirectTo: "/dashboard",
+			redirectTo: '/dashboard',
 		});
 	} catch (error) {
 		if (error instanceof AuthError) {
-			return { error: "Registration failed" };
+			return { error: 'Registration failed' };
 		}
 		throw error;
 	}

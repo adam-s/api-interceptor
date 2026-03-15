@@ -1,4 +1,4 @@
-import MultiplierPanel from "./multiplier-panel";
+import MultiplierPanel from './multiplier-panel';
 
 export default function DashboardPage() {
 	return (

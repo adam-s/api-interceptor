@@ -1,8 +1,8 @@
-import { defineProject } from "vitest/config";
+import { defineProject } from 'vitest/config';
 
 export default defineProject({
 	test: {
-		name: "api",
-		include: ["src/**/*.test.ts"],
+		name: 'api',
+		include: ['src/**/*.test.ts'],
 	},
 });

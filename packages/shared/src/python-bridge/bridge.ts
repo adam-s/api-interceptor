@@ -16,21 +16,21 @@
  * ```
  */
 
-import type { ChildProcess } from "node:child_process";
-import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { dirname } from "node:path";
-import { createInterface, type Interface } from "node:readline";
-import { DEBUG } from "../debug";
+import type { ChildProcess } from 'node:child_process';
+import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { dirname } from 'node:path';
+import { createInterface, type Interface } from 'node:readline';
+import { DEBUG } from '../debug';
 import {
 	BridgeError,
 	type BridgeReadyMessage,
 	type BridgeResponse,
 	type PythonBridgeConfig,
-} from "./types";
+} from './types';
 
 const DEFAULTS = {
-	pythonPath: "python3",
+	pythonPath: 'python3',
 	timeoutMs: 5_000,
 	startupTimeoutMs: 5_000,
 } as const;
@@ -41,7 +41,7 @@ export class PythonBridge {
 	private availableMethods: string[] = [];
 
 	private readonly config: Required<
-		Pick<PythonBridgeConfig, "pythonPath" | "timeoutMs" | "startupTimeoutMs">
+		Pick<PythonBridgeConfig, 'pythonPath' | 'timeoutMs' | 'startupTimeoutMs'>
 	> &
 		PythonBridgeConfig;
 
@@ -66,46 +66,46 @@ export class PythonBridge {
 	/** Start the Python worker process */
 	async start(): Promise<void> {
 		if (this.process) {
-			throw new BridgeError("Bridge already started");
+			throw new BridgeError('Bridge already started');
 		}
 
 		const workerPath = this.config.workerPath;
 		// PYTHONPATH = parent of parent of worker.py (e.g., services/python)
 		const pythonPath = dirname(dirname(workerPath));
 
-		DEBUG("PythonBridge.start", "spawning worker", () => ({ workerPath }));
+		DEBUG('PythonBridge.start', 'spawning worker', () => ({ workerPath }));
 
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.cleanup();
-				reject(new BridgeError("Worker startup timeout", -32000));
+				reject(new BridgeError('Worker startup timeout', -32000));
 			}, this.config.startupTimeoutMs);
 
 			// -u flag: unbuffered stdout — without it, responses may buffer indefinitely
 			const env = {
 				...globalThis.process.env,
-				PYTHONUNBUFFERED: "1",
+				PYTHONUNBUFFERED: '1',
 				PYTHONPATH: pythonPath,
 			};
-			this.process = spawn(this.config.pythonPath, ["-u", workerPath], {
+			this.process = spawn(this.config.pythonPath, ['-u', workerPath], {
 				cwd: pythonPath,
 				env,
-				stdio: ["pipe", "pipe", "pipe"],
+				stdio: ['pipe', 'pipe', 'pipe'],
 			});
 
-			this.process.on("error", (err: Error) => {
+			this.process.on('error', (err: Error) => {
 				clearTimeout(timeout);
 				this.cleanup();
 				reject(new BridgeError(`Failed to start worker: ${err.message}`));
 			});
 
-			this.process.on("exit", () => {
+			this.process.on('exit', () => {
 				this.cleanup();
 			});
 
 			// Stderr → console (never touches the RPC channel).
 			// Python's DEBUG() writes to the log file directly — no relay needed.
-			this.process.stderr?.on("data", (data: Buffer) => {
+			this.process.stderr?.on('data', (data: Buffer) => {
 				const msg = data.toString().trim();
 				if (msg) {
 					console.error(`[python-bridge:stderr] ${msg}`);
@@ -115,7 +115,7 @@ export class PythonBridge {
 			const stdout = this.process.stdout;
 			if (!stdout) {
 				clearTimeout(timeout);
-				reject(new BridgeError("Process stdout not available"));
+				reject(new BridgeError('Process stdout not available'));
 				return;
 			}
 
@@ -124,7 +124,7 @@ export class PythonBridge {
 				crlfDelay: Number.POSITIVE_INFINITY,
 			});
 
-			this.readline.on("line", (line: string) => {
+			this.readline.on('line', (line: string) => {
 				this.handleMessage(line);
 			});
 
@@ -132,10 +132,10 @@ export class PythonBridge {
 			const onReady = (rawLine: string) => {
 				try {
 					const msg = JSON.parse(rawLine.trim()) as BridgeReadyMessage;
-					if (msg.type === "ready") {
+					if (msg.type === 'ready') {
 						clearTimeout(timeout);
 						this.availableMethods = msg.methods;
-						DEBUG("PythonBridge.start", "worker ready", () => ({
+						DEBUG('PythonBridge.start', 'worker ready', () => ({
 							methods: msg.methods,
 						}));
 						resolve();
@@ -145,7 +145,7 @@ export class PythonBridge {
 				}
 			};
 
-			this.readline.once("line", onReady);
+			this.readline.once('line', onReady);
 		});
 	}
 
@@ -154,11 +154,11 @@ export class PythonBridge {
 		const proc = this.process;
 		if (!proc) return;
 
-		DEBUG("PythonBridge.stop", "stopping worker");
+		DEBUG('PythonBridge.stop', 'stopping worker');
 
 		// Reject all pending requests
 		for (const [id, pending] of this.pending) {
-			pending.reject(new BridgeError("Bridge stopped"));
+			pending.reject(new BridgeError('Bridge stopped'));
 			this.pending.delete(id);
 		}
 
@@ -177,41 +177,33 @@ export class PythonBridge {
 
 			const forceKill = setTimeout(() => {
 				try {
-					proc.kill("SIGKILL");
+					proc.kill('SIGKILL');
 				} catch {
 					// Already exited
 				}
 				done();
 			}, 1000);
 
-			proc.once("exit", done);
+			proc.once('exit', done);
 		});
 	}
 
 	/** Call a Python method and return the typed result */
-	async call<T>(
-		method: string,
-		params: Record<string, unknown> = {},
-	): Promise<T> {
+	async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
 		if (!this.process?.stdin) {
-			throw new BridgeError("Bridge not started");
+			throw new BridgeError('Bridge not started');
 		}
 
 		const id = randomUUID();
 
-		DEBUG("PythonBridge.call", `method="${method}"`, () => ({
+		DEBUG('PythonBridge.call', `method="${method}"`, () => ({
 			paramKeys: Object.keys(params),
 		}));
 
 		return new Promise((resolve, reject) => {
 			const timeout = setTimeout(() => {
 				this.pending.delete(id);
-				reject(
-					new BridgeError(
-						`Request timeout after ${this.config.timeoutMs}ms`,
-						-32001,
-					),
-				);
+				reject(new BridgeError(`Request timeout after ${this.config.timeoutMs}ms`, -32001));
 			}, this.config.timeoutMs);
 
 			this.pending.set(id, {
@@ -238,11 +230,7 @@ export class PythonBridge {
 
 	/** Check if the worker process is alive */
 	isConnected(): boolean {
-		return (
-			this.process !== null &&
-			!this.process.killed &&
-			this.process.exitCode === null
-		);
+		return this.process !== null && !this.process.killed && this.process.exitCode === null;
 	}
 
 	/** Get the methods the worker advertised in its ready message */
@@ -259,7 +247,7 @@ export class PythonBridge {
 			const response = JSON.parse(line) as BridgeResponse;
 
 			// Skip non-response messages (like ready)
-			if (!("id" in response)) return;
+			if (!('id' in response)) return;
 
 			const pending = this.pending.get(response.id);
 			if (!pending) return;
@@ -267,9 +255,7 @@ export class PythonBridge {
 			this.pending.delete(response.id);
 
 			if (response.error) {
-				pending.reject(
-					new BridgeError(response.error.message, response.error.code),
-				);
+				pending.reject(new BridgeError(response.error.message, response.error.code));
 			} else {
 				pending.resolve(response.result);
 			}

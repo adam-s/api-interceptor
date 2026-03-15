@@ -5,32 +5,32 @@
  * Run after migrations: `pnpm run setup` chains migrate → this script.
  */
 
-import * as dotenv from "dotenv";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import postgres from "postgres";
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import * as dotenv from 'dotenv';
+import postgres from 'postgres';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-dotenv.config({ path: join(__dirname, "../../../.env") });
+dotenv.config({ path: join(__dirname, '../../../.env') });
 
 const dbUrl = process.env.DATABASE_URL;
 if (!dbUrl) {
-	console.error("DATABASE_URL is not set");
+	console.error('DATABASE_URL is not set');
 	process.exit(1);
 }
 
 const HYPERTABLES = [
 	{
-		table: "daily_bars",
-		timeColumn: "time",
-		chunkInterval: "1 month",
+		table: 'daily_bars',
+		timeColumn: 'time',
+		chunkInterval: '1 month',
 	},
 ];
 
 const sql = postgres(dbUrl, { max: 1 });
 
-console.log("Enabling TimescaleDB extension...");
+console.log('Enabling TimescaleDB extension...');
 await sql`CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE`;
 
 for (const { table, timeColumn, chunkInterval } of HYPERTABLES) {
@@ -58,9 +58,7 @@ for (const { table, timeColumn, chunkInterval } of HYPERTABLES) {
 		continue;
 	}
 
-	console.log(
-		`Converting '${table}' to hypertable (chunk: ${chunkInterval})...`,
-	);
+	console.log(`Converting '${table}' to hypertable (chunk: ${chunkInterval})...`);
 	await sql.unsafe(`
 		SELECT create_hypertable(
 			'${table}', '${timeColumn}',
@@ -72,5 +70,5 @@ for (const { table, timeColumn, chunkInterval } of HYPERTABLES) {
 	console.log(`'${table}' converted.`);
 }
 
-console.log("Hypertable setup complete.");
+console.log('Hypertable setup complete.');
 await sql.end();

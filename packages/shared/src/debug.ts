@@ -11,15 +11,15 @@
  *   DEBUG('location', 'message', () => ({ key: expensiveCall() }))
  */
 
-import { appendFileSync, existsSync, mkdirSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
-export const DEBUG_DIR = "/tmp/interceptor-debug";
+export const DEBUG_DIR = '/tmp/interceptor-debug';
 
 const DEBUG_ENABLED =
-	globalThis.process?.env?.DEBUG_LOGGING === "true" ||
-	(globalThis.process?.env?.NODE_ENV !== "production" &&
-		globalThis.process?.env?.NODE_ENV !== "test");
+	globalThis.process?.env?.DEBUG_LOGGING === 'true' ||
+	(globalThis.process?.env?.NODE_ENV !== 'production' &&
+		globalThis.process?.env?.NODE_ENV !== 'test');
 
 type DataFactory = () => Record<string, unknown>;
 
@@ -35,27 +35,19 @@ function ensureDir(): void {
 export function DEBUG(message: string): void;
 export function DEBUG(location: string, message: string): void;
 export function DEBUG(location: string, dataFactory: DataFactory): void;
-export function DEBUG(
-	location: string,
-	message: string,
-	dataFactory: DataFactory,
-): void;
-export function DEBUG(
-	arg1: string,
-	arg2?: string | DataFactory,
-	arg3?: DataFactory,
-): void {
+export function DEBUG(location: string, message: string, dataFactory: DataFactory): void;
+export function DEBUG(arg1: string, arg2?: string | DataFactory, arg3?: DataFactory): void {
 	if (!DEBUG_ENABLED) return;
 
 	let location: string | undefined;
 	let message: string;
 	let dataFactory: DataFactory | undefined;
 
-	if (typeof arg2 === "function") {
+	if (typeof arg2 === 'function') {
 		location = arg1;
-		message = "debug";
+		message = 'debug';
 		dataFactory = arg2;
-	} else if (typeof arg2 === "string") {
+	} else if (typeof arg2 === 'string') {
 		location = arg1;
 		message = arg2;
 		dataFactory = arg3;
@@ -73,15 +65,15 @@ export function DEBUG(
 	}
 
 	const timestamp = new Date().toISOString();
-	const loc = location ? `[${location}] ` : "";
-	const dataStr = data ? ` ${JSON.stringify(data)}` : "";
+	const loc = location ? `[${location}] ` : '';
+	const dataStr = data ? ` ${JSON.stringify(data)}` : '';
 	const line = `[${timestamp}] [DEBUG] ${loc}${message}${dataStr}`;
 
 	console.log(`\x1b[36m${line}\x1b[0m`);
 
 	try {
 		ensureDir();
-		const date = new Date().toISOString().split("T")[0];
+		const date = new Date().toISOString().split('T')[0];
 		const file = join(DEBUG_DIR, `debug-${date}.log`);
 		appendFileSync(file, `${line}\n`);
 	} catch {
@@ -97,7 +89,7 @@ export function appendDebugLog(line: string): void {
 	if (!DEBUG_ENABLED) return;
 	try {
 		ensureDir();
-		const date = new Date().toISOString().split("T")[0];
+		const date = new Date().toISOString().split('T')[0];
 		const file = join(DEBUG_DIR, `debug-${date}.log`);
 		appendFileSync(file, `${line}\n`);
 	} catch {

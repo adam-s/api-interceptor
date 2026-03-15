@@ -1,6 +1,6 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import * as schema from "./schema";
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from './schema';
 
 // --- Lazy initialization via Proxy ---
 // Importing this module does NOT throw if DATABASE_URL is missing.
@@ -14,9 +14,7 @@ let _db: DbType | null = null;
 function getDbUrl(): string {
 	const url = process.env.DATABASE_URL;
 	if (!url) {
-		throw new Error(
-			"DATABASE_URL is not set. Add it to .env or set it in your environment.",
-		);
+		throw new Error('DATABASE_URL is not set. Add it to .env or set it in your environment.');
 	}
 	return url;
 }
@@ -55,8 +53,7 @@ export async function closeDb(): Promise<void> {
 	}
 }
 
-// Re-export schema
-export * from "./schema";
-
 // Re-export common drizzle utilities for one-stop imports
-export { eq, and, or, sql, desc, asc, gte, lte, ne, gt, lt } from "drizzle-orm";
+export { and, asc, desc, eq, gt, gte, lt, lte, ne, or, sql } from 'drizzle-orm';
+// Re-export schema
+export * from './schema';

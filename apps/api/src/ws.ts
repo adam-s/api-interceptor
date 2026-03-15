@@ -1,6 +1,6 @@
-import { Hono } from "hono";
-import type { WSContext } from "hono/ws";
-import type { UpgradeWebSocket } from "hono/ws";
+import { Hono } from 'hono';
+import type { UpgradeWebSocket, WSContext } from 'hono/ws';
+import { getBridge } from './bridge';
 import {
 	addClient,
 	getState,
@@ -9,23 +9,22 @@ import {
 	setMultiplier,
 	setRunning,
 	type WsClient,
-} from "./state";
-import { getBridge } from "./bridge";
+} from './state';
 
 type InboundMessage =
-	| { type: "increment" }
-	| { type: "decrement" }
-	| { type: "set"; value: number }
-	| { type: "pause" }
-	| { type: "play" }
-	| { type: "reset" }
-	| { type: "compute"; requestId: string; numbers: number[] };
+	| { type: 'increment' }
+	| { type: 'decrement' }
+	| { type: 'set'; value: number }
+	| { type: 'pause' }
+	| { type: 'play' }
+	| { type: 'reset' }
+	| { type: 'compute'; requestId: string; numbers: number[] };
 
 export function createWsApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 	const app = new Hono();
 
 	app.get(
-		"/ws",
+		'/ws',
 		upgradeWebSocket(() => ({
 			onOpen(_event: Event, ws: WSContext) {
 				const client = addClient(ws);
@@ -44,25 +43,25 @@ export function createWsApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 				const state = getState();
 
 				switch (msg.type) {
-					case "increment":
+					case 'increment':
 						setMultiplier(state.multiplier + 1);
 						break;
-					case "decrement":
+					case 'decrement':
 						setMultiplier(state.multiplier - 1);
 						break;
-					case "set":
-						if (typeof msg.value === "number") setMultiplier(msg.value);
+					case 'set':
+						if (typeof msg.value === 'number') setMultiplier(msg.value);
 						break;
-					case "pause":
+					case 'pause':
 						setRunning(false);
 						break;
-					case "play":
+					case 'play':
 						setRunning(true);
 						break;
-					case "reset":
+					case 'reset':
 						resetState();
 						break;
-					case "compute":
+					case 'compute':
 						handleCompute(ws, msg.requestId, msg.numbers);
 						break;
 				}
@@ -78,17 +77,13 @@ export function createWsApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 	return app;
 }
 
-async function handleCompute(
-	ws: WSContext,
-	requestId: string,
-	numbers: number[],
-): Promise<void> {
+async function handleCompute(ws: WSContext, requestId: string, numbers: number[]): Promise<void> {
 	if (!Array.isArray(numbers) || numbers.length < 2) {
 		ws.send(
 			JSON.stringify({
-				type: "compute:error",
+				type: 'compute:error',
 				requestId,
-				error: "Need at least 2 numbers.",
+				error: 'Need at least 2 numbers.',
 			}),
 		);
 		return;
@@ -96,10 +91,10 @@ async function handleCompute(
 
 	try {
 		const bridge = await getBridge();
-		const result = await bridge.call("compute", { numbers });
+		const result = await bridge.call('compute', { numbers });
 		ws.send(
 			JSON.stringify({
-				type: "compute:result",
+				type: 'compute:result',
 				requestId,
 				data: result,
 			}),
@@ -107,7 +102,7 @@ async function handleCompute(
 	} catch (err) {
 		ws.send(
 			JSON.stringify({
-				type: "compute:error",
+				type: 'compute:error',
 				requestId,
 				error: (err as Error).message,
 			}),

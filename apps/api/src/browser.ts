@@ -23,22 +23,22 @@ import {
 	getProfilePath,
 	profileExists,
 	RemoteBrowserService,
-} from "@interceptor/browser/remote";
+} from '@interceptor/browser/remote';
 import {
+	type InterceptedRequest,
+	type InterceptedResponse,
 	RobinhoodApiClient,
 	RobinhoodInterceptor,
 	RobinhoodSessionManager,
-	type InterceptedRequest,
-	type InterceptedResponse,
-} from "@interceptor/browser/robinhood";
-import { Hono } from "hono";
-import type { UpgradeWebSocket } from "hono/ws";
+} from '@interceptor/browser/robinhood';
+import { Hono } from 'hono';
+import type { UpgradeWebSocket } from 'hono/ws';
 
 const VIEWPORT_WIDTH = 1024;
 const VIEWPORT_HEIGHT = 576;
 
 /** Robinhood profile name — triggers automatic interceptor attachment */
-const ROBINHOOD_PROFILE = "robinhood-trading";
+const ROBINHOOD_PROFILE = 'robinhood-trading';
 
 let activeBrowser: RemoteBrowserService | null = null;
 let activeInterceptor: RobinhoodInterceptor | null = null;
@@ -68,10 +68,7 @@ const MAX_BODY_SIZE = 50_000; // characters
 let trafficBuffer: TrafficEntry[] = [];
 let trafficIdCounter = 0;
 
-function addTrafficEntry(
-	req: InterceptedRequest,
-	res: InterceptedResponse,
-): void {
+function addTrafficEntry(req: InterceptedRequest, res: InterceptedResponse): void {
 	let responseBody = res.body;
 	try {
 		const bodyStr = JSON.stringify(responseBody);
@@ -108,13 +105,13 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 	const app = new Hono();
 
 	// Health endpoint
-	app.get("/health", (c) => {
+	app.get('/health', (c) => {
 		const lifecycleManager = BrowserLifecycleManager.getInstance();
 		const loggerMetrics = browserLogger.getMetrics();
 		const managerStatus = lifecycleManager.getStatus();
 
 		return c.json({
-			status: "ok",
+			status: 'ok',
 			browser: {
 				active: activeBrowser !== null,
 				ready: browserReady,
@@ -127,8 +124,8 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 	});
 
 	// Traffic capture endpoints — used by Claude Code for API discovery
-	app.get("/traffic", (c) => {
-		const since = c.req.query("since");
+	app.get('/traffic', (c) => {
+		const since = c.req.query('since');
 		let entries = trafficBuffer;
 		if (since) {
 			const sinceId = Number.parseInt(since, 10);
@@ -144,15 +141,22 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 		});
 	});
 
-	app.get("/traffic/summary", (c) => {
-		const urlPatterns = new Map<string, { count: number; methods: Set<string>; statuses: Set<number> }>();
+	app.get('/traffic/summary', (c) => {
+		const urlPatterns = new Map<
+			string,
+			{ count: number; methods: Set<string>; statuses: Set<number> }
+		>();
 		for (const entry of trafficBuffer) {
 			// Strip IDs/UUIDs from URL to find pattern
 			const pattern = entry.url
-				.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "/{id}")
-				.replace(/\/\d+\//g, "/{id}/")
-				.replace(/\?.*$/, "");
-			const existing = urlPatterns.get(pattern) || { count: 0, methods: new Set(), statuses: new Set() };
+				.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/{id}')
+				.replace(/\/\d+\//g, '/{id}/')
+				.replace(/\?.*$/, '');
+			const existing = urlPatterns.get(pattern) || {
+				count: 0,
+				methods: new Set(),
+				statuses: new Set(),
+			};
 			existing.count++;
 			existing.methods.add(entry.method);
 			existing.statuses.add(entry.status);
@@ -173,7 +177,7 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 		});
 	});
 
-	app.delete("/traffic", (c) => {
+	app.delete('/traffic', (c) => {
 		const count = trafficBuffer.length;
 		trafficBuffer = [];
 		return c.json({ cleared: count });
@@ -181,17 +185,17 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 
 	// Browser stream WebSocket
 	app.get(
-		"/stream",
+		'/stream',
 		upgradeWebSocket((c) => {
-			const profile = c.req.query("profile");
-			const url = c.req.query("url");
+			const profile = c.req.query('profile');
+			const url = c.req.query('url');
 			// Comma-separated domains for generic traffic capture (e.g., ?capture=api.example.com,gateway.example.com)
-			const captureDomainsParam = c.req.query("capture");
+			const captureDomainsParam = c.req.query('capture');
 
 			return {
 				async onOpen(_event, ws) {
-					browserLogger.connection("open", {
-						profile: profile || "temp",
+					browserLogger.connection('open', {
+						profile: profile || 'temp',
 						url: url || undefined,
 					});
 
@@ -200,20 +204,18 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 						await lifecycleManager.acquireLock();
 					} catch (lockErr) {
 						browserLogger.error(
-							"lock_timeout",
-							lockErr instanceof Error
-								? lockErr
-								: new Error(String(lockErr)),
+							'lock_timeout',
+							lockErr instanceof Error ? lockErr : new Error(String(lockErr)),
 							{ profile },
 						);
 						try {
 							ws.send(
 								JSON.stringify({
-									type: "error",
-									message: "Browser lock timed out — try reconnecting",
+									type: 'error',
+									message: 'Browser lock timed out — try reconnecting',
 								}),
 							);
-							ws.close(1011, "Lock timeout");
+							ws.close(1011, 'Lock timeout');
 						} catch {
 							// Client may have disconnected
 						}
@@ -223,8 +225,8 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 					try {
 						// Clean up existing browser instance
 						if (activeBrowser) {
-							browserLogger.lifecycle("cleanup_existing", {
-								profile: currentProfile || "unknown",
+							browserLogger.lifecycle('cleanup_existing', {
+								profile: currentProfile || 'unknown',
 							});
 							try {
 								if (activeInterceptor) {
@@ -232,15 +234,13 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 									activeInterceptor = null;
 								}
 								await activeBrowser.stop();
-								browserLogger.lifecycle("cleanup_success", {
-									profile: currentProfile || "unknown",
+								browserLogger.lifecycle('cleanup_success', {
+									profile: currentProfile || 'unknown',
 								});
 							} catch (cleanupErr) {
 								browserLogger.error(
-									"cleanup_failed",
-									cleanupErr instanceof Error
-										? cleanupErr
-										: new Error(String(cleanupErr)),
+									'cleanup_failed',
+									cleanupErr instanceof Error ? cleanupErr : new Error(String(cleanupErr)),
 									{ profile: currentProfile },
 								);
 							}
@@ -258,13 +258,13 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 						let userDataDir: string | undefined;
 						if (profile) {
 							if (!profileExists(profile)) {
-								browserLogger.profile("create", profile);
+								browserLogger.profile('create', profile);
 								createProfile(profile);
 							}
 							const profilePath = getProfilePath(profile);
 							if (profilePath) {
 								userDataDir = profilePath;
-								browserLogger.profile("load", profile, {
+								browserLogger.profile('load', profile, {
 									path: userDataDir,
 								});
 							}
@@ -280,30 +280,28 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 						});
 
 						try {
-							browserLogger.lifecycle("starting", {
-								profile: profile || "temp",
+							browserLogger.lifecycle('starting', {
+								profile: profile || 'temp',
 								userDataDir,
 							});
 
 							await activeBrowser.start(
 								(frame: FrameData) => {
 									try {
-										ws.send(
-											frame.bytes as Uint8Array<ArrayBuffer>,
-										);
+										ws.send(frame.bytes as Uint8Array<ArrayBuffer>);
 									} catch {
 										// Client may have disconnected
 									}
 								},
 								{
 									onError: (error) => {
-										browserLogger.error("browser_error", error, {
+										browserLogger.error('browser_error', error, {
 											profile,
 										});
 										try {
 											ws.send(
 												JSON.stringify({
-													type: "error",
+													type: 'error',
 													message: error.message,
 												}),
 											);
@@ -312,21 +310,17 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 										}
 									},
 									onCrash: (reason) => {
-										browserLogger.error(
-											"browser_crash",
-											new Error(reason),
-											{ profile },
-										);
+										browserLogger.error('browser_crash', new Error(reason), { profile });
 										browserReady = false;
 										lifecycleManager.unregisterBrowser();
 										try {
 											ws.send(
 												JSON.stringify({
-													type: "crash",
+													type: 'crash',
 													reason,
 												}),
 											);
-											ws.close(1011, "Browser crashed");
+											ws.close(1011, 'Browser crashed');
 										} catch {
 											// Client may have disconnected
 										}
@@ -336,115 +330,81 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 								},
 							);
 
-							browserLogger.lifecycle("started", {
-								profile: profile || "temp",
+							browserLogger.lifecycle('started', {
+								profile: profile || 'temp',
 							});
 							browserReady = true;
 							lifecycleManager.registerBrowser(activeBrowser);
 
 							// Attach Robinhood interceptor for robinhood-trading profile
 							if (profile === ROBINHOOD_PROFILE) {
-								browserLogger.debug(
-									"Attaching Robinhood interceptor",
-								);
+								browserLogger.debug('Attaching Robinhood interceptor');
 
 								const page = activeBrowser.getPage();
 								if (page) {
-									activeInterceptor =
-										new RobinhoodInterceptor();
+									activeInterceptor = new RobinhoodInterceptor();
 
-									activeInterceptor.onHeadersCaptured =
-										async (headers) => {
+									activeInterceptor.onHeadersCaptured = async (headers) => {
+										browserLogger.debug('Robinhood headers captured');
+										const manager = RobinhoodSessionManager.getInstance();
+										manager.setHeaders(ROBINHOOD_PROFILE, headers);
+
+										// Verify credentials with a real API call
+										browserLogger.debug('Verifying Robinhood credentials');
+										const client = new RobinhoodApiClient(headers);
+										const result = await client.verify();
+
+										if (result.valid) {
+											manager.markVerified(ROBINHOOD_PROFILE, {
+												accountNumber: result.accountNumber || '',
+												firstName: result.firstName,
+												lastName: result.lastName,
+												buyingPower: result.buyingPower,
+											});
 											browserLogger.debug(
-												"Robinhood headers captured",
-											);
-											const manager =
-												RobinhoodSessionManager.getInstance();
-											manager.setHeaders(
-												ROBINHOOD_PROFILE,
-												headers,
+												`Robinhood VERIFIED: Account ${result.accountNumber}, ${result.firstName} ${result.lastName}, Buying Power: $${result.buyingPower}`,
 											);
 
-											// Verify credentials with a real API call
-											browserLogger.debug(
-												"Verifying Robinhood credentials",
-											);
-											const client =
-												new RobinhoodApiClient(headers);
-											const result =
-												await client.verify();
-
-											if (result.valid) {
-												manager.markVerified(
-													ROBINHOOD_PROFILE,
-													{
-														accountNumber:
-															result.accountNumber ||
-															"",
-														firstName:
-															result.firstName,
-														lastName:
-															result.lastName,
-														buyingPower:
-															result.buyingPower,
-													},
+											try {
+												ws.send(
+													JSON.stringify({
+														type: 'robinhood_verified',
+														accountNumber: result.accountNumber,
+														firstName: result.firstName,
+														lastName: result.lastName,
+														buyingPower: result.buyingPower,
+													}),
 												);
-												browserLogger.debug(
-													`Robinhood VERIFIED: Account ${result.accountNumber}, ${result.firstName} ${result.lastName}, Buying Power: $${result.buyingPower}`,
-												);
-
-												try {
-													ws.send(
-														JSON.stringify({
-															type: "robinhood_verified",
-															accountNumber:
-																result.accountNumber,
-															firstName:
-																result.firstName,
-															lastName:
-																result.lastName,
-															buyingPower:
-																result.buyingPower,
-														}),
-													);
-												} catch {
-													// Client may have disconnected
-												}
-											} else {
-												manager.markVerificationFailed(
-													ROBINHOOD_PROFILE,
-													result.error ||
-														"Unknown error",
-												);
-												browserLogger.warn(
-													"robinhood_verification_failed",
-													{ error: result.error },
-												);
-
-												try {
-													ws.send(
-														JSON.stringify({
-															type: "robinhood_verification_failed",
-															error: result.error,
-														}),
-													);
-												} catch {
-													// Client may have disconnected
-												}
+											} catch {
+												// Client may have disconnected
 											}
-										};
+										} else {
+											manager.markVerificationFailed(
+												ROBINHOOD_PROFILE,
+												result.error || 'Unknown error',
+											);
+											browserLogger.warn('robinhood_verification_failed', { error: result.error });
+
+											try {
+												ws.send(
+													JSON.stringify({
+														type: 'robinhood_verification_failed',
+														error: result.error,
+													}),
+												);
+											} catch {
+												// Client may have disconnected
+											}
+										}
+									};
 
 									// Wire traffic capture — intercepted req/res pairs go into the buffer
-									activeInterceptor.onIntercept(
-										(req, res) => {
-											addTrafficEntry(req, res);
-										},
-									);
+									activeInterceptor.onIntercept((req, res) => {
+										addTrafficEntry(req, res);
+									});
 
 									await activeInterceptor.attach(page);
-									browserLogger.debug(
-										"Robinhood interceptor attached + traffic capture enabled",
-									);
+									browserLogger.debug('Robinhood interceptor attached + traffic capture enabled');
 								}
 							}
 
@@ -452,71 +412,68 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 							// Use ?capture=api.example.com,gateway.example.com to intercept any domain
 							if (captureDomainsParam && activeBrowser) {
 								const captureDomains = captureDomainsParam
-									.split(",")
+									.split(',')
 									.map((d) => d.trim())
 									.filter(Boolean);
 								const page = activeBrowser.getPage();
 								if (page && captureDomains.length > 0) {
 									for (const domain of captureDomains) {
 										const pattern = `**/${domain}/**`;
-										await page.route(
-											pattern,
-											async (route) => {
-												const request = route.request();
-												const reqUrl = request.url();
-												const method = request.method();
-												const reqHeaders = request.headers();
-												let reqBody: unknown;
+										await page.route(pattern, async (route) => {
+											const request = route.request();
+											const reqUrl = request.url();
+											const method = request.method();
+											const reqHeaders = request.headers();
+											let reqBody: unknown;
+											try {
+												const postData = request.postData();
+												if (postData) reqBody = JSON.parse(postData);
+											} catch {
+												/* not JSON */
+											}
+
+											const interceptedReq: InterceptedRequest = {
+												url: reqUrl,
+												method,
+												headers: reqHeaders,
+												body: reqBody,
+												timestamp: Date.now(),
+											};
+
+											try {
+												const response = await route.fetch();
+												let resBody: unknown;
 												try {
-													const postData = request.postData();
-													if (postData) reqBody = JSON.parse(postData);
+													resBody = await response.json();
 												} catch {
-													/* not JSON */
+													try {
+														resBody = await response.text();
+													} catch {
+														resBody = null;
+													}
 												}
 
-												const interceptedReq: InterceptedRequest = {
+												const interceptedRes: InterceptedResponse = {
 													url: reqUrl,
-													method,
-													headers: reqHeaders,
-													body: reqBody,
+													status: response.status(),
+													headers: response.headers(),
+													body: resBody,
 													timestamp: Date.now(),
 												};
 
+												addTrafficEntry(interceptedReq, interceptedRes);
+												await route.fulfill({ response });
+											} catch {
 												try {
-													const response = await route.fetch();
-													let resBody: unknown;
-													try {
-														resBody = await response.json();
-													} catch {
-														try {
-															resBody = await response.text();
-														} catch {
-															resBody = null;
-														}
-													}
-
-													const interceptedRes: InterceptedResponse = {
-														url: reqUrl,
-														status: response.status(),
-														headers: response.headers(),
-														body: resBody,
-														timestamp: Date.now(),
-													};
-
-													addTrafficEntry(interceptedReq, interceptedRes);
-													await route.fulfill({ response });
+													await route.continue();
 												} catch {
-													try {
-														await route.continue();
-													} catch {
-														/* page closed */
-													}
+													/* page closed */
 												}
-											},
-										);
+											}
+										});
 									}
 									browserLogger.debug(
-										`Generic traffic capture enabled for: ${captureDomains.join(", ")}`,
+										`Generic traffic capture enabled for: ${captureDomains.join(', ')}`,
 									);
 								}
 							}
@@ -526,14 +483,10 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 							let headersCapturedInThisSession = false;
 
 							if (activeInterceptor) {
-								const originalCallback =
-									activeInterceptor.onHeadersCaptured;
-								activeInterceptor.onHeadersCaptured = async (
-									headers,
-								) => {
+								const originalCallback = activeInterceptor.onHeadersCaptured;
+								activeInterceptor.onHeadersCaptured = async (headers) => {
 									headersCapturedInThisSession = true;
-									if (originalCallback)
-										await originalCallback(headers);
+									if (originalCallback) await originalCallback(headers);
 								};
 							}
 
@@ -541,30 +494,20 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 								try {
 									ws.send(
 										JSON.stringify({
-											type: "url",
+											type: 'url',
 											url: changedUrl,
 										}),
 									);
 
 									if (profile === ROBINHOOD_PROFILE) {
-										const isLoginPage =
-											changedUrl.includes(
-												"robinhood.com/login",
-											);
+										const isLoginPage = changedUrl.includes('robinhood.com/login');
 										const wasOnAuthenticatedPage =
-											lastUrl &&
-											!lastUrl.includes(
-												"robinhood.com/login",
-											);
+											lastUrl && !lastUrl.includes('robinhood.com/login');
 
-										if (
-											isLoginPage &&
-											wasOnAuthenticatedPage &&
-											headersCapturedInThisSession
-										) {
+										if (isLoginPage && wasOnAuthenticatedPage && headersCapturedInThisSession) {
 											ws.send(
 												JSON.stringify({
-													type: "robinhood_login_page_detected",
+													type: 'robinhood_login_page_detected',
 												}),
 											);
 										}
@@ -578,7 +521,7 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 
 							ws.send(
 								JSON.stringify({
-									type: "ready",
+									type: 'ready',
 									viewport: {
 										width: VIEWPORT_WIDTH,
 										height: VIEWPORT_HEIGHT,
@@ -589,30 +532,23 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 
 							// Auto-navigate if URL was provided
 							if (url) {
-								browserLogger.debug(
-									`Auto-navigating to: ${url}`,
-								);
+								browserLogger.debug(`Auto-navigating to: ${url}`);
 								await activeBrowser.navigate(url);
 							}
 
-							browserLogger.connection("ready", {
-								profile: profile || "temp",
+							browserLogger.connection('ready', {
+								profile: profile || 'temp',
 							});
 						} catch (err) {
-							const errorMessage =
-								err instanceof Error
-									? err.message
-									: String(err);
+							const errorMessage = err instanceof Error ? err.message : String(err);
 							browserLogger.error(
-								"start_failed",
-								err instanceof Error
-									? err
-									: new Error(errorMessage),
+								'start_failed',
+								err instanceof Error ? err : new Error(errorMessage),
 								{ profile },
 							);
 							ws.send(
 								JSON.stringify({
-									type: "error",
+									type: 'error',
 									message: `Failed to start browser: ${errorMessage}`,
 								}),
 							);
@@ -626,71 +562,47 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 					if (!activeBrowser || !browserReady) return;
 
 					try {
-						const message = JSON.parse(
-							event.data.toString(),
-						);
+						const message = JSON.parse(event.data.toString());
 
 						switch (message.type) {
-							case "navigate":
+							case 'navigate':
 								if (message.url) {
 									await activeBrowser.navigate(message.url);
 								}
 								break;
 
-							case "mousemove":
-								if (
-									typeof message.x === "number" &&
-									typeof message.y === "number"
-								) {
-									await activeBrowser.mouseMove(
-										message.x,
-										message.y,
-									);
+							case 'mousemove':
+								if (typeof message.x === 'number' && typeof message.y === 'number') {
+									await activeBrowser.mouseMove(message.x, message.y);
 								}
 								break;
 
-							case "click":
-								if (
-									typeof message.x === "number" &&
-									typeof message.y === "number"
-								) {
-									await activeBrowser.click(
-										message.x,
-										message.y,
-										message.button || "left",
-									);
+							case 'click':
+								if (typeof message.x === 'number' && typeof message.y === 'number') {
+									await activeBrowser.click(message.x, message.y, message.button || 'left');
 								}
 								break;
 
-							case "dblclick":
-								if (
-									typeof message.x === "number" &&
-									typeof message.y === "number"
-								) {
-									await activeBrowser.doubleClick(
-										message.x,
-										message.y,
-									);
+							case 'dblclick':
+								if (typeof message.x === 'number' && typeof message.y === 'number') {
+									await activeBrowser.doubleClick(message.x, message.y);
 								}
 								break;
 
-							case "type":
+							case 'type':
 								if (message.text) {
 									await activeBrowser.type(message.text);
 								}
 								break;
 
-							case "key":
+							case 'key':
 								if (message.key) {
 									await activeBrowser.pressKey(message.key);
 								}
 								break;
 
-							case "scroll":
-								if (
-									typeof message.x === "number" &&
-									typeof message.y === "number"
-								) {
+							case 'scroll':
+								if (typeof message.x === 'number' && typeof message.y === 'number') {
 									await activeBrowser.scroll(
 										message.x,
 										message.y,
@@ -700,77 +612,71 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 								}
 								break;
 
-							case "paste":
+							case 'paste':
 								if (message.text) {
 									await activeBrowser.paste(message.text);
 								}
 								break;
 
-							case "copy": {
+							case 'copy': {
 								const text = await activeBrowser.copy();
 								_ws.send(
 									JSON.stringify({
-										type: "clipboard",
+										type: 'clipboard',
 										text,
 									}),
 								);
 								break;
 							}
 
-							case "back":
+							case 'back':
 								await activeBrowser.goBack();
 								break;
 
-							case "forward":
+							case 'forward':
 								await activeBrowser.goForward();
 								break;
 
-							case "reload":
+							case 'reload':
 								await activeBrowser.reload();
 								break;
 
-							case "setFps":
-								if (typeof message.fps === "number") {
+							case 'setFps':
+								if (typeof message.fps === 'number') {
 									activeBrowser.setFps(message.fps);
 									_ws.send(
 										JSON.stringify({
-											type: "fpsChanged",
+											type: 'fpsChanged',
 											fps: activeBrowser.getFps(),
 										}),
 									);
 								}
 								break;
 
-							case "getFps": {
+							case 'getFps': {
 								const currentFps = activeBrowser.getFps();
 								_ws.send(
 									JSON.stringify({
-										type: "currentFps",
+										type: 'currentFps',
 										fps: currentFps,
 									}),
 								);
 								break;
 							}
 
-							case "warmup": {
-								const sites =
-									typeof message.sites === "number"
-										? message.sites
-										: 3;
-								const delay =
-									typeof message.delay === "number"
-										? message.delay
-										: 2000;
+							case 'warmup': {
+								const sites = typeof message.sites === 'number' ? message.sites : 3;
+								const delay = typeof message.delay === 'number' ? message.delay : 2000;
 								_ws.send(
 									JSON.stringify({
-										type: "warmup_started",
+										type: 'warmup_started',
 										sites,
 									}),
 								);
 								await activeBrowser.warmup(sites, delay);
 								_ws.send(
 									JSON.stringify({
-										type: "warmup_complete",
+										type: 'warmup_complete',
 									}),
 								);
 								break;
@@ -782,11 +688,10 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 				},
 
 				async onClose() {
-					browserLogger.connection("close", {
-						profile: currentProfile || "unknown",
+					browserLogger.connection('close', {
+						profile: currentProfile || 'unknown',
 					});
-					const lifecycleManager =
-						BrowserLifecycleManager.getInstance();
+					const lifecycleManager = BrowserLifecycleManager.getInstance();
 					await lifecycleManager.acquireLock();
 					try {
 						lifecycleManager.unregisterBrowser();
@@ -796,12 +701,12 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 							activeInterceptor = null;
 						}
 						if (activeBrowser) {
-							browserLogger.lifecycle("stopping", {
-								profile: currentProfile || "unknown",
+							browserLogger.lifecycle('stopping', {
+								profile: currentProfile || 'unknown',
 							});
 							await activeBrowser.stop();
-							browserLogger.lifecycle("stopped", {
-								profile: currentProfile || "unknown",
+							browserLogger.lifecycle('stopped', {
+								profile: currentProfile || 'unknown',
 							});
 							activeBrowser = null;
 						}
