@@ -365,7 +365,9 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 				const page = activeBrowser.getPage();
 				if (page && captureDomains.length > 0) {
 					for (const domain of captureDomains) {
-						const pattern = `**/${domain}/**`;
+						// Glob pattern: **/*${domain}/** matches both exact and subdomain URLs
+						// e.g., "ticketmaster.com" matches https://www.ticketmaster.com/path AND https://api.ticketmaster.com/v2
+						const pattern = `**/*${domain}/**`;
 						await page.route(pattern, async (route) => {
 							const request = route.request();
 							const reqUrl = request.url();
