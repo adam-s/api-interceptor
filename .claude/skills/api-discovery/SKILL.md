@@ -329,3 +329,43 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 | `data-*` attribute price ≠ displayed price | Some sites (e.g. StubHub) store prices in `data-price` as a USD-internal value. If the browser is geolocated to a non-USD country the displayed text shows local currency (e.g. S/.820) while `data-price` holds the raw number (e.g. `82` → renders as `$0.82`). Always read prices from the **displayed text**, not `data-*` attributes, unless you've verified the attribute matches the display in the target locale. |
 | Server returns stale routes after editing `routes.ts` in a workspace package | `tsx --watch` does not always detect changes in workspace packages (`@interceptor/browser`, etc.). Kill the API server (`kill $(lsof -ti:3001)`) and restart `pnpm dev`. |
 | Substring artist filter passes tribute bands | `name.includes(query)` is too broad — "Bad Bunny Tribute Experience" contains "Bad Bunny". Filter must check that the artist name is the **subject** of the event, not just a substring. Require: `norm(eventName).startsWith(norm(artist))` OR use a stricter regex like `new RegExp('\\b' + escapedArtist + '\\b', 'i')`. Also skip names containing words like "tribute", "experience", "symphony", "comedy", "theater". |
+| Direct `fetch()` returns 429 but browser and `curl` return 200 | The site uses **TLS fingerprinting** (also called JA3/JA4 fingerprinting). Node.js has a distinct TLS fingerprint from Chrome. Sites like Yahoo Finance and others with anti-bot protection will 429 Node.js `fetch()` while accepting requests from real browsers. **Fix**: use `browserFetch(url, { headers })` inside the route handler instead of `fetch()` — the proxy browser's TLS fingerprint matches a real Chrome browser. Alternatively, mark the route `browserRequired: true` and navigate to the URL to extract data from the DOM. |
+| `browserRequired: false` route still gets 503 | Check the `createDomainProxy` implementation in `packages/browser/src/handler/api-proxy.ts`. The browser-not-connected check must be `if (!browser && route.browserRequired !== false)` — not `if (!browser)`. If the check is unconditional, all routes will 503 when no browser is connected, even browserless ones. |
+
+### Browserless Routes with Background Polling
+
+Some domains don't need the browser for data fetching (e.g., news via RSS, public REST APIs). These routes use `browserRequired: false` and do their own `fetch()` calls. When the data is expensive to fetch (rate-limited, slow), use a **background poller** pattern:
+
+1. **Background poller** (`apps/api/src/news-poller.ts`): runs every N seconds, fetches from the external source, stores results in an in-memory article store (`Map<symbol, Article[]>`), exports a getter function
+2. **Route handler** reads from the in-memory store (no external request), falls back to a direct fetch with TTL cache only on cold start
+3. **Factory pattern** for injection: `createRoutes(getBridgeFn?, getArticlesFn?)` — the route factory accepts the getter as a closure; avoids cross-package imports
+
+This architecture prevents rate-limit compounding: without it, every `curl /api/yahoo-finance/news?symbols=TSLA,AAPL` makes 2 fresh Yahoo requests on top of the poller's 5-symbol requests every 60s — blows the IP quota within minutes.
+
+```typescript
+// In routes.ts — browserless route reads from poller store
+export function createRoutes(
+  getBridgeFn?: () => PythonBridge | null,
+  getArticlesFn?: (symbols: string[]) => { articles: Article[]; updatedAt: string | null }
+): DomainRoute[] {
+  return [{
+    method: 'GET',
+    path: '/news',
+    browserRequired: false,  // no Patchright needed
+    handler: async (c, _browser) => {
+      const symbols = ...;
+      // Prefer in-memory store (no external requests)
+      if (getArticlesFn) {
+        const result = getArticlesFn(symbols);
+        if (result.articles.length > 0) return c.json(result);
+      }
+      // Cold-start fallback: fetch directly with 5-min TTL cache
+      ...
+    },
+  }];
+}
+
+// In apps/api/src/register-domains.ts
+import { getNewsArticles } from './news-poller';
+registerDomain({ ...plugin, routes: createRoutes(getBridge, getNewsArticles) });
+```

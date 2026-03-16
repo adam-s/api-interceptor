@@ -8,7 +8,7 @@ A developer clones this repo, pastes a prompt like "compare ticket prices across
 
 ## The Iteration Loop
 
-```
+```text
 base branch
   └─ develop/improve generalized skills and utilities (no domain-specific content)
 
@@ -39,7 +39,7 @@ Every developer prompt has natural phases — API discovery comes before UI, UI 
 
 ### How it works
 
-```
+```text
 base
   └─ test/ticket-l1-v1  (Phase 1: API discovery — fails)
      fix api-discovery skill on base, repeat
@@ -106,7 +106,7 @@ Everything else (`mcp/server.ts`, traffic buffer, session manager pattern) is al
 
 ### Target Architecture
 
-```
+```text
 packages/browser/src/shared/          ← NEW: generic base classes
   config.ts                           ← InterceptorConfig interface
   interceptor.ts                      ← GenericInterceptor (abstract)
@@ -156,7 +156,7 @@ Adding a new domain after refactoring: create one `config.ts` (30 lines), run sc
 
 Current skills are flat. Skills should be hierarchical:
 
-```
+```text
 api-discovery/
   SKILL.md              ← overview + quick start (≤300 lines)
   reference/

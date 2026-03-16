@@ -208,27 +208,30 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        test/market-v1
-Prompt:        Prompt 2 — Yahoo Finance market intelligence
-Phase:         Phase 1 (news pipeline) → Phase 2 (quote/chart) → Phase 3 (dashboard UI)
-Last action:   Fixed Failure #1 (browserRequired: false) + committed test/market-v1
-Next step:     Verify Phase 1: curl "http://localhost:3001/api/yahoo-finance/news?symbols=TSLA"
-               Must return articles with sentiment field (may need to wait out Yahoo rate limit)
-               Try sitemap for news: https://finance.yahoo.com/sitemap/2026_03_01/
+Branch:        base (applying fixes from test/market-v1 before creating test/market-v2)
+Prompt:        Prompt 2 — Yahoo Finance market intelligence (next test: test/market-v2)
 
-Phase 1 done: curl returns ≥1 article with {symbol, title, sentiment, score}
-Phase 2 done: curl /api/yahoo-finance/quote/TSLA returns {price, changePercent, marketCap}
-Phase 3 done: Patchright screenshot of http://localhost:3000/market shows
-              watchlist sidebar + quote card + sparkline + news feed with badges + live timestamp
+Completed on test/market-v1:
+  ✅ browserRequired: false framework fix (already on base)
+  ✅ createRoutes factory pattern for bridge injection
+  ✅ Poller article store (getNewsArticles exported, route reads from store)
+  ✅ /market dashboard UI built + screenshot-verified with mock data
+  ✅ ROADMAP failures #1-5 documented
 
-Base fixes needed (carry from test/market-v1):
-  - packages/browser/src/handler/domain-loader.ts: browserRequired? in DomainRoute type ← DONE on base
-  - packages/browser/src/handler/api-proxy.ts: skip check when browserRequired===false ← DONE on base
+Fixes to apply on base now:
+  [ ] Fix scaffold-domain.sh: camelCase/PascalCase hyphenated domain names (Failure #4)
+  [ ] Update api-discovery skill: add TLS fingerprinting guidance (Failure #5)
+  [ ] Update api-discovery skill: poller/route cache sharing pattern (Failure #3)
+  [ ] Fix ROADMAP.md code blocks: language specifiers on all ``` blocks
+  [ ] Update DEVELOPER_PROMPTS.md if needed
 
-Note: Yahoo Finance RSS rate-limits aggressively. Try the sitemap approach:
-  https://finance.yahoo.com/sitemap/2026_03_01/
-  Parse links to get recent article URLs → fetch individual articles if needed.
-  OR wait a few minutes and the RSS endpoints unblock.
+After base fixes:
+  → Create test/market-v2 from updated base
+  → Attempt Prompt 2 again — focus on news via browserFetch() to bypass TLS fingerprinting
+  → OR try Yahoo sitemap: https://finance.yahoo.com/sitemap/2026_03_01/
+
+Key TLS issue: Yahoo Finance returns 429 for Node.js fetch() on RSS/REST but 200 for
+  browser-mediated requests. Use browser.browserFetch() or navigate+extract in routes.
 ```
 
 ## Conventions

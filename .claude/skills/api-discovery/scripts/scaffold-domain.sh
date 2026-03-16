@@ -11,9 +11,13 @@ set -euo pipefail
 DOMAIN_NAME="${1:?Usage: scaffold-domain.sh <domain-name> <root-domain>}"
 ROOT_DOMAIN="${2:?Usage: scaffold-domain.sh <domain-name> <root-domain>}"
 
-# Derive class name: ticketmaster → Ticketmaster, seatgeek → Seatgeek
-DOMAIN_CLASS="$(echo "${DOMAIN_NAME}" | sed 's/.*/\u&/')"
-DOMAIN_DISPLAY="${DOMAIN_CLASS}"
+# Derive identifiers — handles hyphenated names like yahoo-finance
+# PascalCase: yahoo-finance → YahooFinance
+DOMAIN_CLASS="$(python3 -c "print(''.join(w.capitalize() for w in '${DOMAIN_NAME}'.split('-')))")"
+# camelCase: yahoo-finance → yahooFinance
+DOMAIN_CAMEL="$(python3 -c "p='${DOMAIN_NAME}'.split('-'); print(p[0]+''.join(w.capitalize() for w in p[1:]))")"
+# Display: yahoo-finance → Yahoo Finance
+DOMAIN_DISPLAY="$(python3 -c "print(' '.join(w.capitalize() for w in '${DOMAIN_NAME}'.split('-')))")"
 
 SKILL_DIR="$(dirname "$0")/.."
 TEMPLATE_DIR="${SKILL_DIR}/templates"
@@ -43,6 +47,7 @@ for template in "${TEMPLATE_DIR}"/*.template; do
   sed \
     -e "s/{{DOMAIN_NAME}}/${DOMAIN_NAME}/g" \
     -e "s/{{DOMAIN_CLASS}}/${DOMAIN_CLASS}/g" \
+    -e "s/{{DOMAIN_CAMEL}}/${DOMAIN_CAMEL}/g" \
     -e "s/{{DOMAIN_DISPLAY}}/${DOMAIN_DISPLAY}/g" \
     -e "s/{{ROOT_DOMAIN}}/${ROOT_DOMAIN}/g" \
     "${template}" > "${dest}"

@@ -7,7 +7,7 @@
 import type { InterceptorConfig } from '@interceptor/browser/shared/config';
 import { z } from 'zod';
 
-export const {{DOMAIN_NAME}}InterceptorConfig: InterceptorConfig = {
+export const {{DOMAIN_CAMEL}}InterceptorConfig: InterceptorConfig = {
 	domainName: '{{DOMAIN_NAME}}',
 
 	interceptPatterns: [

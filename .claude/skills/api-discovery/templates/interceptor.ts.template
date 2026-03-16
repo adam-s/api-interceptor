@@ -5,10 +5,10 @@
  */
 
 import { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
-import { {{DOMAIN_NAME}}InterceptorConfig } from './config';
+import { {{DOMAIN_CAMEL}}InterceptorConfig } from './config';
 
 export class {{DOMAIN_CLASS}}Interceptor extends GenericInterceptor {
 	constructor() {
-		super({{DOMAIN_NAME}}InterceptorConfig);
+		super({{DOMAIN_CAMEL}}InterceptorConfig);
 	}
 }

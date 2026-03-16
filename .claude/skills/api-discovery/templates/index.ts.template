@@ -7,13 +7,13 @@
  */
 
 import type { DomainPlugin } from '@interceptor/browser/handler/domain-loader';
-import { {{DOMAIN_NAME}}InterceptorConfig } from './config';
+import { {{DOMAIN_CAMEL}}InterceptorConfig } from './config';
 import { {{DOMAIN_CLASS}}Interceptor } from './interceptor';
 import { routes } from './routes';
 
 export const plugin: DomainPlugin = {
 	domainName: '{{DOMAIN_NAME}}',
-	config: {{DOMAIN_NAME}}InterceptorConfig,
+	config: {{DOMAIN_CAMEL}}InterceptorConfig,
 	routes,
 
 	createInterceptor: () => new {{DOMAIN_CLASS}}Interceptor(),
@@ -36,5 +36,5 @@ export const plugin: DomainPlugin = {
 };
 
 export { {{DOMAIN_CLASS}}Interceptor } from './interceptor';
-export { {{DOMAIN_NAME}}InterceptorConfig } from './config';
+export { {{DOMAIN_CAMEL}}InterceptorConfig } from './config';
 export { routes } from './routes';
