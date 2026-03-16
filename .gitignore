@@ -19,6 +19,7 @@ __pycache__/
 # Browser profiles (contain auth cookies/tokens — never commit)
 data/browser-profiles/*/
 !data/browser-profiles/.gitkeep
+**/browser-profiles/*/
 
 # Haiku's cache directory
 .cache/
