@@ -208,30 +208,33 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base (applying fixes from test/market-v1 before creating test/market-v2)
-Prompt:        Prompt 2 — Yahoo Finance market intelligence (next test: test/market-v2)
+Branch:        base — all base fixes committed, ready for next test iteration
+Prompt:        Prompt 3 — Vacation Rental Intelligence (next test: test/rental-v1)
 
-Completed on test/market-v1:
-  ✅ browserRequired: false framework fix (already on base)
-  ✅ createRoutes factory pattern for bridge injection
-  ✅ Poller article store (getNewsArticles exported, route reads from store)
-  ✅ /market dashboard UI built + screenshot-verified with mock data
-  ✅ ROADMAP failures #1-5 documented
+Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3:
+  ✅ Yahoo Finance domain plugin (news poller, quote, chart routes)
+  ✅ /market dashboard (watchlist sidebar, sparkline, sentiment badges, WS live updates)
+  ✅ browserFetch() navigateTo pattern for cross-origin subdomain CORS
+  ✅ broadcastMessage() in state.ts (backported to base)
+  ✅ Chrome/145 UA + sec-ch-ua override in service.ts (backported to base)
+  ✅ Root cause of 429: poisoned profile session — fix is rm -rf profile dir
 
-Fixes to apply on base now:
-  [ ] Fix scaffold-domain.sh: camelCase/PascalCase hyphenated domain names (Failure #4)
-  [ ] Update api-discovery skill: add TLS fingerprinting guidance (Failure #5)
-  [ ] Update api-discovery skill: poller/route cache sharing pattern (Failure #3)
-  [ ] Fix ROADMAP.md code blocks: language specifiers on all ``` blocks
-  [ ] Update DEVELOPER_PROMPTS.md if needed
+All base fixes applied and committed (d4c0679):
+  ✅ scaffold-domain.sh: camelCase/PascalCase for hyphenated names (was already correct)
+  ✅ api-discovery skill: TLS fingerprinting guidance
+  ✅ api-discovery skill: TTL cache Map, broadcastMessage wiring, RSS parsing patterns
+  ✅ api-discovery skill: poisoned profile / 429 recovery procedure
+  ✅ api-discovery skill: unix timestamp time-series API pattern
+  ✅ ROADMAP.md: code block language specifiers (were already correct)
+  ✅ DEVELOPER_PROMPTS.md: Prompt 3 replaced with Vacation Rental Intelligence
+  ✅ Dockerfiles: fixed @volat/api → @interceptor/api (CI was failing)
 
-After base fixes:
-  → Create test/market-v2 from updated base
-  → Attempt Prompt 2 again — focus on news via browserFetch() to bypass TLS fingerprinting
-  → OR try Yahoo sitemap: https://finance.yahoo.com/sitemap/2026_03_01/
-
-Key TLS issue: Yahoo Finance returns 429 for Node.js fetch() on RSS/REST but 200 for
-  browser-mediated requests. Use browser.browserFetch() or navigate+extract in routes.
+Next iteration (test/rental-v1):
+  → Create branch from base
+  → Run Prompt 3: Airbnb + VRBO + Zillow public API discovery + /rentals dashboard
+  → Expected new gaps: GraphQL proxy, public API key extraction from page JS,
+    shared schema across sibling domains, geospatial bounding-box queries,
+    Python bridge coordinate matching
 ```
 
 ## Conventions
