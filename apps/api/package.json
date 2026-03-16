@@ -13,6 +13,7 @@
 		"@interceptor/domain-robinhood": "workspace:*",
 		"@interceptor/domain-investing": "workspace:*",
 		"@interceptor/domain-minuteinbox": "workspace:*",
+		"@interceptor/domain-stubhub": "workspace:*",
 		"@interceptor/domain-ticketmaster": "workspace:*",
 		"@interceptor/shared": "workspace:*",
 		"hono": "^4.12.8",
