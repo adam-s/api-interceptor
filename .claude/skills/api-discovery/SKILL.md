@@ -127,17 +127,36 @@ export const routes: DomainRoute[] = [
 
 Also update `domains/<name>/src/config.ts` with the actual `interceptPatterns` and `baseUrls` discovered from the traffic URLs.
 
-### Step 8: Test proxy routes
+### Step 8: Verify each endpoint works
 
-Restart the server, then verify:
+Before adding a route to `routes.ts`, verify it actually returns useful data. With the browser still connected:
+
+```bash
+# Test each captured endpoint via the proxy
+curl -s http://localhost:3001/api/<name>/<path> | jq 'type'
+# Should return "object" or "array" for JSON APIs
+# If it returns "string", the response is HTML (SSR endpoint)
+```
+
+For each endpoint, determine:
+1. **Does it return JSON?** → Good, add to routes.ts
+2. **Does it return HTML?** → SSR endpoint, may need parsing (see "Classifying Discovered Endpoints")
+3. **Does it return 400/403?** → Wrong request format or anti-bot. Check captured traffic for the correct request body/headers
+4. **What data does it contain?** → Read the response to write an accurate `description` field
+
+Only add endpoints to `routes.ts` that return actionable data. Skip telemetry, analytics, and tracking endpoints.
+
+### Step 9: Test proxy routes
+
+Restart the server, then verify all routes work:
 
 ```bash
 # List registered routes
 curl -s http://localhost:3001/api | jq '.domains[] | select(.name == "<name>")'
 
 # Connect browser (required for proxy to work)
-# Then call a proxy route:
-curl -s http://localhost:3001/api/<name>/search
+# Then test each route:
+curl -s http://localhost:3001/api/<name>/search | jq '.[:2]'
 ```
 
 ### Step 9: Clear traffic and iterate
@@ -164,13 +183,52 @@ If the domain plugin exists in `domains/<name>/`:
 - **Architecture details**: See [reference/architecture.md](reference/architecture.md)
 - **Example domains**: See `domains/ticketmaster/` (simple) and `domains/robinhood/` (complex)
 
+## Classifying Discovered Endpoints
+
+After capturing traffic, classify each endpoint before adding it to routes.ts:
+
+### Type 1: JSON API (ideal)
+- Response `content-type` includes `application/json`
+- Returns structured data directly usable by the dashboard
+- Add directly to `routes.ts` — browserFetch proxy works perfectly
+
+### Type 2: Server-Side Rendered HTML (SSR)
+- Response `content-type` is `text/html`
+- Data is embedded in the HTML, no separate JSON API
+- Signs: search pages that return 200 with HTML, status 202 before 200
+- Example: StubHub `/secure/search?q=Bad+Bunny` returns HTML with results embedded
+- **Solution**: The browserFetch still works — it fetches the HTML with cookies. The route handler needs to parse the HTML response (use regex or a DOM parser) to extract the structured data. Document this in the route description.
+
+### Type 3: Telemetry/Analytics (skip)
+- URLs containing: `jsa/v1/events`, `analytics`, `tracking`, `log`, `beacon`, `pixel`
+- Request body contains metrics (TTFB, FCP, page views)
+- **Do not add to routes.ts** — these are internal telemetry, not user-facing APIs
+
+### Type 4: Anti-Bot Challenge
+- Status codes: 403, 429, or redirect to CAPTCHA page
+- Response contains Cloudflare challenge tokens (`__cf_chl_rt_tk`)
+- Signs: URL changes include challenge tokens, page briefly shows "checking your browser"
+- **Solution**: The Patchright stealth settings usually bypass these. If blocked, try:
+  1. Use a persistent profile (cookies survive restarts)
+  2. Navigate to the homepage first, then to the target page
+  3. Add delays between navigations (2-3 seconds)
+  4. Check if Ghostery ad-blocker is blocking required scripts
+
+### Type 5: WebSocket/Streaming
+- URL uses `wss://` protocol or EventSource
+- Response is chunked/streaming, not a single JSON payload
+- **Not supported by browserFetch proxy** — needs a different approach (WebSocket forwarding)
+- Document as a limitation for now
+
 ## Gotchas
 
 | Problem | Fix |
 |---------|-----|
 | Traffic shows 0 entries | Use root domain in `capture=` (e.g., `stubhub.com` not `www.stubhub.com`) |
-| Proxy returns HTML not JSON | Browser not on target origin yet — wait for page to fully load |
+| All endpoints return HTML, no JSON APIs | Site is SSR — the data is in the HTML. Use browserFetch to get the page and parse the response |
+| Proxy returns 400 validation error | Wrong endpoint — check request body shape from captured traffic. Telemetry endpoints aren't search APIs |
 | Proxy returns 503 | No browser connected — connect via WebSocket first |
+| Cloudflare challenge (403/redirect) | Use persistent profile, navigate to homepage first, add delays |
 | Module import error | Ensure `"type": "module"` in domain's package.json |
 | pnpm can't find domain | Run `pnpm install` after adding to workspace; check `pnpm-workspace.yaml` includes `'domains/*'` |
 | JS/CSS in captured traffic | Codegen filters these automatically; or only add JSON endpoints to routes.ts |
