@@ -1132,8 +1132,10 @@ export class RemoteBrowserService {
 			responseInfo.delete(params.requestId);
 			if (!req || !res || !this.networkCaptureCallback) return;
 
-			// Only capture JSON responses
-			if (!res.contentType.includes('json')) return;
+			// Skip responses that are clearly not API data (HTML pages, images, CSS)
+			const ct = res.contentType.toLowerCase();
+			if (ct.includes('text/html') || ct.includes('text/css') || ct.includes('image/') || ct.includes('font/')) return;
+			// Keep: JSON, no content-type (many APIs don't set it), text/plain, etc.
 
 			// Skip analytics/tracking
 			const skip = [
