@@ -4,10 +4,10 @@ RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 RUN npm install -g turbo
 WORKDIR /app
 
-# 1. Prune — isolate only what @volat/api needs
+# 1. Prune — isolate only what @interceptor/api needs
 FROM base AS pruner
 COPY . .
-RUN turbo prune @volat/api --docker
+RUN turbo prune @interceptor/api --docker
 
 # 2. Install dependencies from pruned lockfile
 FROM base AS deps
@@ -22,7 +22,7 @@ COPY --from=deps /app/ ./
 COPY --from=pruner /app/out/full/ .
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 COPY turbo.json turbo.json
-RUN pnpm build --filter=@volat/api
+RUN pnpm build --filter=@interceptor/api
 
 # 4. Run — both Node.js and Python in one container for IPC bridge
 FROM node:22-alpine AS runner

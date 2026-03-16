@@ -94,18 +94,103 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
-## Prompt 3: Short-Term Rental Management
+## Prompt 3: Vacation Rental Intelligence
 
-> Create domains for Airbnb, VRBO, and Zillow. Log into my host accounts and detect when my apartment gets booked on Airbnb so I can automatically delist it from the other platforms. Also track prices of similar nearby apartments — if competitors lower prices, alert me so I can adjust mine to stay competitive.
+> Create domain plugins for **Airbnb**, **VRBO**, and **Zillow**. This prompt is
+> **discovery-first**: the primary deliverable is a typed API catalog, not the UI.
+>
+> **Phase 1: API Catalog (the real deliverable)**
+>
+> For each site, navigate the search page for "Austin, TX", browse 2–3 listing detail
+> pages, and capture every fetch()/XHR JSON call via CDP. Prefer `browserFetch()` over
+> DOM extraction wherever a clean JSON response exists.
+>
+> For each discovered endpoint, produce:
+>
+> - The full URL pattern (with path params as `:id` placeholders)
+> - HTTP method and operation name (for GraphQL)
+> - Required headers (especially `X-Airbnb-API-Key` for Airbnb — extract from CDP traffic)
+> - Request shape as a TypeScript interface or inline comment
+> - Response shape as a Zod schema (use `.passthrough()` on deeply nested objects)
+> - A one-line description of what the endpoint returns
+>
+> Document everything in a comment block at the top of each domain's `routes.ts`.
+> Aim for at minimum: 1 search endpoint + 1 listing detail endpoint + 1 pricing/
+> availability endpoint per site.
+>
+> **Phase 2: Routes**
+>
+> Implement the discovered endpoints as domain routes. Normalize all three domains to
+> a shared listing schema:
+>
+> ```typescript
+> interface Listing {
+>   id: string;
+>   source: 'airbnb' | 'vrbo' | 'zillow';
+>   name: string;
+>   lat: number;
+>   lng: number;
+>   nightlyRate: number;      // base nightly rate (no fees)
+>   totalPrice?: number;      // total for the requested dates inc. fees
+>   cleaningFee?: number;
+>   rating?: number;
+>   reviewCount?: number;
+>   roomType?: string;
+>   imageUrl?: string;
+>   listingUrl: string;
+> }
+> ```
+>
+> Routes:
+>
+> - `GET /api/airbnb/search?location=Austin,TX&checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&guests=2`
+> - `GET /api/airbnb/listing/:id`
+> - `GET /api/vrbo/search?location=Austin,TX&checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&guests=2`
+> - `GET /api/vrbo/listing/:id`
+> - `GET /api/zillow/rentals?location=Austin,TX` → long-term comps (monthly rent, zpid, address)
+> - `GET /api/zillow/property/:zpid`
+>
+> **Phase 3: Python bridge — Weekend Getaway Scorer**
+>
+> Add a `score_getaways` method to `services/python/worker.py`. Given a merged list of
+> Airbnb + VRBO listings for a search, compute per listing:
+>
+> - `value_score`: `rating / (totalPrice / nights)` — higher rating per dollar = better value
+> - `cross_listed`: `true` if a listing at the same lat/lng (within 80m) exists on both platforms
+> - `cheaper_platform`: if cross-listed, which platform is cheaper and by how much
+>
+> Returns the listings sorted by `value_score` descending, with `cross_listed` and
+> `cheaper_platform` fields appended.
+>
+> Route: `POST /api/rentals/score` with body `{ listings: Listing[], nights: number }`
+>
+> **Phase 4: Dashboard at `/rentals`**
+>
+> - Location + date range + guests search bar (default: Austin, TX / next weekend / 2 guests)
+> - After search (sequential — never parallel), show a card grid sorted by value score
+> - Each card: photo, name, nightly rate, total price, rating stars, source badge (Airbnb/VRBO)
+> - If cross-listed: show both source badges + "Save $X on [platform]" callout in green
+> - Right panel: Zillow long-term comps for the same area (monthly price, beds/baths)
+> - Empty / loading / error states for all panels
+>
+> **Stretch goal: 10-minute mail account creation**
+>
+> Use the registered `minuteinbox` domain to generate a disposable email address.
+> Attempt to create an Airbnb guest account with it. Document whether phone verification
+> blocks completion. If an account is created, check CDP traffic for any new auth-gated
+> endpoints and add them as additional routes. Expected outcome: blocked at phone step —
+> record this as a gap (no SMS bridge in the framework).
 
 **What this tests:**
 
-- Authenticated sessions (login required)
-- Write operations (delist/update listings via API)
-- Price monitoring over time
-- Geolocation-based queries (nearby apartments)
-- Automated actions triggered by events (booking → delist)
-- Multi-account management
+- API catalog as a first-class deliverable — discovery before implementation, typed schemas from real traffic
+- GraphQL proxy — Airbnb and VRBO POST GraphQL with named operations; first time the framework must forward and parse a GraphQL body
+- Public API key extraction — `X-Airbnb-API-Key` pulled from CDP request headers, not assumed or hardcoded
+- Shared schema across sibling domains — Airbnb and VRBO return the same conceptual data; forces a normalisation layer
+- Geospatial bounding-box queries — `ne_lat/ne_lng/sw_lat/sw_lng` parameters new to the framework
+- Python bridge geo-analytics — coordinate proximity matching + value scoring; first non-NLP bridge use
+- Cross-domain lat/lng entity matching — same property on two platforms matched by coordinate radius
+- 10-minute mail as account enabler — tests whether the minuteinbox domain can unlock auth-gated endpoints
 
 ---
 

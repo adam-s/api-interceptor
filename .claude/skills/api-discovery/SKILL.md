@@ -497,6 +497,7 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 | CORS error from `page.evaluate(fetch)` | API blocked for cross-origin calls. Use Type B2 traffic capture instead. |
 | `sec-ch-ua: "HeadlessChrome"` in captured headers | Browser is running in headless mode. The framework already overrides this in `service.ts`. If you still see HeadlessChrome, restart the server so the fix is loaded. |
 | All quote/price endpoints 429, screener/list endpoints 200 | Real-time endpoints are blocked (bot detection on origin server); cached endpoints pass (CDN-served, no bot check). Root cause: sec-ch-ua HeadlessChrome or IP rate limit. Check `age` header — `age > 0` means CDN hit, `age: 0` means origin hit. |
+| Persistent 429 on all real-time endpoints, `curl` from same machine returns 200 | Poisoned browser profile session — the site has flagged the stored cookies/localStorage from heavy testing. TLS fingerprint and IP are fine; the session state is what's blocked. **Fix: wipe and recreate the profile directory** (see "Clearing a poisoned browser profile" below). |
 | API requires `crumb` or similar session token | Some sites (Yahoo Finance, CSRF-protected SPAs) require a short-lived token obtained by first loading the site. Look for `?crumb=` or `X-CSRF-Token` in successful browser requests. Get the token via `browserFetch` from the main site context, cache it, include in all API calls. |
 | Route returns 404 after editing routes.ts | Server needs restart — kill port 3001 and rerun `pnpm dev`. |
 | EventId regex misses alphanumeric IDs | Use `match(/\/event\/([A-Z0-9]+)$/i)` — not just `\d+` (TM uses hex IDs). |
@@ -514,6 +515,34 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 | Substring artist filter passes tribute bands | `name.includes(query)` is too broad — "Bad Bunny Tribute Experience" contains "Bad Bunny". Filter must check that the artist name is the **subject** of the event, not just a substring. Require: `norm(eventName).startsWith(norm(artist))` OR use a stricter regex like `new RegExp('\\b' + escapedArtist + '\\b', 'i')`. Also skip names containing words like "tribute", "experience", "symphony", "comedy", "theater". |
 | Direct `fetch()` returns 429 but browser and `curl` return 200 | The site uses **TLS fingerprinting** (also called JA3/JA4 fingerprinting). Node.js has a distinct TLS fingerprint from Chrome. Sites like Yahoo Finance and others with anti-bot protection will 429 Node.js `fetch()` while accepting requests from real browsers. **Fix**: use `browserFetch(url, { headers })` inside the route handler instead of `fetch()` — the proxy browser's TLS fingerprint matches a real Chrome browser. Alternatively, mark the route `browserRequired: true` and navigate to the URL to extract data from the DOM. |
 | `browserRequired: false` route still gets 503 | Check the `createDomainProxy` implementation in `packages/browser/src/handler/api-proxy.ts`. The browser-not-connected check must be `if (!browser && route.browserRequired !== false)` — not `if (!browser)`. If the check is unconditional, all routes will 503 when no browser is connected, even browserless ones. |
+
+### Clearing a poisoned browser profile
+
+When a site returns 429 for every request from the proxy browser but `curl` from the same machine returns 200, the stored browser session (cookies, localStorage, IndexedDB) has been flagged by the site's bot detection. This happens after heavy testing that hammers a single profile. The fix is to wipe and recreate the profile directory — not to change IP or TLS settings:
+
+```bash
+# Replace <domain> with the profile name (e.g. yahoo-finance, robinhood)
+rm -rf data/browser-profiles/<domain>
+mkdir data/browser-profiles/<domain>
+```
+
+**Always ask the user before wiping.** Profile directories contain stored session tokens and auth state that may be hard to re-establish (2FA, manual login flows, etc.). Present the diagnosis and ask for confirmation before running the `rm -rf`. Only proceed after explicit approval.
+
+Then reconnect the browser via the dashboard (`/browser?profile=<domain>&...`) and re-authenticate if needed. The fresh profile has no flagged session state and will receive 200 responses again.
+
+**Diagnosis steps before wiping:**
+
+1. `curl -H "User-Agent: Mozilla/5.0 ..." https://api.example.com/endpoint` from the same machine — if this returns 200, the IP is fine and the profile session is the culprit.
+2. Check the proxy browser's response headers: `curl -s http://localhost:3001/browser/traffic | jq '.entries[-1].responseHeaders'` — look for `x-ratelimit-*`, `cf-ray`, `x-cache`, or a `Set-Cookie` that resets the session.
+3. If `age: 0` in response headers, it's an origin hit (not CDN-cached). 429 on origin hit with valid IP = session-level block.
+
+**When NOT to wipe:**
+- If both `curl` and the browser return 429 → IP-level block. Changing the profile won't help. Wait for the rate limit window to expire (typically 15–60 min).
+- If only certain endpoints 429 → CDN/origin split (see Gotchas table row above). Wipe won't help here either.
+
+**After wiping, the poller will restart from scratch** — no stored articles, no cached auth tokens. If the domain requires login, you must re-authenticate before the poller's first cycle.
+
+---
 
 ### Browserless Routes with Background Polling
 
@@ -552,3 +581,96 @@ export function createRoutes(
 import { getNewsArticles } from './news-poller';
 registerDomain({ ...plugin, routes: createRoutes(getBridge, getNewsArticles) });
 ```
+
+#### TTL cache Map for pollers
+
+When a poller fetches from a rate-limited external source, cache per-key with an expiry:
+
+```typescript
+const cache = new Map<string, { data: RssResult; expiresAt: number }>();
+const TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function fetchWithCache(key: string): Promise<RssResult> {
+  const hit = cache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.data;
+  const data = await fetchFromSource(key);
+  cache.set(key, { data, expiresAt: Date.now() + TTL_MS });
+  return data;
+}
+```
+
+Use this in both the poller loop and the cold-start fallback path in the route handler. Never skip the cache in the route handler — the route and the poller run on the same Node.js process and share the same Map.
+
+#### Wiring poller dispatch via `broadcastMessage`
+
+Pollers need to push WS events to connected dashboard clients. Inject `broadcastMessage` at startup rather than importing `state.ts` directly from the domain package (the domain package must not depend on the API app):
+
+```typescript
+// In the domain package (e.g. domains/yahoo-finance/src/news-poller.ts):
+type BroadcastFn = (payload: unknown) => void;
+let broadcastFn: BroadcastFn | null = null;
+export function setBroadcast(fn: BroadcastFn): void { broadcastFn = fn; }
+
+// Inside the poller after each cycle:
+broadcastFn?.({ type: 'news:update', data: { articles, total, updatedAt } });
+
+// In apps/api/src/index.ts (before server.listen()):
+import { broadcastMessage } from './state';
+import { setBroadcast, startNewsPoller } from '@interceptor/domain-yahoo-finance';
+setBroadcast(broadcastMessage);
+startNewsPoller(getActiveBrowser);
+```
+
+The `setBroadcast` call must come **before** `startNewsPoller` — the first poll fires immediately on start.
+
+`broadcastMessage` in `state.ts` is a generic utility that sends any JSON payload to all connected WS clients. It does not go through the state machine — the dedup check (`lastJson === json`) is bypassed. Any domain poller can use it.
+
+#### RSS / XML feed parsing without DOMParser
+
+Node.js has no `DOMParser`. Parse XML with regex when the feed structure is known and stable (RSS 2.0 is standardized):
+
+```typescript
+function parseRssXml(xml: string): Array<{ title: string; link: string; description: string; pubDate: string }> {
+  const items: Array<{ title: string; link: string; description: string; pubDate: string }> = [];
+  for (const [, block] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
+    const get = (tag: string) => block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`))?.[1]
+      ?? block.match(new RegExp(`<${tag}[^>]*>([^<]*)<\\/${tag}>`))?.[1]
+      ?? '';
+    items.push({
+      title: get('title').trim(),
+      link: get('link').trim(),
+      description: get('description').trim(),
+      pubDate: get('pubDate').trim(),
+    });
+  }
+  return items;
+}
+```
+
+The `get` helper handles both `<tag><![CDATA[...]]></tag>` (common for titles/descriptions) and plain `<tag>text</tag>` forms. Use this instead of importing an XML parser — it adds no dependency and handles the 90% case for RSS 2.0.
+
+#### Unix timestamps in time-series API parameters
+
+Many financial/data APIs encode time ranges as unix epoch seconds, not ISO 8601. When you see parameters like `period1`, `period2`, `startTime`, `endTime`, `from`, `to` in captured traffic and they look like large integers (10 digits, ~1700000000), they are unix timestamps in seconds:
+
+```typescript
+// Convert JS Date to unix timestamp (seconds)
+const now = Math.floor(Date.now() / 1000);
+const oneDayAgo = now - 86400;
+
+// Build URL with timestamp range
+const url = `https://api.example.com/v8/data/${symbol}?period1=${oneDayAgo}&period2=${now}&interval=5m`;
+```
+
+Check captured traffic for the exact parameter names — they vary by API. Common interval strings: `1m`, `5m`, `15m`, `1h`, `1d`. The response typically has a `timestamp` array (parallel to OHLC arrays) also in unix seconds:
+
+```typescript
+// Parse response into [{time, open, high, low, close, volume}]
+const { timestamp, indicators: { quote: [q] } } = meta.chart.result[0];
+const points = timestamp.map((t: number, i: number) => ({
+  time: new Date(t * 1000).toISOString(),
+  open: q.open[i], high: q.high[i], low: q.low[i], close: q.close[i], volume: q.volume[i],
+}));
+```
+
+This is NOT Yahoo Finance-specific — Bloomberg, Polygon, Alpha Vantage, and many others follow the same convention.
