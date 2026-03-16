@@ -242,8 +242,11 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 	}
 
 	try {
-		// Clean up existing browser instance
-		if (activeBrowser) {
+		// Reuse existing browser if same profile is already running
+		const reusingBrowser = activeBrowser && browserReady && currentProfile === (profile || null);
+
+		if (activeBrowser && !reusingBrowser) {
+			// Different profile — destroy existing browser
 			browserLogger.lifecycle('cleanup_existing', { profile: currentProfile || 'unknown' });
 			try {
 				if (activeInterceptor) {
@@ -262,6 +265,45 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			activeBrowser = null;
 			lifecycleManager.unregisterBrowser();
 			await new Promise((resolve) => setTimeout(resolve, 500));
+		}
+
+		if (reusingBrowser) {
+			// Same profile already running — reuse browser, just navigate to new URL
+			browserLogger.lifecycle('reusing_browser', { profile: currentProfile || 'unknown' });
+
+			wsSendJson(ws, {
+				type: 'ready',
+				viewport: { width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT },
+				profile: profile || null,
+				reused: true,
+			});
+
+			if (url) {
+				browserLogger.debug(`Navigating existing browser to: ${url}`);
+				await activeBrowser!.navigate(url);
+			}
+
+			lifecycleManager.releaseLock();
+
+			// Wire message/close handlers for this WebSocket connection
+			ws.on('message', async (data: Buffer) => {
+				if (!activeBrowser || !browserReady) return;
+				try {
+					const message = JSON.parse(data.toString());
+					if (message.type === 'navigate' && message.url) {
+						await activeBrowser.navigate(message.url);
+					}
+				} catch {
+					/* ignore */
+				}
+			});
+
+			ws.on('close', () => {
+				browserLogger.connection('close', { profile: currentProfile || 'unknown', reused: true });
+				// Don't stop browser on close when reusing — it stays alive for proxy
+			});
+
+			return; // Skip the rest of the setup
 		}
 
 		browserReady = false;
@@ -381,73 +423,29 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 				}
 			}
 
-			// Generic traffic capture via ?capture=domain1.com,domain2.com
-			if (captureDomainsParam && activeBrowser) {
-				const captureDomains = captureDomainsParam
-					.split(',')
-					.map((d) => d.trim())
-					.filter(Boolean);
-				const page = activeBrowser.getPage();
-				if (page && captureDomains.length > 0) {
-					for (const domain of captureDomains) {
-						// Glob pattern: **/*${domain}/** matches both exact and subdomain URLs
-						// e.g., "ticketmaster.com" matches https://www.ticketmaster.com/path AND https://api.ticketmaster.com/v2
-						const pattern = `**/*${domain}/**`;
-						await page.route(pattern, async (route) => {
-							const request = route.request();
-							const reqUrl = request.url();
-							const method = request.method();
-							const reqHeaders = request.headers();
-							let reqBody: unknown;
-							try {
-								const postData = request.postData();
-								if (postData) reqBody = JSON.parse(postData);
-							} catch {
-								/* not JSON */
-							}
-
-							const interceptedReq: InterceptedRequest = {
-								url: reqUrl,
-								method,
-								headers: reqHeaders,
-								body: reqBody,
-								timestamp: Date.now(),
-							};
-
-							try {
-								const response = await route.fetch();
-								let resBody: unknown;
-								try {
-									resBody = await response.json();
-								} catch {
-									try {
-										resBody = await response.text();
-									} catch {
-										resBody = null;
-									}
-								}
-
-								const interceptedRes: InterceptedResponse = {
-									url: reqUrl,
-									status: response.status(),
-									headers: response.headers(),
-									body: resBody,
-									timestamp: Date.now(),
-								};
-
-								addTrafficEntry(interceptedReq, interceptedRes);
-								await route.fulfill({ response });
-							} catch {
-								try {
-									await route.continue();
-								} catch {
-									/* page closed */
-								}
-							}
-						});
-					}
-					browserLogger.debug(`Generic traffic capture enabled for: ${captureDomains.join(', ')}`);
-				}
+			// CDP-based traffic capture — catches ALL XHR/Fetch requests across all domains.
+			// Network.enable is set up inside RemoteBrowserService.startScreencast().
+			// We just register the callback to route captured traffic into our buffer.
+			if (activeBrowser) {
+				activeBrowser.onNetworkCapture((req, res) => {
+					addTrafficEntry(
+						{
+							url: req.url,
+							method: req.method,
+							headers: req.headers,
+							body: req.body,
+							timestamp: Date.now(),
+						},
+						{
+							url: res.url,
+							status: res.status,
+							headers: res.headers,
+							body: res.body,
+							timestamp: Date.now(),
+						},
+					);
+				});
+				browserLogger.debug('CDP traffic capture enabled (all domains, JSON only)');
 			}
 
 			// URL change tracking + login detection

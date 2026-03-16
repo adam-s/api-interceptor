@@ -140,6 +140,14 @@ export class RemoteBrowserService {
 	private userDataDir: string | null = null;
 	private interceptors: Map<string, (route: Route) => Promise<void>> = new Map();
 
+	/** Callback for CDP-captured network traffic (XHR/Fetch JSON responses) */
+	private networkCaptureCallback:
+		| ((
+				req: { method: string; url: string; body: unknown; headers: Record<string, string> },
+				res: { url: string; status: number; headers: Record<string, string>; body: unknown },
+		  ) => void)
+		| null = null;
+
 	// Frame throttling state (double-buffer pattern)
 	private lastFrameSentAt = 0;
 	private pendingFrame: FrameData | null = null;
@@ -1055,6 +1063,113 @@ export class RemoteBrowserService {
 	}
 
 	/**
+	 * Register a callback to receive captured network traffic.
+	 * CDP captures ALL XHR/Fetch requests with JSON responses.
+	 */
+	onNetworkCapture(
+		callback: (
+			req: { method: string; url: string; body: unknown; headers: Record<string, string> },
+			res: { url: string; status: number; headers: Record<string, string>; body: unknown },
+		) => void,
+	): void {
+		this.networkCaptureCallback = callback;
+	}
+
+	/**
+	 * Set up CDP Network event handlers for traffic capture.
+	 */
+	private setupNetworkCapture(): void {
+		if (!this.cdp) return;
+
+		const pendingRequests = new Map<
+			string,
+			{
+				method: string;
+				url: string;
+				body: unknown;
+				headers: Record<string, string>;
+				timestamp: number;
+			}
+		>();
+		const responseInfo = new Map<
+			string,
+			{ url: string; status: number; headers: Record<string, string>; contentType: string }
+		>();
+
+		this.cdp.on('Network.requestWillBeSent', (params: any) => {
+			if (!['XHR', 'Fetch'].includes(params.type)) return;
+			let body: unknown;
+			try {
+				if (params.request.postData) body = JSON.parse(params.request.postData);
+			} catch {
+				body = params.request.postData || null;
+			}
+			pendingRequests.set(params.requestId, {
+				method: params.request.method,
+				url: params.request.url,
+				body,
+				headers: params.request.headers,
+				timestamp: Date.now(),
+			});
+		});
+
+		this.cdp.on('Network.responseReceived', (params: any) => {
+			if (!pendingRequests.has(params.requestId)) return;
+			const ct =
+				params.response.headers['content-type'] || params.response.headers['Content-Type'] || '';
+			responseInfo.set(params.requestId, {
+				url: params.response.url,
+				status: params.response.status,
+				headers: params.response.headers,
+				contentType: ct,
+			});
+		});
+
+		this.cdp.on('Network.loadingFinished', async (params: any) => {
+			const req = pendingRequests.get(params.requestId);
+			const res = responseInfo.get(params.requestId);
+			pendingRequests.delete(params.requestId);
+			responseInfo.delete(params.requestId);
+			if (!req || !res || !this.networkCaptureCallback) return;
+
+			// Only capture JSON responses
+			if (!res.contentType.includes('json')) return;
+
+			// Skip analytics/tracking
+			const skip = [
+				'google-analytics',
+				'googleadservices',
+				'google.com/ccm',
+				'sentry.io',
+				'forter.com',
+				'riskified.com',
+				'doubleclick.net',
+			];
+			if (skip.some((s) => res.url.includes(s))) return;
+
+			try {
+				const bodyResult = await this.cdp!.send('Network.getResponseBody', {
+					requestId: params.requestId,
+				});
+				let resBody: unknown;
+				try {
+					resBody = JSON.parse(bodyResult.body);
+				} catch {
+					resBody = bodyResult.body;
+				}
+				this.networkCaptureCallback(req, {
+					url: res.url,
+					status: res.status,
+					headers: res.headers,
+					body: resBody,
+				});
+			} catch {
+				/* body unavailable */
+			}
+		});
+	}
+
+	/**
 	 * Check if browser is running.
 	 */
 	isActive(): boolean {
@@ -1084,6 +1199,10 @@ export class RemoteBrowserService {
 
 		try {
 			this.cdp = await this.context.newCDPSession(this.page);
+
+			// Enable network capture via CDP — catches ALL XHR/Fetch including cross-domain
+			await this.cdp.send('Network.enable');
+			this.setupNetworkCapture();
 
 			// Reset throttling state
 			this.lastFrameSentAt = 0;

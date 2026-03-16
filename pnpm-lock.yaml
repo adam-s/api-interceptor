@@ -51,9 +51,6 @@ importers:
       '@interceptor/domain-robinhood':
         specifier: workspace:*
         version: link:../../domains/robinhood
-      '@interceptor/domain-stubhub':
-        specifier: workspace:*
-        version: link:../../domains/stubhub
       '@interceptor/domain-ticketmaster':
         specifier: workspace:*
         version: link:../../domains/ticketmaster
@@ -204,7 +201,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  domains/stubhub:
+  domains/seatgeek:
     dependencies:
       '@interceptor/browser':
         specifier: workspace:*
