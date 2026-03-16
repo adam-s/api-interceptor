@@ -53,7 +53,7 @@ export function createDomainProxy(
 
 		app.on(method, route.path, async (c) => {
 			const browser = getBrowser();
-			if (!browser) {
+			if (!browser && route.browserRequired !== false) {
 				return c.json(
 					{
 						error: 'Browser not connected',
@@ -63,10 +63,16 @@ export function createDomainProxy(
 				);
 			}
 
+			// After the check above: browser is either connected, or the route explicitly
+			// opted out of browser dependency (browserRequired: false). Routes that set
+			// browserRequired: false must not use the browser param in their handler.
+			// biome-ignore lint/style/noNonNullAssertion: guarded by browserRequired check above
+			const safeBrowser = browser!;
+
 			try {
 				// Custom handler (Type B/B2/C): full access to Hono context + browser
 				if (route.handler) {
-					return route.handler(c, browser);
+					return route.handler(c, safeBrowser);
 				}
 
 				// Proxy handler (Type A): browserFetch targetUrl with cookies inherited
@@ -102,7 +108,7 @@ export function createDomainProxy(
 				}
 
 				// Execute fetch inside the browser context
-				const result = await browser.browserFetch(targetUrl, options);
+				const result = await safeBrowser.browserFetch(targetUrl, options);
 
 				// Return the proxied response
 				return c.json(result.data, result.status as 200);

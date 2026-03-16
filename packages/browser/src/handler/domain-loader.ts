@@ -43,6 +43,8 @@ export type DomainRoute =
 			targetUrl: string;
 			handler?: never;
 			description?: string;
+			/** When false, proxy skips the browser-connected check. Use for routes that do direct fetch() without Patchright. Default: true */
+			browserRequired?: boolean;
 	  }
 	| {
 			method: 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -50,6 +52,8 @@ export type DomainRoute =
 			targetUrl?: never;
 			handler: (c: Context, browser: RemoteBrowserService) => Promise<Response>;
 			description?: string;
+			/** When false, proxy skips the browser-connected check. Use for routes that do direct fetch() without Patchright. Default: true */
+			browserRequired?: boolean;
 	  };
 
 /**

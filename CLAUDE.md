@@ -141,9 +141,95 @@ GitHub Actions runs on push to `main` and PRs:
 
 ## Workflow Rules
 
-- **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work
+- **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work, OR (c) in autonomous iteration mode (see below)
 - **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones
 - **NEVER move on without verifying:** each completed step must be proven — curl returns real data, screenshot shows real content
+- **ALWAYS update CLAUDE.md before switching branches** — the "Current Iteration State" block below must reflect where you are before every `git checkout`
+
+---
+
+## Autonomous Iteration Mode
+
+The user has granted full autonomous operation. You may:
+
+- Commit on `base` without asking (run `./scripts/ci-local.sh` first — must pass)
+- Create and switch between test branches without asking
+- Make architectural and implementation decisions without asking
+- Keep iterating until the prompt is fully solved (all phases verified)
+
+**You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
+
+### The Iteration Loop
+
+```text
+test branch → observe failures → document in docs/temp/ROADMAP.md → git checkout base
+→ strip domain artifacts → fix skills/utilities on base (nothing domain-specific)
+→ ./scripts/ci-local.sh → git commit → git checkout -b test/<id>-v<n+1> → repeat
+```
+
+Full details and checkpoint rules: `docs/temp/ROADMAP.md`
+
+### Server Startup
+
+```bash
+# Kill any existing servers first
+lsof -ti:3001 | xargs kill -9 2>/dev/null; lsof -ti:3000 | xargs kill -9 2>/dev/null
+# Start API (port 3001)
+pnpm --filter api dev > /tmp/api-server.log 2>&1 &
+# Start web (port 3000)
+pnpm --filter web dev > /tmp/web-server.log 2>&1 &
+# Wait and verify
+sleep 6 && curl -s http://localhost:3001/health && curl -s http://localhost:3000 | head -5
+```
+
+Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
+
+### Returning to Base After a Test Iteration
+
+1. Kill running servers
+2. Document all failures in `docs/temp/ROADMAP.md` (failure, root cause, fix needed)
+3. Update CLAUDE.md "Current Iteration State" block (set branch to `base`, record what failed)
+4. Commit on test branch: `git add -A && git commit -m "test: iteration complete — <summary>"`
+5. `git checkout base`
+6. Strip domain artifacts:
+   - Remove domain routes, pages, nav entries, package.json deps
+   - `rm -rf data/browser-profiles/<domain>` if created during test
+   - `rm -rf test-results/dev-screenshots/`
+7. Fix the specific failures — skills/utilities only, NOTHING domain-specific
+8. `./scripts/ci-local.sh` — must pass
+9. Update CLAUDE.md "Current Iteration State" block (set next test branch name, phase 1)
+10. `git commit` on base
+11. `git checkout -b test/<id>-v<n+1>` and continue
+
+---
+
+## Current Iteration State
+
+**ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
+
+```text
+Branch:        test/market-v1
+Prompt:        Prompt 2 — Yahoo Finance market intelligence
+Phase:         Phase 1 (news pipeline) → Phase 2 (quote/chart) → Phase 3 (dashboard UI)
+Last action:   Fixed Failure #1 (browserRequired: false) + committed test/market-v1
+Next step:     Verify Phase 1: curl "http://localhost:3001/api/yahoo-finance/news?symbols=TSLA"
+               Must return articles with sentiment field (may need to wait out Yahoo rate limit)
+               Try sitemap for news: https://finance.yahoo.com/sitemap/2026_03_01/
+
+Phase 1 done: curl returns ≥1 article with {symbol, title, sentiment, score}
+Phase 2 done: curl /api/yahoo-finance/quote/TSLA returns {price, changePercent, marketCap}
+Phase 3 done: Patchright screenshot of http://localhost:3000/market shows
+              watchlist sidebar + quote card + sparkline + news feed with badges + live timestamp
+
+Base fixes needed (carry from test/market-v1):
+  - packages/browser/src/handler/domain-loader.ts: browserRequired? in DomainRoute type ← DONE on base
+  - packages/browser/src/handler/api-proxy.ts: skip check when browserRequired===false ← DONE on base
+
+Note: Yahoo Finance RSS rate-limits aggressively. Try the sitemap approach:
+  https://finance.yahoo.com/sitemap/2026_03_01/
+  Parse links to get recent article URLs → fetch individual articles if needed.
+  OR wait a few minutes and the RSS endpoints unblock.
+```
 
 ## Conventions
 
