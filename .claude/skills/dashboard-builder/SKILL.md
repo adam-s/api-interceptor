@@ -172,6 +172,48 @@ const offline = {
 
 If a source returns `null` or `{ error }`, mark it offline and continue — never let one failing source break the whole page.
 
+## Multi-Source Entity Merging
+
+When sources return the **same real-world entity** (same concert, same job posting, same paper), merge by a stable compound key instead of concatenating all results. This avoids showing the same event three times with different source labels.
+
+**The pattern:**
+
+```typescript
+// 1. Define a normalize+key function for your entity type
+function mergeKey(venue: string, date: string): string {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `${norm(venue)}|${norm(date)}`;
+}
+
+// 2. Build Map<key, Record<sourceName, item>>
+const byKey = new Map<string, Record<string, unknown>>();
+
+for (const item of sourceAResults) {
+  const k = mergeKey(item.venue, item.date);
+  byKey.set(k, { ...byKey.get(k), sourceA: item });
+}
+for (const item of sourceBResults) {
+  const k = mergeKey(item.venue, item.date);
+  byKey.set(k, { ...byKey.get(k), sourceB: item });
+}
+
+// 3. Render — each Map entry is one display row
+//    entry.sourceA or entry.sourceB may be undefined (single-source entity)
+const rows = Array.from(byKey.values());
+```
+
+**Key selection rules:**
+
+- Use the most stable fields: venue+date for events, company+title+city for jobs, DOI for papers
+- Normalize aggressively before comparing: lowercase, strip punctuation, parse dates to ISO
+- Never use free-text titles as the sole key — they differ too much across sources
+- Single-source entities still appear — just with one badge
+
+**Filter before merging:**
+
+- Validate that each result actually belongs to the search query (e.g., artist name in performer name)
+- Skip tribute acts, regional mismatches, and category noise before building the merge map
+
 ## Step 6: Verify with Visual Dev
 
 After building the page, use the visual-dev skill to take screenshots and verify the layout:

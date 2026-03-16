@@ -12,15 +12,17 @@ Each prompt tests different capabilities of the framework. Use these to validate
 >
 > Build a polished dashboard page at /tickets where I type an artist name into a search box. It should:
 >
-> 1. Search both sites sequentially and show a merged list of matching events with dates and venues (same event from both sites = one row, with both marketplace badges)
-> 2. When I click an event, fetch ticket listings from both marketplaces and show a seat-level comparison grid
-> 3. Rows = sections (normalize names: "Section 101" = "Sec 101" = "101"), columns = StubHub | Ticketmaster
-> 4. Each cell shows min price and listing count; where individual seat numbers match across both platforms, show the seat row with cheapest highlighted
-> 5. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other site
+> 1. Search both sites sequentially (one shared browser — never parallel). For each platform, validate that results are for the actual artist: performer/event names must contain the search query. Skip tribute bands (e.g., "Bad Bunny Tribute Experience"), theater productions, and comedy shows. If a result name doesn't closely match the artist query, discard it.
+> 2. Merge events across platforms by matching normalized venue name + date. Normalize: lowercase, strip all non-alphanumeric characters, parse dates to YYYY-MM-DD. Same venue + same date = same event → one merged row with both marketplace badges. TM-only or SH-only events still show with a single badge.
+> 3. When I click an event, fetch ticket listings from both marketplaces sequentially and show a seat-level comparison grid
+> 4. Rows = sections (normalize names: "Section 101" = "Sec 101" = "101"), columns = StubHub | Ticketmaster
+> 5. Each cell shows min price and listing count; highlight the cheapest price per section row in green
+> 6. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other site
 >
-> **Test with a US-touring artist** like "Coldplay" or "Billie Eilish" — use someone with upcoming US dates so both TM (US domain only) and StubHub return real shows. Avoid artists whose tours are exclusively in other regions; TM returns US results only and will show tribute events instead of the real artist if no US dates exist.
+> **Test with a major US-touring artist** like "Bad Bunny" or "Taylor Swift" — someone with real upcoming US arena/stadium shows so both TM (US domain only) and StubHub return actual concerts. Avoid artists whose tours are exclusively outside the US; TM returns US results only and will surface tribute events instead.
 
 **What this tests:**
+
 - Creating 2 domain plugins from scratch (1 SSR Type B, 1 hybrid Type B/B2)
 - Multi-step API discovery (search → event detail → ticket listings)
 - Event merging across marketplaces (same event detected by venue + date)
@@ -34,6 +36,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Create domains for Airbnb, VRBO, and Zillow. Log into my host accounts and detect when my apartment gets booked on Airbnb so I can automatically delist it from the other platforms. Also track prices of similar nearby apartments — if competitors lower prices, alert me so I can adjust mine to stay competitive.
 
 **What this tests:**
+
 - Authenticated sessions (login required)
 - Write operations (delist/update listings via API)
 - Price monitoring over time
@@ -48,6 +51,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Create domains for LinkedIn, Indeed, Glassdoor, and Dice. Search for "senior React developer in Austin", get job postings with salary, company, and requirements from each site. Build a dashboard that deduplicates the same job posted on multiple sites and compares salary ranges. Let me save favorites and track application status.
 
 **What this tests:**
+
 - Search with location + keyword parameters
 - Entity deduplication across sources (same job, different sites)
 - Salary range parsing and normalization
@@ -61,6 +65,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Create domains for Twitter/X, LinkedIn, Bluesky, and Mastodon. Log into my accounts on each platform. Build a dashboard where I write a post once and publish it to all four platforms simultaneously. Then aggregate engagement metrics — likes, reposts, impressions — into a single view so I can see which platform performs best for each post.
 
 **What this tests:**
+
 - POST operations through the API proxy (publishing content)
 - Authenticated write access to multiple platforms
 - Polling for metrics updates over time
@@ -74,6 +79,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Create domains for PubMed, Semantic Scholar, and ArXiv. Some of these may have public REST APIs — prefer using those directly over browser interception when available. Search for a research topic, collect papers with citations, abstracts, and authors. Deduplicate papers that appear in multiple databases. Build a literature review dashboard that shows citation networks and identifies the most influential papers in a field.
 
 **What this tests:**
+
 - Hybrid approach: direct API calls (ArXiv, Semantic Scholar have public APIs) vs browser interception (PubMed may need it)
 - Domain plugins that use direct fetch instead of browserFetch when possible
 - Citation graph traversal (follow references)
@@ -87,6 +93,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Create domains for SEC EDGAR, my state's business registry, county property records, and the federal court docket system (PACER). Search by company name, aggregate all filings, registrations, and court cases. Build a due diligence dashboard that shows a timeline of all activity and alerts me when new filings appear.
 
 **What this tests:**
+
 - Server-side rendered sites with no client-side API (worst case for interception)
 - Session-based auth with CAPTCHAs (PACER)
 - Scheduled monitoring (check for new filings periodically)
@@ -112,6 +119,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 ## Success Criteria
 
 A prompt is "solved" when:
+
 - [ ] All domain plugins are created and registered
 - [ ] API routes are discovered and proxied through the browser
 - [ ] Dashboard UI is functional (search, display, interact)

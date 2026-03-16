@@ -1,5 +1,13 @@
 # Interceptor
 
+## Mission
+
+**This framework's purpose:** A developer pastes any natural-language prompt describing a web application. Claude Code uses the skills to automatically discover the target website's API via browser traffic interception, create a typed domain plugin with proxy routes, and build a working dashboard — without manual intervention beyond the initial prompt. **The browser IS the API client. The skills are the product.**
+
+Every improvement to base skills, utilities, or architecture should serve this mission: reduce the gap between pasting a prompt and getting a working application.
+
+---
+
 Monorepo for API interception and typed client generation using Patchright + WebSocket streaming.
 
 ## Structure
