@@ -7,6 +7,11 @@
 		".": "./src/index.ts",
 		"./remote": "./src/remote/index.ts",
 		"./robinhood": "./src/robinhood/index.ts",
+		"./shared": "./src/shared/index.ts",
+		"./shared/interceptor": "./src/shared/interceptor.ts",
+		"./shared/session-manager": "./src/shared/session-manager.ts",
+		"./domain-config": "./src/domain-config.ts",
+		"./registry": "./src/registry.ts",
 		"./mcp": "./src/mcp/server.ts"
 	},
 	"scripts": {

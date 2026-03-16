@@ -86,6 +86,7 @@ export interface VerificationResult {
 	firstName?: string;
 	lastName?: string;
 	error?: string;
+	[key: string]: unknown; // Allow additional domain-specific fields
 }
 
 /**

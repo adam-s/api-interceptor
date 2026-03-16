@@ -27,23 +27,22 @@ import {
 import {
 	type InterceptedRequest,
 	type InterceptedResponse,
-	RobinhoodApiClient,
-	RobinhoodInterceptor,
-	RobinhoodSessionManager,
 } from '@interceptor/browser/robinhood';
+import { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
+import { GenericSessionManager } from '@interceptor/browser/shared/session-manager';
+import { getDomainConfig, type DomainConfig } from '@interceptor/browser/domain-config';
 import { Hono } from 'hono';
 import type { UpgradeWebSocket } from 'hono/ws';
 
 const VIEWPORT_WIDTH = 1024;
 const VIEWPORT_HEIGHT = 576;
 
-/** Robinhood profile name — triggers automatic interceptor attachment */
-const ROBINHOOD_PROFILE = 'robinhood-trading';
-
 let activeBrowser: RemoteBrowserService | null = null;
-let activeInterceptor: RobinhoodInterceptor | null = null;
+let activeInterceptor: GenericInterceptor | null = null;
+let activeDomainConfig: DomainConfig | undefined;
 let browserReady = false;
 let currentProfile: string | null = null;
+let currentDomain: string | null = null;
 
 // --- Traffic Capture Buffer ---
 // Ring buffer for API traffic captured by interceptors.
@@ -336,75 +335,75 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 							browserReady = true;
 							lifecycleManager.registerBrowser(activeBrowser);
 
-							// Attach Robinhood interceptor for robinhood-trading profile
-							if (profile === ROBINHOOD_PROFILE) {
-								browserLogger.debug('Attaching Robinhood interceptor');
+							// Attach domain-specific interceptor if config exists
+							if (profile) {
+								const config = getDomainConfig(profile);
+								if (config) {
+									currentDomain = config.domainName;
+									activeDomainConfig = config;
+									browserLogger.debug(`Attaching interceptor for domain: ${config.domainName}`);
 
-								const page = activeBrowser.getPage();
-								if (page) {
-									activeInterceptor = new RobinhoodInterceptor();
+									const page = activeBrowser.getPage();
+									if (page) {
+										activeInterceptor = config.createInterceptor();
 
-									activeInterceptor.onHeadersCaptured = async (headers) => {
-										browserLogger.debug('Robinhood headers captured');
-										const manager = RobinhoodSessionManager.getInstance();
-										manager.setHeaders(ROBINHOOD_PROFILE, headers);
+										activeInterceptor.onHeadersCaptured = async (headers) => {
+											browserLogger.debug(`Headers captured for domain: ${config.domainName}`);
+											const manager = GenericSessionManager.getInstance(config.domainName);
+											manager.setHeaders(profile, headers);
 
-										// Verify credentials with a real API call
-										browserLogger.debug('Verifying Robinhood credentials');
-										const client = new RobinhoodApiClient(headers);
-										const result = await client.verify();
+											// Verify credentials if domain config provides verification
+											if (config.verifyCredentials) {
+												browserLogger.debug(`Verifying credentials for domain: ${config.domainName}`);
+												const result = await config.verifyCredentials(headers);
 
-										if (result.valid) {
-											manager.markVerified(ROBINHOOD_PROFILE, {
-												accountNumber: result.accountNumber || '',
-												firstName: result.firstName,
-												lastName: result.lastName,
-												buyingPower: result.buyingPower,
-											});
-											browserLogger.debug(
-												`Robinhood VERIFIED: Account ${result.accountNumber}, ${result.firstName} ${result.lastName}, Buying Power: $${result.buyingPower}`,
-											);
+												if (result.valid) {
+													manager.markVerified(profile, {
+														accountNumber: result.accountNumber || '',
+														firstName: (result as any).firstName,
+														lastName: (result as any).lastName,
+														buyingPower: (result as any).buyingPower,
+													});
+													browserLogger.debug(
+														`${config.domainName} VERIFIED: ${JSON.stringify(result)}`,
+													);
 
-											try {
-												ws.send(
-													JSON.stringify({
-														type: 'robinhood_verified',
-														accountNumber: result.accountNumber,
-														firstName: result.firstName,
-														lastName: result.lastName,
-														buyingPower: result.buyingPower,
-													}),
-												);
-											} catch {
-												// Client may have disconnected
-											}
-										} else {
-											manager.markVerificationFailed(
-												ROBINHOOD_PROFILE,
-												result.error || 'Unknown error',
-											);
-											browserLogger.warn('robinhood_verification_failed', { error: result.error });
-
-											try {
-												ws.send(
-													JSON.stringify({
-														type: 'robinhood_verification_failed',
+													try {
+														const message = config.onVerified
+															? config.onVerified(result)
+															: { type: `${config.domainName}_verified`, ...result };
+														ws.send(JSON.stringify(message));
+													} catch {
+														// Client may have disconnected
+													}
+												} else {
+													manager.markVerificationFailed(profile, result.error || 'Unknown error');
+													browserLogger.warn(`${config.domainName}_verification_failed`, {
 														error: result.error,
-													}),
-												);
-											} catch {
-												// Client may have disconnected
+													});
+
+													try {
+														const message = config.onVerificationFailed
+															? config.onVerificationFailed(result.error || 'Unknown error')
+															: { type: `${config.domainName}_verification_failed`, error: result.error };
+														ws.send(JSON.stringify(message));
+													} catch {
+														// Client may have disconnected
+													}
+												}
 											}
-										}
-									};
+										};
 
-									// Wire traffic capture — intercepted req/res pairs go into the buffer
-									activeInterceptor.onIntercept((req, res) => {
-										addTrafficEntry(req, res);
-									});
+										// Wire traffic capture — intercepted req/res pairs go into the buffer
+										activeInterceptor.onIntercept((req, res) => {
+											addTrafficEntry(req, res);
+										});
 
-									await activeInterceptor.attach(page);
-									browserLogger.debug('Robinhood interceptor attached + traffic capture enabled');
+										await activeInterceptor.attach(page);
+										browserLogger.debug(
+											`${config.domainName} interceptor attached + traffic capture enabled`,
+										);
+									}
 								}
 							}
 
@@ -499,17 +498,20 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 										}),
 									);
 
-									if (profile === ROBINHOOD_PROFILE) {
-										const isLoginPage = changedUrl.includes('robinhood.com/login');
+									if (activeDomainConfig && activeDomainConfig.detectLoginPage) {
+										const isLoginPage = activeDomainConfig.detectLoginPage(changedUrl);
 										const wasOnAuthenticatedPage =
-											lastUrl && !lastUrl.includes('robinhood.com/login');
+											lastUrl && !activeDomainConfig.detectLoginPage(lastUrl);
 
 										if (isLoginPage && wasOnAuthenticatedPage && headersCapturedInThisSession) {
-											ws.send(
-												JSON.stringify({
-													type: 'robinhood_login_page_detected',
-												}),
-											);
+											try {
+												const message = activeDomainConfig.onLoginDetected
+													? activeDomainConfig.onLoginDetected()
+													: { type: `${activeDomainConfig.domainName}_login_page_detected` };
+												ws.send(JSON.stringify(message));
+											} catch {
+												// Client may have disconnected
+											}
 										}
 									}
 
