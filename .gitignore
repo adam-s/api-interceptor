@@ -15,3 +15,10 @@ tests/e2e/.auth/
 __pycache__/
 .venv/
 .DS_Store
+
+# Browser profiles (contain auth cookies/tokens — never commit)
+data/browser-profiles/*/
+!data/browser-profiles/.gitkeep
+
+# Haiku's cache directory
+.cache/

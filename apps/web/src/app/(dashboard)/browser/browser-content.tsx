@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Omnibar } from '@/components/browser/omnibar';
 import {
 	RemoteBrowserViewer,
@@ -10,8 +11,9 @@ import { Button } from '@/components/ui/button';
 
 type ConnectionStatus = 'connecting' | 'connected' | 'ready' | 'disconnected' | 'error';
 
-/** Robinhood verification data from the interceptor */
-interface RobinhoodInfo {
+/** Domain verification data from interceptors */
+interface DomainInfo {
+	domain?: string;
 	accountNumber?: string;
 	firstName?: string;
 	lastName?: string;
@@ -20,20 +22,27 @@ interface RobinhoodInfo {
 }
 
 export default function BrowserContent() {
+	const searchParams = useSearchParams();
 	const [status, setStatus] = useState<ConnectionStatus>('disconnected');
 	const [url, setUrl] = useState('');
 	const [frameCount, setFrameCount] = useState(0);
-	const [robinhoodInfo, setRobinhoodInfo] = useState<RobinhoodInfo | null>(null);
+	const [domainInfo, setDomainInfo] = useState<DomainInfo | null>(null);
 	const [warmingUp, setWarmingUp] = useState(false);
 	const wsRef = useRef<WebSocket | null>(null);
 	const viewerRef = useRef<RemoteBrowserViewerHandle | null>(null);
 
-	// Build WebSocket URL with robinhood-trading profile
+	// Build WebSocket URL from search params — supports any domain
+	// Usage: /browser?profile=hackernews&capture=news.ycombinator.com&url=https://news.ycombinator.com
 	const wsUrl = useMemo(() => {
 		const params = new URLSearchParams();
-		params.set('profile', 'robinhood-trading');
+		const profile = searchParams.get('profile') || 'generic';
+		const capture = searchParams.get('capture') || '';
+		const startUrl = searchParams.get('url') || '';
+		params.set('profile', profile);
+		if (capture) params.set('capture', capture);
+		if (startUrl) params.set('url', startUrl);
 		return `ws://localhost:3001/browser/stream?${params.toString()}`;
-	}, []);
+	}, [searchParams]);
 
 	const handleWsRef = useCallback((ws: WebSocket | null) => {
 		wsRef.current = ws;
@@ -75,7 +84,7 @@ export default function BrowserContent() {
 
 	// Connect/disconnect
 	const handleConnect = useCallback(() => {
-		setRobinhoodInfo(null);
+		setDomainInfo(null);
 		viewerRef.current?.connect();
 	}, []);
 
@@ -87,21 +96,23 @@ export default function BrowserContent() {
 		viewerRef.current = handle;
 	}, []);
 
-	// Handle messages from the browser stream
+	// Handle messages from the browser stream — generic for any domain
 	const handleMessage = useCallback((message: { type: string; [key: string]: unknown }) => {
-		if (message.type === 'robinhood_verified') {
-			setRobinhoodInfo({
+		if (message.type.endsWith('_verified')) {
+			setDomainInfo({
+				domain: message.type.replace('_verified', ''),
 				accountNumber: message.accountNumber as string,
 				firstName: message.firstName as string,
 				lastName: message.lastName as string,
 				buyingPower: message.buyingPower as string,
 			});
-		} else if (message.type === 'robinhood_verification_failed') {
-			setRobinhoodInfo({
+		} else if (message.type.endsWith('_verification_failed')) {
+			setDomainInfo({
+				domain: message.type.replace('_verification_failed', ''),
 				error: message.error as string,
 			});
-		} else if (message.type === 'robinhood_login_page_detected') {
-			setRobinhoodInfo(null);
+		} else if (message.type.endsWith('_login_page_detected')) {
+			setDomainInfo(null);
 		} else if (message.type === 'warmup_complete') {
 			setWarmingUp(false);
 		}
@@ -137,18 +148,16 @@ export default function BrowserContent() {
 					{status === 'error' && 'Connection error'}
 				</span>
 
-				{/* Robinhood status */}
-				{robinhoodInfo && !robinhoodInfo.error && (
+				{/* Domain verification status */}
+				{domainInfo && !domainInfo.error && (
 					<span className="ml-auto rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-						Robinhood: {robinhoodInfo.firstName} {robinhoodInfo.lastName} — $
-						{Number(robinhoodInfo.buyingPower || 0).toLocaleString('en-US', {
-							minimumFractionDigits: 2,
-						})}
+						{domainInfo.domain}: {domainInfo.firstName || domainInfo.accountNumber || 'verified'}
+						{domainInfo.buyingPower && ` — $${Number(domainInfo.buyingPower).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
 					</span>
 				)}
-				{robinhoodInfo?.error && (
+				{domainInfo?.error && (
 					<span className="ml-auto rounded-full bg-red-500/10 px-3 py-1 text-xs font-medium text-red-400">
-						Auth failed: {robinhoodInfo.error}
+						Auth failed: {domainInfo.error}
 					</span>
 				)}
 			</div>
@@ -178,7 +187,7 @@ export default function BrowserContent() {
 					onFrameCount={setFrameCount}
 					onUrl={handleUrlChange}
 					onMessage={handleMessage}
-					autoConnect={false}
+					autoConnect={true}
 					onConnectRef={handleConnectRef}
 					className="flex h-full items-center justify-center p-4"
 				/>
