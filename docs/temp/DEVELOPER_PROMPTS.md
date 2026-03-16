@@ -19,7 +19,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > 5. Each cell shows min price and listing count; highlight the cheapest price per section row in green
 > 6. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other site
 >
-> **Test with a major US-touring artist** like "Bad Bunny" or "Taylor Swift" — someone with real upcoming US arena/stadium shows so both TM (US domain only) and StubHub return actual concerts. Avoid artists whose tours are exclusively outside the US; TM returns US results only and will surface tribute events instead.
+> **Test with a major US-touring artist** like "Kendrick Lamar" or "Morgan Wallen" — someone with real upcoming US arena/stadium shows so both TM (US domain only) and StubHub return actual concerts. Avoid artists whose tours are exclusively outside the US (e.g. Bad Bunny, Taylor Swift at time of writing); TM returns US results only and will surface tribute events instead.
 
 **What this tests:**
 

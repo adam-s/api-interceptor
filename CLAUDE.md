@@ -139,6 +139,12 @@ GitHub Actions runs on push to `main` and PRs:
 - [ ] Review `.env.example` and `.env.production.example`
 - [ ] Scan git history: `git log --all --full-history -- [file]`
 
+## Workflow Rules
+
+- **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work
+- **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones
+- **NEVER move on without verifying:** each completed step must be proven — curl returns real data, screenshot shows real content
+
 ## Conventions
 
 - Import paths: `@interceptor/[package]`

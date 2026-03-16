@@ -294,8 +294,19 @@ Consequences:
 1. **Only one domain can be "active" at a time.** The most recently connected profile wins.
 2. **Concurrent API calls race on the same page.** If two route handlers call `browser.navigate()` simultaneously, one will navigate away mid-extraction.
 3. **Always connect ONE browser** for screenshot/verification scripts. Never connect two profiles — the second destroys the first.
+4. **Traffic capture is profile-scoped.** Each profile's interceptor only captures traffic to its own configured domains. When `profile=stubhub` is connected, calls to `services.ticketmaster.com` go through but are **never added to the traffic buffer** — the TM interceptor patterns aren't active.
 
 For multi-domain dashboards: the UI layer must call each domain's API **sequentially**, not with `Promise.all` or `Promise.allSettled`.
+
+**Cross-domain traffic capture:** To capture traffic from domains beyond the active profile, connect with the `capture` query parameter listing additional domains:
+
+```
+ws://localhost:3001/browser/stream?profile=stubhub&capture=services.ticketmaster.com,www.ticketmaster.com&url=https://www.stubhub.com
+```
+
+This lets a StubHub session also intercept Ticketmaster API calls when the browser navigates there. Required for any multi-domain comparison where different sites use different traffic capture patterns (B2 vs SSR).
+
+**Type B2 discovery requires the proxy browser — never an external Patchright script.** The traffic buffer (`GET /browser/traffic`) only captures requests made by the proxy server's browser. A standalone Patchright script has its own browser with no traffic buffer — it will always return 0 CDP entries for Type B2 patterns. Discovery for ISMDS-style APIs must happen through a route handler that calls `browser.navigate()`, not through an external script.
 
 | Problem | Fix |
 |---------|-----|
@@ -315,3 +326,6 @@ For multi-domain dashboards: the UI layer must call each domain's API **sequenti
 | Event URLs point to wrong regional domain | TM/similar sites geolock to `.es`, `.de`, `.co.uk` based on browser IP. Check event URL domain in results — if regional, use that domain in routes. |
 | Performer/category pages include unrelated recommendations | Pages include "Recommended" / "You may also like" sections with events from other artists. Extracting all `/event/` links captures these. Fix: filter extracted URLs to only those containing the performer name slug. Derive slug from `performerUrl.split('/').find(s => s.endsWith('-tickets'))?.replace(/-tickets$/, '')`. |
 | Calling `/browser/navigate` or `/browser/evaluate` as REST endpoints | These are server-side methods on `BrowserService`, called inside `handler` functions in `routes.ts`. No HTTP endpoints exist for them — they return 404. Navigation and DOM evaluation happen only inside route handlers. |
+| `data-*` attribute price ≠ displayed price | Some sites (e.g. StubHub) store prices in `data-price` as a USD-internal value. If the browser is geolocated to a non-USD country the displayed text shows local currency (e.g. S/.820) while `data-price` holds the raw number (e.g. `82` → renders as `$0.82`). Always read prices from the **displayed text**, not `data-*` attributes, unless you've verified the attribute matches the display in the target locale. |
+| Server returns stale routes after editing `routes.ts` in a workspace package | `tsx --watch` does not always detect changes in workspace packages (`@interceptor/browser`, etc.). Kill the API server (`kill $(lsof -ti:3001)`) and restart `pnpm dev`. |
+| Substring artist filter passes tribute bands | `name.includes(query)` is too broad — "Bad Bunny Tribute Experience" contains "Bad Bunny". Filter must check that the artist name is the **subject** of the event, not just a substring. Require: `norm(eventName).startsWith(norm(artist))` OR use a stricter regex like `new RegExp('\\b' + escapedArtist + '\\b', 'i')`. Also skip names containing words like "tribute", "experience", "symphony", "comedy", "theater". |
