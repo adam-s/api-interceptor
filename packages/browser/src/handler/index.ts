@@ -586,44 +586,17 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 	});
 
 	// --- onClose handler ---
+	// Browser stays alive when WebSocket disconnects — proxy continues to work.
+	// Browser is only stopped when a different profile connects or server shuts down.
 
-	ws.on('close', async () => {
-		browserLogger.connection('close', { profile: currentProfile || 'unknown' });
-
-		const lm = BrowserLifecycleManager.getInstance();
-		try {
-			await lm.acquireLock();
-		} catch {
-			// If we can't get the lock, still try to clean up
-		}
-
-		try {
-			lm.unregisterBrowser();
-
-			if (activeInterceptor) {
-				await activeInterceptor.detach();
-				activeInterceptor = null;
-			}
-			if (activeBrowser) {
-				browserLogger.lifecycle('stopping', { profile: currentProfile || 'unknown' });
-				await activeBrowser.stop();
-				browserLogger.lifecycle('stopped', { profile: currentProfile || 'unknown' });
-				activeBrowser = null;
-			}
-			currentProfile = null;
-			currentDomain = null;
-			activePlugin = undefined;
-			browserReady = false;
-		} catch (err) {
-			browserLogger.error('cleanup_error', err instanceof Error ? err : new Error(String(err)), {
-				profile: currentProfile,
-			});
-		} finally {
-			try {
-				lm.releaseLock();
-			} catch {
-				// Lock may not have been acquired
-			}
-		}
+	ws.on('close', () => {
+		browserLogger.connection('close', {
+			profile: currentProfile || 'unknown',
+			browserKeptAlive: true,
+		});
+		// DO NOT stop the browser — it stays alive for proxy API calls.
+		// The browser will be stopped when:
+		// - A new connection with a DIFFERENT profile arrives (cleanup in handleBrowserWebSocket)
+		// - The server shuts down
 	});
 }
