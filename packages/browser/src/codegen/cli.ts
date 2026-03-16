@@ -60,18 +60,15 @@ async function main() {
 
 	console.log(`\n🔍 Generating API client for domain: ${domain}\n`);
 
-	// 1. Verify domain config exists
-	if (!hasDomainConfig(domain)) {
-		console.error(`❌ Domain '${domain}' not found in registry`);
-		console.error(`Available domains: ${Object.keys(getDomainConfig(domain) || {}).join(', ')}`);
-		process.exit(1);
-	}
-
-	const domainConfig = getDomainConfig(domain);
-	if (!domainConfig) {
-		console.error(`❌ Could not load config for domain '${domain}'`);
-		process.exit(1);
-	}
+	// 1. Get domain config if registered, or create a minimal one for ad-hoc discovery
+	const domainConfig = getDomainConfig(domain) || {
+		domainName: domain,
+		interceptPatterns: [],
+		requiredHeaders: [],
+		headerSchema: null,
+		baseUrls: [],
+		createInterceptor: () => { throw new Error('No interceptor for ad-hoc domain'); },
+	};
 
 	// 2. Load traffic data
 	let traffic: any = { entries: [] };
@@ -88,7 +85,7 @@ async function main() {
 	} else {
 		// Try to fetch from live server
 		try {
-			const response = await fetch('http://localhost:3001/api/browser/traffic');
+			const response = await fetch('http://localhost:3001/browser/traffic');
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}

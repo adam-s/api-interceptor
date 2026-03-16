@@ -113,7 +113,7 @@ export function analyzeTraffic(entries: TrafficEntry[]): EndpointPattern[] {
 				pattern,
 				baseUrl,
 				examples: [],
-				minExamples: 3,
+				minExamples: 1,
 				canInferSchema: false,
 			});
 		}
