@@ -286,6 +286,17 @@ If `domains/<name>/` exists:
 
 ## Gotchas
 
+### Single browser singleton — sequential calls only
+
+The API server's browser is a **module-level singleton** (`let activeBrowser: RemoteBrowserService | null = null`). Only ONE browser is active at a time. When a new domain profile connects via WebSocket, it **destroys the existing browser**.
+
+Consequences:
+1. **Only one domain can be "active" at a time.** The most recently connected profile wins.
+2. **Concurrent API calls race on the same page.** If two route handlers call `browser.navigate()` simultaneously, one will navigate away mid-extraction.
+3. **Always connect ONE browser** for screenshot/verification scripts. Never connect two profiles — the second destroys the first.
+
+For multi-domain dashboards: the UI layer must call each domain's API **sequentially**, not with `Promise.all` or `Promise.allSettled`.
+
 | Problem | Fix |
 |---------|-----|
 | Traffic shows 0 entries | CDP only captures XHR/Fetch JSON. If empty: site is SSR — extract from DOM via `page.evaluate()`. |

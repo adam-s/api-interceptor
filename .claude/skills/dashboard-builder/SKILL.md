@@ -7,6 +7,23 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
+## ⚠️ Critical: Single Browser Singleton
+
+The API server has **one shared browser instance** across all domain routes. This means:
+
+- Domain route handlers share the same page. If two handlers navigate simultaneously, they race — one navigates away before the other extracts.
+- **Never call multiple domain APIs in parallel from the UI.** `Promise.allSettled([tmSearch(q), shSearch(q)])` will break: both handlers try to navigate the same browser to different URLs simultaneously.
+- **Always call domain APIs sequentially** when your dashboard page hits multiple domains:
+  ```typescript
+  // ✗ BROKEN — race condition on shared browser
+  const [tm, sh] = await Promise.allSettled([tmSearch(q), shSearch(q)]);
+
+  // ✓ CORRECT — sequential, one browser navigation at a time
+  const tm = await tmSearch(q).catch(() => []);
+  const sh = await shSearch(q).catch(() => []);
+  ```
+- This applies to any sequence of API calls that ultimately navigate the proxy browser: search → detail → listings must all be awaited sequentially.
+
 ## Prerequisites
 
 - Domain plugins must exist with proxy routes registered (use api-discovery skill first)

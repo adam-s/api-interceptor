@@ -591,6 +591,7 @@ If the script fails, don't retry the same thing. Diagnose first:
 | Stale UI after code change | Dev server hasn't hot-reloaded | Wait longer, or restart dev server |
 | `storageState` auth fails | Token expired or from different session | Switch to manual login |
 | `bg-blue-50` looks gray | Light-mode color on dark theme | Think about element's role; use opacity-based dark variant |
+| Screenshot cuts off content inside scrollable div | `fullPage: true` extends the *document* scroll, not nested `overflow: auto` elements | Before screenshotting: `await page.evaluate(() => { const el = document.querySelector('main'); if (el) { el.style.overflow = 'visible'; el.style.height = 'auto'; } });` |
 | Form fields crammed against button | `<form>` wrapping breaks parent's `gap` | Add `flex flex-col gap-6` to the form |
 | Panel stretches at 1920px | No max-width constraint | Add `max-w-xl mx-auto` |
 
