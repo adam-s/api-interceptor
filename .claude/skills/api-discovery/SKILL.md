@@ -232,3 +232,57 @@ After capturing traffic, classify each endpoint before adding it to routes.ts:
 | Module import error | Ensure `"type": "module"` in domain's package.json |
 | pnpm can't find domain | Run `pnpm install` after adding to workspace; check `pnpm-workspace.yaml` includes `'domains/*'` |
 | JS/CSS in captured traffic | Codegen filters these automatically; or only add JSON endpoints to routes.ts |
+
+## SSR Data Extraction
+
+Many sites embed data in their initial HTML response (Server-Side Rendering). The API isn't a separate XHR call — it's inside the page HTML.
+
+### How to detect SSR data
+
+After navigating to a page, search the HTML response for embedded JSON:
+
+```typescript
+const cdp = await page.context().newCDPSession(page);
+await cdp.send('Network.enable');
+
+// Capture the Document response
+cdp.on('Network.loadingFinished', async (params) => {
+  const body = await cdp.send('Network.getResponseBody', { requestId: params.requestId });
+  const html = body.body;
+
+  // Search for JSON data patterns
+  const hasItems = html.includes('"items":[');
+  const hasSections = /"section":"[^"]+"/g.test(html);
+  const hasPrices = /"price":\d|"rawPrice":\d|"amount":\d/.test(html);
+
+  if (hasItems || hasSections || hasPrices) {
+    // Extract the JSON block
+    const match = html.match(/\{"items":\[.*?\]\}/s);
+    if (match) {
+      const data = JSON.parse(match[0]);
+      console.log('Found', data.items.length, 'items in SSR HTML');
+    }
+  }
+});
+```
+
+### How to discover pagination APIs
+
+After extracting page 1 from SSR, look for "Show more", "Load more", or "Next page" buttons:
+
+```typescript
+const btn = await page.waitForSelector('button:has-text("Show more"), button:has-text("Load more")', { timeout: 5000 });
+if (btn) {
+  await btn.click();
+  // CDP will capture the POST/GET that fetches the next page
+  // The request body reveals pagination params (page, offset, cursor)
+  // The response body is the JSON API contract
+}
+```
+
+### The SSR + Pagination pattern
+
+1. **Page 1**: Embedded in HTML → parse with regex or DOM
+2. **Page 2+**: POST/GET API call triggered by interaction → JSON response
+3. **Domain plugin**: Create a route for the pagination API, use `browserFetch()` to proxy it
+4. **For page 1**: Either re-request the HTML and parse it, or use the pagination API with `CurrentPage: 1`
