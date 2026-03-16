@@ -174,6 +174,38 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ## Observed Failures Log
 
+### Iteration 3 — Prompt 1 (ticket comparison): `test/ticket-comparison`
+
+**What was attempted:** Discovery for StubHub, Ticketmaster, SeatGeek, TicketNetwork. Phase B5 gate + UI not reached.
+
+**What was delivered:**
+
+- StubHub ✓ — 4 routes working: search (SSR/performer cards), performer-events, listings (data-listing-id + innerText), trending
+- Ticketmaster ✓ — 2 routes working: search (SSR/event cards), tickets (traffic capture for ISMDS API)
+- SeatGeek ✗ — DataDome captcha on all pages; routes return `{ blocked: true }`
+- TicketNetwork — API at `tn-apis.com/catalog/v2/events/search?consumerKey=fuTwxN_M6RKMaobcsfJ5qSvcVAUa` discovered in CDP traffic; routes not written (iteration stopped before UI gate)
+
+**Failures observed:**
+
+| # | Failure | Root cause | Fix applied to base |
+| --- | --- | --- | --- |
+| 1 | `browserFetch(cross-origin-url)` returned empty | browserFetch navigates to target origin first, loses session cookies | Added `⚠️ browserFetch cross-origin warning` to skill |
+| 2 | `page.evaluate(fetch(cors-url))` → "TypeError: Failed to fetch" | CORS rejects manual fetch from different origin | Added Type B2 traffic capture pattern to skill |
+| 3 | `textContent` gave `"Section 235Row 7"` (no space) | `textContent` concatenates child text nodes without separators | Added `innerText` vs `textContent` guidance to skill |
+| 4 | Performer name included `"Concert Tickets • 29 events"` | `.*` doesn't cross newlines; `innerText` adds `\n` between blocks | Added `[\s\S]*` vs `.*` note to Gotchas |
+| 5 | Quantity regex returned null for "2 tickets together" | `$` end anchor fails when more text follows | Fixed regex to use `(?:\s\|$)` in Gotchas |
+| 6 | TM eventId regex captured `09006463` from `09006463FB941AC4` | Alphanumeric IDs need `[A-Z0-9]+` not `\d+` | Added to Gotchas |
+| 7 | Server returned old routes after editing `routes.ts` | Server started before file change; no auto-reload without `--watch` | Added "Route returns 404 after editing" to Gotchas |
+| 8 | SeatGeek body empty after navigate | DataDome replaced body with captcha iframe | Added Type D detection via `bodyInnerHTML.includes('captcha-delivery.com')` |
+
+**What the skills still need for Prompt 1 to be fully solved:**
+
+- TicketNetwork routes not written — need to finalize `targetUrl` routes using discovered consumerKey
+- UI not built — `dashboard-builder` skill untested on multi-domain offline-graceful comparison grid
+- SeatGeek permanently offline — UI should show graceful degraded state, not break
+
+---
+
 ### Iteration 2 — Prompt 1 (ticket comparison): `test/iteration-2`
 
 **What was attempted:** Full Prompt 1 — discover APIs for StubHub, Ticketmaster, SeatGeek, TicketNetwork; build /tickets dashboard.

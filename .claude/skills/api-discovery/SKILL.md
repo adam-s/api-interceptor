@@ -117,9 +117,9 @@ await page.click('button:has-text("Show more")');
 
 Based on the classification, write extraction code.
 
-### Type A: JSON API routes
+### Type A: JSON API routes (Robinhood paradigm)
 
-The data comes from API calls. Create proxy routes in the domain plugin:
+The data comes from API calls. Create proxy routes in the domain plugin. See `domains/robinhood/` for the complete reference — it's the gold standard for pure API discovery (auth headers, session management, typed client).
 
 ```typescript
 // domains/<name>/src/routes.ts
@@ -133,7 +133,7 @@ export const routes: DomainRoute[] = [
 ];
 ```
 
-These routes proxy through `browserFetch()` — cookies and auth are automatic.
+These routes proxy through `browserFetch()` — cookies and auth are automatic. If the API uses a `consumerKey` or similar param visible in CDP traffic, embed it directly in `targetUrl`.
 
 ### Type B: SSR extraction via `page.evaluate()`
 
@@ -301,3 +301,4 @@ If `domains/<name>/` exists:
 | API key visible in traffic URL | Embed it directly in `targetUrl` — it's the site's own key, fine to use. |
 | Data visible on page but not in traffic | SSR — data is in the HTML response, not XHR calls. Extract from DOM. |
 | API calls go to unexpected domains | CDP catches all domains. Check traffic for subdomains like `tn-apis.com`, `viagogo.net`. |
+| Event URLs point to wrong regional domain | TM/similar sites geolock to `.es`, `.de`, `.co.uk` based on browser IP. Check event URL domain in results — if regional, use that domain in routes. |
