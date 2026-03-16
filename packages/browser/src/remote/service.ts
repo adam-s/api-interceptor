@@ -354,9 +354,10 @@ export class RemoteBrowserService {
 		const executablePath = process.env.CHROMIUM_PATH || undefined;
 
 		// Use consistent Mac User-Agent across all platforms to avoid bot detection
-		// Robinhood flags Linux ARM user-agents as suspicious
+		// Chrome 145 — matches real Chrome binary version and sec-ch-ua override below.
+		// Version mismatch between UA and sec-ch-ua is a bot detection signal.
 		const MAC_USER_AGENT =
-			'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+			'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
 
 		// Anti-detection: Comprehensive script to override navigator properties BEFORE any page JS runs
 		// This must match the macOS fingerprint as closely as possible
@@ -492,6 +493,21 @@ export class RemoteBrowserService {
 			...(proxyConfig && { proxy: proxyConfig }),
 			// Ignore HTTPS errors when using residential proxies (they use MITM for SSL)
 			ignoreHTTPSErrors: this.config.proxyType === 'residential',
+		});
+
+		// Override sec-ch-ua to prevent HeadlessChrome detection.
+		// When Patchright runs in headless mode, Chromium automatically sets
+		// sec-ch-ua to include "HeadlessChrome" — a primary Cloudflare Bot Management
+		// detection signal. Sites like Yahoo Finance allow CDN-cached endpoints through
+		// but block real-time data endpoints (quotes, prices) when HeadlessChrome is detected.
+		// setExtraHTTPHeaders overrides browser-generated headers for ALL requests from this context,
+		// including JavaScript-initiated fetch() calls via page.evaluate().
+		// The value must match MAC_USER_AGENT version (Chrome 145) to avoid version-mismatch detection.
+		// When using real Chrome channel, sec-ch-ua is already correct — this is defense-in-depth.
+		await this.context.setExtraHTTPHeaders({
+			'sec-ch-ua': '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+			'sec-ch-ua-mobile': '?0',
+			'sec-ch-ua-platform': '"macOS"',
 		});
 
 		// Add anti-detection script BEFORE getting/creating pages
@@ -942,12 +958,18 @@ export class RemoteBrowserService {
 	 * Execute a fetch request through the browser context.
 	 * This uses the browser's cookies, session, and authentication.
 	 *
-	 * For authenticated API calls, the browser must be on the same origin
-	 * (or a subpath of) the API URL for cookies to be included. This method
-	 * will automatically navigate to the API origin if needed.
+	 * Default behavior: navigates to the target API origin if not already there, then fetches.
+	 * This ensures cookies and session state are included.
+	 *
+	 * Use `navigateTo` when the API is on a subdomain that allows CORS from the main site.
+	 * Example: Yahoo Finance serves APIs on query2.finance.yahoo.com but allows CORS from
+	 * finance.yahoo.com. Navigating to the API subdomain first loses the main site session
+	 * and may hit rate limits. Instead, pass `navigateTo: 'https://finance.yahoo.com'` so
+	 * the browser stays on the main site and makes a credentialed cross-origin fetch.
 	 *
 	 * @param url - The URL to fetch
-	 * @param options - Fetch options (method, headers, body)
+	 * @param options.navigateTo - Override the origin to navigate to before fetching.
+	 *   Use when the API subdomain has CORS enabled from the main site (any cross-domain API).
 	 * @returns The response data
 	 */
 	async browserFetch<T = unknown>(
@@ -956,6 +978,9 @@ export class RemoteBrowserService {
 			method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
 			headers?: Record<string, string>;
 			body?: unknown;
+			/** Navigate to this origin before fetching instead of the target API origin.
+			 *  Use for cross-origin APIs where the main site has CORS access. */
+			navigateTo?: string;
 		} = {},
 	): Promise<{ status: number; data: T; headers: Record<string, string> }> {
 		if (!this.page) {
@@ -967,12 +992,20 @@ export class RemoteBrowserService {
 		const currentUrl = this.page.url();
 		const currentOrigin = currentUrl ? new URL(currentUrl).origin : '';
 
-		// If we're not on the same origin, navigate to it first
-		// This ensures cookies are included in the fetch request
-		if (currentOrigin !== targetOrigin) {
+		// Determine navigation target: use navigateTo override if provided,
+		// otherwise default to the target API origin.
+		// navigateTo is used when the API subdomain has CORS enabled from the main site —
+		// staying on the main site avoids navigating to a raw API endpoint that may 429
+		// or lack the session context needed for credentialed requests.
+		const navigationOrigin = options.navigateTo
+			? new URL(options.navigateTo).origin
+			: targetOrigin;
+
+		// Navigate to the target origin if we're not already there
+		if (currentOrigin !== navigationOrigin) {
 			try {
 				// Navigate to a lightweight page on the target origin
-				await this.page.goto(targetOrigin, { waitUntil: 'domcontentloaded', timeout: 15000 });
+				await this.page.goto(navigationOrigin, { waitUntil: 'domcontentloaded', timeout: 15000 });
 			} catch (_err) {
 				// If navigation fails, try anyway - the fetch might still work
 			}

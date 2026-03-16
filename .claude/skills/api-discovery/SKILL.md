@@ -194,13 +194,33 @@ handler: async (c, browser) => {
 
 **When to use**: CDP traffic shows an API call but calling that URL directly returns CORS errors or 403.
 
-### ⚠️ `browserFetch()` cross-origin warning
+### ⚠️ `browserFetch()` cross-origin — two cases
 
-`browser.browserFetch(url)` runs `fetch()` inside the page via `page.evaluate()`. If the target URL is on a **different origin** than the current page, it navigates to that origin first — losing all session cookies.
+`browser.browserFetch(url)` runs `fetch()` inside the page via `page.evaluate()`. If the target URL is on a **different origin** than the current page, it navigates to that origin first by default.
 
-- Safe: same-origin (e.g., fetching `api.stubhub.com` while on `stubhub.com`)
-- Unsafe: fetching `services.ticketmaster.com` while on `www.ticketmaster.com` → loses TM cookies → empty response
-- Fix: use the Type B2 traffic capture pattern for cross-origin APIs
+**Case A: API subdomain with CORS from the main site (Yahoo Finance, many SPAs)**
+
+The site's API lives on a subdomain (`query2.finance.yahoo.com`), and the main site (`finance.yahoo.com`) is allowed by CORS. Navigating to the API subdomain is wrong — you want to stay on the main site and let CORS carry the request.
+
+```typescript
+// ✗ WRONG — navigates to query2.finance.yahoo.com, loses session context, may 429
+await browser.browserFetch('https://query2.finance.yahoo.com/v10/finance/quoteSummary/TSLA');
+
+// ✓ CORRECT — stays on finance.yahoo.com, CORS carries cookies to query2
+await browser.browserFetch('https://query2.finance.yahoo.com/v10/finance/quoteSummary/TSLA', {
+  navigateTo: 'https://finance.yahoo.com',
+});
+```
+
+How to know if this case applies: check the captured traffic. If the browser's own requests to the API subdomain include `origin: https://finance.yahoo.com` and the response has `access-control-allow-origin: https://finance.yahoo.com`, the site uses CORS-enabled subdomains.
+
+**Case B: External API with no CORS from the main site (Ticketmaster ISMDS)**
+
+No CORS headers — the API only responds if the browser is on the right origin. Use Type B2 traffic capture instead (navigate to the page, let the page's own JS fire the API call, read from traffic buffer).
+
+- Safe: same-origin
+- CORS subdomains: use `navigateTo: 'https://main-site.com'`
+- No CORS: use Type B2 traffic capture
 
 ### Type C: Hybrid (SSR + pagination API)
 
@@ -284,6 +304,166 @@ If `domains/<name>/` exists:
 - **Scaffold script**: See [scripts/scaffold-domain.sh](scripts/scaffold-domain.sh)
 - **Example domain**: `domains/stubhub/` (SSR DOM extraction, complete working implementation)
 
+## Anti-Bot and Rate Limiting Checklist
+
+When an API returns 429 or 403, work through this checklist in order. Each symptom has a specific root cause and fix.
+
+### Step 0: Check if the browser profile session is rate-limited (do this first)
+
+**This is the most common cause of 429s and is frequently misdiagnosed as bot detection.**
+
+A browser profile accumulates session cookies during development. If those cookies are associated with a session that has been rate-limited by the target site (from heavy testing), every request from that profile will 429 — even with perfect headers, correct UA, and valid crumbs.
+
+**How to tell it's a session rate-limit (not bot detection):**
+- The same endpoint returns 200 when you open a fresh browser tab or incognito window
+- `age: 0` and `cache-control: no-store` on the 429 response (hitting origin, not CDN)
+- You can reproduce 200 with a fresh Patchright profile using the same Chromium build
+
+**Confirmed test (Yahoo Finance):**
+```typescript
+// rate-limited profile → 429
+launchPersistentContext('data/browser-profiles/yahoo-finance', ...) // poisoned session
+
+// fresh profile → 200
+const freshDir = mkdtempSync(join(tmpdir(), 'fresh-'));
+launchPersistentContext(freshDir, ...) // new unthrottled session
+```
+
+**Fix:**
+```bash
+# Delete the poisoned profile — browser will create a fresh session on next connect
+rm -rf data/browser-profiles/<domain>
+mkdir data/browser-profiles/<domain>
+```
+
+Then reconnect the browser. The site will give the new session a clean rate-limit quota.
+
+**Key insight:** This is NOT a browser channel issue (Chrome vs Chromium) and NOT a TLS fingerprint issue. The browser engine doesn't matter — a fresh session on any engine gets 200. A poisoned session on any engine gets 429.
+
+### Step 1: Compare which endpoints succeed vs fail
+
+Run a session and record status codes across all endpoints (`curl /browser/traffic/summary`).
+
+| Pattern | Root cause | Fix |
+|---------|-----------|-----|
+| **All endpoints 429** | IP is globally rate-limited (temporary) | Wait 1–24h; use a proxy IP; reduce request frequency |
+| **Some endpoints 200 (CDN-cached), others 429** | Bot detection on real-time endpoints | Check `sec-ch-ua` header (Step 2) |
+| **Consistent 429 on API endpoints, 200 on page loads** | Missing session token (crumb, CSRF) | Check for session tokens (Step 3) |
+
+### Step 2: Inspect `sec-ch-ua` in captured request headers
+
+```bash
+curl -s http://localhost:3001/browser/traffic | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for e in data['entries'][:5]:
+    h = e.get('requestHeaders', {})
+    print('sec-ch-ua:', h.get('sec-ch-ua', 'not present'))
+    print('user-agent:', h.get('user-agent', '')[:60])
+    print()
+"
+```
+
+**Red flags:**
+- `"HeadlessChrome";v="..."` in `sec-ch-ua` → Chromium is running in headless mode. Sites like Yahoo Finance (Cloudflare Bot Management) allow CDN-cached endpoints through but block real-time data endpoints for headless browsers.
+- `sec-ch-ua` version differs from `User-Agent` version (e.g., UA says Chrome/131, sec-ch-ua says Chromium/145) → version mismatch is a secondary detection signal.
+
+**Fix:** The framework already overrides `sec-ch-ua` via `context.setExtraHTTPHeaders()` in `service.ts`. If you see HeadlessChrome in captured traffic after connecting, the fix is not yet in the running binary — restart the server.
+
+To verify the fix is active, look for `"Google Chrome";v="134"` (no "Headless") in captured traffic headers.
+
+### Step 3: Look for session tokens in page HTML or CDP responses
+
+Some APIs require a short-lived token that is only obtainable by first loading the site. This token must be included in all API calls as a query parameter or header.
+
+**How to detect:** Look at traffic where the main page loads vs the API calls. Specifically:
+
+```bash
+# Look at successful API calls — do they have any token params that failing calls lack?
+curl -s http://localhost:3001/browser/traffic | python3 -c "
+import json, sys
+from urllib.parse import urlparse, parse_qs
+data = json.load(sys.stdin)
+for e in data['entries']:
+    if e.get('status') == 200:
+        p = parse_qs(urlparse(e['url']).query)
+        tokens = {k: v for k, v in p.items() if k in ['crumb', 'csrf', 'token', 'key', 'auth']}
+        if tokens:
+            print(e['url'][:80], tokens)
+"
+```
+
+**Common session token patterns:**
+
+| Token | Site | How to get | Where to include |
+|-------|------|------------|-----------------|
+| `crumb` | Yahoo Finance | `GET /v1/test/getcrumb` after loading `finance.yahoo.com` | `&crumb=VALUE` query param in API calls |
+| `csrfToken` | Many SPAs | Embedded in `<meta name="csrf-token">` or JS globals | `X-CSRF-Token` header |
+| `_t` / `_s` | Various | Cookie value promoted to query param | `&_t=VALUE` |
+
+**Yahoo Finance — confirmed working endpoints (discovered via traffic capture, March 2026):**
+
+Yahoo Finance uses `query1.finance.yahoo.com` and `query2.finance.yahoo.com` as API backends.
+The frontend is SvelteKit — initial data is SSR-embedded in `<script type="application/json" data-sveltekit-fetched>` tags.
+Client-side interactions (chart range changes) trigger XHR to `query2.finance.yahoo.com`.
+
+```typescript
+// Chart + current price (confirmed 200 with fresh session):
+// query2 for 1D, query1 for multi-day — use query2 for all, it works
+const now = Math.floor(Date.now() / 1000);
+const url = `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?period1=${now - 28800}&period2=${now}&interval=1m&includePrePost=true&events=div%7Csplit%7Cearn&lang=en-US&region=US`;
+const result = await browser.browserFetch(url, {
+  navigateTo: 'https://finance.yahoo.com',  // stay on main site for CORS + session
+  headers: { Referer: 'https://finance.yahoo.com/' }
+});
+// meta field contains: regularMarketPrice, fiftyTwoWeekHigh/Low, regularMarketVolume, etc.
+
+// Crumb (embedded in page state as x-crumb header in XHR — extract from POST traffic):
+// The crumb is embedded in page JS after SSR — visible in POST /v1/finance/visualization traffic
+// For most endpoints the crumb is optional if the session cookie is valid
+```
+
+Cache the crumb in a module-level variable — it stays valid for the session. Refresh when you get 401 from the API.
+
+### Step 4: Check if cookies from page load are reaching API calls
+
+```bash
+curl -s http://localhost:3001/browser/traffic | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+cookie_keys = set()
+for e in data['entries']:
+    c = e.get('requestHeaders', {}).get('cookie', '')
+    for pair in c.split(';'):
+        if '=' in pair:
+            cookie_keys.add(pair.split('=')[0].strip())
+print('Cookies in requests:', sorted(cookie_keys))
+"
+```
+
+If a required auth cookie is missing, the browser may not be on the site's origin. Navigate to the main site first (`browser.navigate('https://site.com')`), wait for the page to load, then make API calls.
+
+### Step 5: Check if `navigateTo` is needed for cross-origin subdomains
+
+When the API is on a subdomain that the main site calls via CORS:
+
+```bash
+# Check response headers for CORS declarations
+curl -s http://localhost:3001/browser/traffic | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for e in data['entries']:
+    h = e.get('responseHeaders', {})
+    if h.get('access-control-allow-origin'):
+        print(e['url'][:80])
+        print('  ACAO:', h['access-control-allow-origin'])
+        print('  ACAC:', h.get('access-control-allow-credentials', 'not set'))
+        print()
+"
+```
+
+If you see `access-control-allow-origin: https://main-site.com` and `access-control-allow-credentials: true` on a subdomain API response, use `navigateTo: 'https://main-site.com'` in `browserFetch`.
+
 ## Gotchas
 
 ### Single browser singleton — sequential calls only
@@ -313,8 +493,11 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 | Traffic shows 0 entries | CDP only captures XHR/Fetch JSON. If empty: site is SSR — extract from DOM via `page.evaluate()`. |
 | Body text is empty `""` after navigate | Site is bot-protected. Check `bodyInnerHTML` for DataDome captcha iframe (`captcha-delivery.com`). |
 | `textContent` gives concatenated text | Use `innerText` — respects CSS layout and adds `\n` between blocks. |
-| `browserFetch` loses session cookies | Cross-origin navigate loses session. Use Type B2 traffic capture instead. |
+| `browserFetch` loses session cookies | Cross-origin navigate loses session. If the API subdomain has CORS from the main site, use `navigateTo: 'https://main-site.com'`. If no CORS, use Type B2 traffic capture. |
 | CORS error from `page.evaluate(fetch)` | API blocked for cross-origin calls. Use Type B2 traffic capture instead. |
+| `sec-ch-ua: "HeadlessChrome"` in captured headers | Browser is running in headless mode. The framework already overrides this in `service.ts`. If you still see HeadlessChrome, restart the server so the fix is loaded. |
+| All quote/price endpoints 429, screener/list endpoints 200 | Real-time endpoints are blocked (bot detection on origin server); cached endpoints pass (CDN-served, no bot check). Root cause: sec-ch-ua HeadlessChrome or IP rate limit. Check `age` header — `age > 0` means CDN hit, `age: 0` means origin hit. |
+| API requires `crumb` or similar session token | Some sites (Yahoo Finance, CSRF-protected SPAs) require a short-lived token obtained by first loading the site. Look for `?crumb=` or `X-CSRF-Token` in successful browser requests. Get the token via `browserFetch` from the main site context, cache it, include in all API calls. |
 | Route returns 404 after editing routes.ts | Server needs restart — kill port 3001 and rerun `pnpm dev`. |
 | EventId regex misses alphanumeric IDs | Use `match(/\/event\/([A-Z0-9]+)$/i)` — not just `\d+` (TM uses hex IDs). |
 | Performer name includes "Concert Tickets •" | Strip with `.replace(/\s*(Concert|Hockey|...)[\s\S]*/i, '')` — use `[\s\S]*` not `.*` across newlines. |

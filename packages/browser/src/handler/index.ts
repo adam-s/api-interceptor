@@ -329,7 +329,10 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			quality: 30,
 			viewportWidth: VIEWPORT_WIDTH,
 			viewportHeight: VIEWPORT_HEIGHT,
-			headless: true,
+			// BROWSER_HEADLESS=false runs with a visible window (best bot evasion, requires display).
+			// Default: true (headless) for server/CI environments.
+			// Note: sec-ch-ua HeadlessChrome is fixed separately via setExtraHTTPHeaders in service.ts.
+			headless: process.env.BROWSER_HEADLESS !== 'false',
 			userDataDir,
 		});
 

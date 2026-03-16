@@ -11,7 +11,7 @@ test.describe('Dashboard', () => {
 
 	test('shows dashboard heading and description', async ({ page }) => {
 		await expect(page.getByRole('heading', { name: 'Dashboard', exact: true })).toBeVisible();
-		await expect(page.getByText('SSE streaming + Python bridge integration')).toBeVisible();
+		await expect(page.getByText('WebSocket streaming + Python bridge integration.')).toBeVisible();
 	});
 
 	test('sidebar is visible with branding', async ({ page }) => {
