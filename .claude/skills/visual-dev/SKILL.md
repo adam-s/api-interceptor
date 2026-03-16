@@ -39,7 +39,7 @@ Search in this order:
 
 **Also extract the post-login redirect URL** from the same source. E2e auth setup files typically contain a `waitForURL` that reveals where login redirects to (e.g., `**/dashboard`, `**/`, `**/app`). You need this for the `waitForURL` call in your script — don't guess or hardcode `**/dashboard**`.
 
-> **Example** (deep-research project): `tests/e2e/auth.setup.ts` has credentials `admin@deep-research.dev` / `Admin123!` AND reveals the redirect target: `waitForURL("**/dashboard")`.
+> **Example**: `tests/e2e/auth.setup.ts` typically has test credentials and a `waitForURL("**/dashboard")` that reveals the post-login redirect. Read it before writing the screenshot script.
 
 ### 3. Create the screenshot directory
 
@@ -485,7 +485,7 @@ Think about the color's purpose. A blue info panel should still feel blue on dar
 | `text-gray-900` | `text-foreground` |
 | `hover:bg-gray-50` | `hover:bg-muted` |
 
-> **Example**: The deep-research Python Analysis panel had `border-blue-100 bg-blue-50/50`. On dark theme it rendered as an ugly gray rectangle — the blue was so light it became indistinguishable from gray. The fix `border-blue-500/20 bg-blue-950/30` keeps the blue identity but uses dark-range colors with opacity, looking like a subtle glowing blue panel on dark backgrounds.
+> **Example**: A panel with `border-blue-100 bg-blue-50/50` renders as an ugly gray rectangle on dark theme — the blue is so light it becomes indistinguishable from gray. The fix `border-blue-500/20 bg-blue-950/30` keeps the blue identity using dark-range colors with opacity: a subtle glowing blue panel that works on both themes.
 
 ---
 

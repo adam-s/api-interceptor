@@ -7,181 +7,138 @@ description: Bottom-up systematic validation for multi-layer architectures. Use 
 
 When testing or debugging a multi-layer system, work bottom-up. Never test a higher layer until the layer below it is verified. This approach isolates failures to the specific layer where they occur.
 
-## The Five Layers
+## The Four Layers
 
 | Layer | Name | Key Files | Validation |
 |-------|------|-----------|------------|
-| L1 | Python Worker | `services/python/{etf_pairs,xgb_etf_pairs,portfolio}_worker.py` | Direct Python invocation, signal output check |
-| L2 | Python Bridge | `packages/shared/src/python-bridge/bridge.ts` | IPC health check, method call, JSON-RPC protocol |
-| L3 | BullMQ Jobs | `packages/jobs/src/queues/`, `packages/jobs/src/workers/` | Job enqueue, worker execution, status polling |
-| L4 | API Routes | `apps/api/src/routes/` (Hono on port 3001) | `/trigger` endpoint, run status, signal retrieval |
-| L5 | Dashboard UI | `apps/dashboard/` (Next.js on port 3000) | Component rendering, data display, WebSocket streaming |
+| L1 | Domain Plugin | `domains/<name>/src/routes.ts` | Routes registered, handler logic correct |
+| L2 | API Proxy | `apps/api/src/register-domains.ts` + `packages/browser/src/handler/api-proxy.ts` | Endpoint responds, browser dispatches correctly |
+| L3 | Browser + Traffic Capture | `packages/browser/src/handler/index.ts` | Browser connected, navigation works, CDP traffic captured |
+| L4 | Dashboard UI | `apps/web/src/app/(dashboard)/` | Data renders, interactions work, states handled |
 
-Dependency chain: **L1 → L2 → L3 → L4 → L5**
+Dependency chain: **L1 → L2 → L3 → L4**
 
-### Worker → Queue → Route mapping
-
-```
-Python Worker                Queue              BullMQ Worker            API Route
-────────────────────────────────────────────────────────────────────────────────────
-portfolio_worker.py       → portfolioQueue  → portfolio.ts        → /portfolio/*
-etf_pairs_worker.py       → etfPairsQueue   → etf-pairs.ts        → /etf-pairs/*
-xgb_etf_pairs_worker.py   → xgbEtfQueue     → xgb-etf-pairs.ts    → /xgb-etf-pairs/*
-```
+---
 
 ## Per-Layer Validation
 
-### L1 — Python Workers
+### L1 — Domain Plugin
 
-**ETF Pairs** (`etf_pairs_worker.py`):
-- Methods: `health`, `compute_kz_signals`, `seed_kz_state`, `get_close_prices`, `get_exit_prices`
-- Session-aware: morning (hl=246, always-in) vs evening (hl=155, thresholds)
-- ATM±20 strike filter on flow aggregation
-- Test: trigger with known date, verify z-scores and directions match research
-
-**XGB ETF** (`xgb_etf_pairs_worker.py`):
-- Methods: `health`, `compute_xgb_signals`, `initialize_signals`, `extract_extended_features`
-- Morning uses KZ always-in; evening uses walk-forward XGBoost classifier
-- Test: trigger with known date, verify probabilities and directions
-
-**Portfolio** (`portfolio_worker.py`):
-- Methods: `health`, `initialize_signals`, `get_signal`, `get_stock_prices`, `get_close_prices`
-- Test: trigger with known date, verify signal matches seed
-
-**Contract**: All workers use JSON-RPC over stdin/stdout. Errors return `{id, error: {code, message}}`.
-
-**Pitfall**: stdout is the RPC channel. Any `print()` to stdout corrupts the JSON-RPC stream. All logging must use `DEBUG()` which writes to stderr.
-
-### L2 — Python Bridge
-
-**Unit**: Lifecycle (start/stop/isConnected). Call health with each worker. Verify `getAvailableMethods()` returns expected methods.
-
-**Contract**: Ready handshake — bridge waits for `{"type":"ready","methods":[...]}\n` on stdout. Requests are `{"id":uuid,"method":string,"params":{}}\n`.
-
-**Error**: Request timeout, startup timeout (bad worker path), call before start, double start, stop with pending requests.
-
-**Pitfall**: The `-u` flag (unbuffered Python) is critical. Without it, the ready message buffers and causes startup timeout.
-
-**Bridge classes**:
-- `PythonBridge` — base class (`packages/shared/src/python-bridge/bridge.ts`)
-- `EtfPairsBridge` — ETF pairs (`packages/shared/src/python-bridge/etf-pairs-bridge.ts`)
-
-### L3 — BullMQ Jobs
-
-**Queues** (`packages/jobs/src/queues/`):
-- `etf-pairs.ts`: `scheduleEtfPairsRuns()` registers morning (11:00 ET) + evening (15:50 ET) schedulers
-- `xgb-etf-pairs.ts`: `scheduleXgbEtfRuns()` registers morning + evening schedulers
-- `portfolio.ts`: `schedulePortfolioRun()` registers daily (15:45 ET) scheduler
-
-**Workers** (`packages/jobs/src/workers/`):
-- Each spawns a Python bridge, calls the worker method, writes results to DB
-- `shared/etf-strategy-executor.ts` — unified trade execution for ETF strategies
-
-**Stale job cleanup**: `drainStaleJobs()` in `packages/jobs/src/lib/drain.ts` runs at startup for all queues.
-
-**Test**: Enqueue a job via `/trigger`, poll run status until complete, verify signals written to DB.
-
-### L4 — API Routes
-
-**ETF strategies** (`apps/api/src/routes/shared/etf-strategy-routes.ts`):
-- `POST /etf-pairs/trigger` — accepts `{startDate, endDate, session}`, enqueues job
-- `POST /xgb-etf-pairs/trigger` — same interface
-- `GET /etf-pairs/runs` — list runs with status, duration, error
-- `GET /etf-pairs/signals` — list signals with z-scores and directions
-
-**Test**: Trigger a single-date run, poll until complete, query signals endpoint.
-
-### L5 — Dashboard UI
-
-**Pages**:
-- `/etf-pairs` — signal cards, equity curve, trades tab, runs tab
-- `/portfolio` — portfolio signals and trades
-
-**Test**: Start dashboard (`cd apps/dashboard && bun dev`), navigate to page, verify data renders. Use `/visual-dev` skill for screenshot-based validation.
-
-## Parity Validation
-
-The gold standard: compare production output against research ground truth.
-
-### Existing validation scripts
-
-| Script | What it validates |
-|--------|-------------------|
-| `scripts/validate-etf-parity.py` | L1-L5 parity: flow ratios, returns, KZ z-scores, signals, incremental replay |
-| `scripts/validate-api-db-parity.py` | API vs DB: prices and flow ratios match between Polygon REST and local DB |
-| `scripts/validate-session-chain.py` | Session handoff: morning↔evening position state continuity |
-| `scripts/validate-xgb-morning-parity.py` | XGB: feature extraction correctness, incremental determinism |
-
-### Running parity checks
+Verify the route handler logic is correct before the browser is involved.
 
 ```bash
-# Start API in DB mode (exact reproduction)
-cd apps/api && bun run --env-file ../../.env --hot src/index.ts
+# List all registered domains and their routes
+curl -s http://localhost:3001/api | jq '.domains'
 
-# L1-L5 parity
-PYTHONPATH=services/python python scripts/validate-etf-parity.py --session both
-
-# API↔DB parity (requires MASSIVE_API_KEY)
-PYTHONPATH=services/python python scripts/validate-api-db-parity.py --session both --n-dates 5
-
-# Session chain (requires running API)
-PYTHONPATH=services/python python scripts/validate-session-chain.py --api-url http://localhost:3001 --n-days 30
-
-# XGB morning
-PYTHONPATH=services/python python scripts/validate-xgb-morning-parity.py --n-dates 30
+# Verify a specific route exists
+curl -s http://localhost:3001/api | jq '.domains[] | select(.name == "<domain>")'
 ```
 
-### Two data modes
+**Common L1 failures:**
+- `handler` function not exported from `routes.ts`
+- `DomainRoute` type mismatch (missing `handler` or `targetUrl`)
+- Route path typo (e.g., `/search` vs `/searches`)
 
-- `MARKET_DATA_MODE=db` — queries `volatio_market` DB directly. Exact reproduction of research. Use for Tier 1 validation.
-- `MARKET_DATA_MODE=api` — uses Polygon REST API via `massive_client.py`. Use for Tier 2 (API fidelity) validation.
+---
 
-### Pass criteria
+### L2 — API Proxy
 
-| Check | Tolerance |
-|-------|-----------|
-| Flow ratios | < 1e-4 (DB), < 0.1 (API vs DB) |
-| KZ z-scores | < 1e-10 |
-| Prices | < $0.05 |
-| Directions | Exact match |
-| Trade counts | Exact match |
+Browser must be connected before proxy routes work.
 
-## OODA Methodology
+```bash
+# Check browser health
+curl -s http://localhost:3001/browser/health | jq '.browser'
 
-Every validation follows observe → orient → decide → act:
-
-```
-OBSERVE  →  Trigger run or compare data
-   |
-ORIENT   →  Compare against reference (research .parquet, DB values, prior run)
-   |
-DECIDE   →  Match to tolerance? YES → advance. NO → diagnose.
-   |
-ACT      →  Fix bug, reset state, re-trigger. Back to OBSERVE.
+# Call a domain route directly
+curl -s "http://localhost:3001/api/<domain>/<path>?<params>" | jq '.'
 ```
 
-Reference: `docs/temp/ooda-production-testing.md` (4 layers of confidence), `docs/temp/ooda-parity-validation.md` (L1-L5 patterns).
+**Expected browser health when connected:**
+```json
+{ "active": true, "ready": true, "profile": "<profile-name>", "domain": null }
+```
+
+**Common L2 failures:**
+- `503 { "error": "Browser not connected" }` → Connect the browser first via WebSocket
+- `404` → Route not registered in `register-domains.ts` or path typo
+- `500` → Handler threw an error — check server logs
+
+---
+
+### L3 — Browser + Traffic Capture
+
+Connect the browser and verify it can navigate and capture traffic.
+
+```bash
+# After connecting via WebSocket at ws://localhost:3001/browser/stream?profile=<name>&url=<url>
+
+# Verify connected browser can navigate
+curl -s "http://localhost:3001/api/<domain>/search?q=test" | jq '.total'
+
+# Check traffic buffer (for Type B2 domains)
+curl -s http://localhost:3001/browser/traffic | jq '[.entries[] | {url: .url[:100], status}]'
+
+# Clear traffic buffer before a Type B2 test
+curl -s -X DELETE http://localhost:3001/browser/traffic | jq '.'
+```
+
+**Type classification:**
+- **Type A** — `targetUrl` proxy. Browser navigates to target, headers forwarded.
+- **Type B** — `handler` with `page.evaluate()`. Browser navigates, DOM parsed server-side.
+- **Type B2** — `handler` with traffic capture. Browser navigates, page JS fires XHR/fetch, buffer read.
+- **Type C** — `handler` with `browserFetch()`. Single same-origin request, no navigation.
+
+**Common L3 failures:**
+- Browser navigates but page renders empty (bot detection, CAPTCHA) → check page content with `page.evaluate(() => document.body.innerText.slice(0, 500))`
+- Traffic buffer empty after navigation (Type B2) → ISMDS/XHR calls not firing; increase wait time
+- RegionalDomain mismatch → filter extracted URLs to correct domain
+
+---
+
+### L4 — Dashboard UI
+
+Use the `visual-dev` skill for screenshot-based validation.
+
+**Validation checklist:**
+- [ ] Empty state renders (no data, no errors)
+- [ ] Loading state shows skeleton/spinner
+- [ ] Data renders correctly after API call
+- [ ] Error state shows clear message when API fails
+- [ ] Interactive elements (search, click) trigger correct API calls and update state
+
+```bash
+# Quick smoke test — does the page load?
+curl -s http://localhost:3000/<page> | grep -o '<title>[^<]*</title>'
+```
+
+---
+
+## Gate Sequence
+
+Run this sequence before calling a phase complete:
+
+```bash
+# Gate 1: Domain routes registered
+curl -s http://localhost:3001/api | jq '.domains[].name'
+
+# Gate 2: Browser connected and proxy works
+curl -s "http://localhost:3001/api/<domain>/search?q=test" | jq '.total'
+
+# Gate 3: Real data returned (not empty, not error)
+curl -s "http://localhost:3001/api/<domain>/search?q=<real-query>" | jq '.events[0].name // .performers[0].name // .[0]'
+
+# Gate 4: Listings/detail data returns
+curl -s "http://localhost:3001/api/<domain>/listings/<id>" | jq '.listings[0]'
+```
+
+All four must pass before building UI.
+
+---
 
 ## Fix Before Ascending
 
-When a test fails at any layer, fix it before moving up. If L3 BullMQ job fails, check L2 bridge and L1 worker first.
+When a test fails at any layer, fix it before moving up. If L3 traffic capture is empty, check L2 proxy (is the right route called?), then L1 handler (is the wait time sufficient?). Don't move to L4 UI until L3 is clean.
 
 ## When Tests Fail Unexpectedly
 
-Use the `/debug-logs` skill to add targeted `DEBUG()` calls:
-
-- **systematic-testing**: what to test and in what order
-- **debug-logs**: how to observe runtime behavior when a test reveals unexpected results
-
-Log file: `/tmp/deep-research-debug/debug-YYYY-MM-DD.log` (shared by TypeScript and Python).
-
-## Test Runner
-
-```bash
-bun test                  # all vitest tests (workspace mode)
-bun run e2e               # playwright e2e tests
-```
-
-Vitest config: `vitest.config.ts` (root) with projects: `packages/db`, `packages/shared`, `packages/browser`, `apps/api`, `apps/web`.
-
-Test files follow `*.test.ts` pattern, co-located with source.
+Use the `debug-logs` skill to add targeted `DEBUG()` calls inside route handlers to observe what the browser page actually contains when the handler runs.
