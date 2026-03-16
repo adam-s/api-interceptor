@@ -23,10 +23,131 @@ const config = validateConfig({
 	environment: process.env.NODE_ENV ?? 'development',
 });
 
+// --- Traffic Capture Buffer ---
+interface TrafficEntry {
+	id: number;
+	timestamp: number;
+	method: string;
+	url: string;
+	requestHeaders: Record<string, string>;
+	requestBody: unknown;
+	status: number;
+	responseHeaders: Record<string, string>;
+	responseBody: unknown;
+	durationMs: number;
+}
+
+const MAX_TRAFFIC_ENTRIES = 200;
+let trafficBuffer: TrafficEntry[] = [];
+let trafficIdCounter = 0;
+
+export function addTrafficEntry(req: any, res: any): void {
+	let responseBody = res.body;
+	try {
+		const bodyStr = JSON.stringify(responseBody);
+		if (bodyStr.length > 50_000) {
+			responseBody = {
+				_truncated: true,
+				_size: bodyStr.length,
+				_preview: bodyStr.slice(0, 2000),
+			};
+		}
+	} catch {
+		/* not serializable */
+	}
+
+	trafficBuffer.push({
+		id: ++trafficIdCounter,
+		timestamp: req.timestamp,
+		method: req.method,
+		url: req.url,
+		requestHeaders: req.headers,
+		requestBody: req.body,
+		status: res.status,
+		responseHeaders: res.headers,
+		responseBody,
+		durationMs: res.timestamp - req.timestamp,
+	});
+
+	if (trafficBuffer.length > MAX_TRAFFIC_ENTRIES) {
+		trafficBuffer.shift();
+	}
+}
+
 // Create Hono app for REST routes
 const app = new Hono();
 app.use('/*', cors());
 app.get('/health', (c) => c.json({ status: 'ok' }));
+
+// Browser traffic capture endpoints
+app.get('/browser/health', (c) => {
+	return c.json({
+		status: 'ok',
+		browser: {
+			active: false,
+			ready: false,
+		},
+		timestamp: new Date().toISOString(),
+	});
+});
+
+app.get('/browser/traffic', (c) => {
+	const since = c.req.query('since');
+	let entries = trafficBuffer;
+	if (since) {
+		const sinceId = Number.parseInt(since, 10);
+		if (!Number.isNaN(sinceId)) {
+			entries = entries.filter((e) => e.id > sinceId);
+		}
+	}
+	return c.json({
+		entries,
+		total: trafficBuffer.length,
+		oldestId: trafficBuffer[0]?.id ?? 0,
+		newestId: trafficBuffer[trafficBuffer.length - 1]?.id ?? 0,
+	});
+});
+
+app.get('/browser/traffic/summary', (c) => {
+	const urlPatterns = new Map<
+		string,
+		{ count: number; methods: Set<string>; statuses: Set<number> }
+	>();
+	for (const entry of trafficBuffer) {
+		const pattern = entry.url
+			.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/{id}')
+			.replace(/\/\d+\//g, '/{id}/')
+			.replace(/\?.*$/, '');
+		const existing = urlPatterns.get(pattern) || {
+			count: 0,
+			methods: new Set(),
+			statuses: new Set(),
+		};
+		existing.count++;
+		existing.methods.add(entry.method);
+		existing.statuses.add(entry.status);
+		urlPatterns.set(pattern, existing);
+	}
+
+	const endpoints = Array.from(urlPatterns.entries()).map(([pattern, data]) => ({
+		pattern,
+		count: data.count,
+		methods: Array.from(data.methods),
+		statuses: Array.from(data.statuses),
+	}));
+
+	return c.json({
+		totalEntries: trafficBuffer.length,
+		uniqueEndpoints: endpoints.length,
+		endpoints: endpoints.sort((a, b) => b.count - a.count),
+	});
+});
+
+app.delete('/browser/traffic', (c) => {
+	const count = trafficBuffer.length;
+	trafficBuffer = [];
+	return c.json({ cleared: count });
+});
 
 // Create Node.js HTTP server
 const server = createServer(async (req, res) => {

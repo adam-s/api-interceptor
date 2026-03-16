@@ -17,6 +17,10 @@ import { GenericInterceptor } from './shared/interceptor';
 import { robinhoodInterceptorConfig } from './robinhood/config';
 import { RobinhoodInterceptor } from './robinhood/interceptor';
 import { RobinhoodApiClient } from './robinhood/api-client';
+import { minuteinboxInterceptorConfig } from './minuteinbox/config';
+import { MinuteInboxInterceptor } from './minuteinbox/interceptor';
+import { investingInterceptorConfig } from './investing/config';
+import { InvestingInterceptor } from './investing/interceptor';
 
 /**
  * WebSocket message sent when verification succeeds.
@@ -155,6 +159,114 @@ export const DOMAIN_CONFIGS: Record<string, DomainConfig> = {
 		 */
 		onLoginDetected: () => ({
 			type: 'robinhood_login_page_detected',
+		}),
+	},
+
+	/**
+	 * MinuteInbox temporary email service configuration.
+	 */
+	minuteinbox: {
+		...minuteinboxInterceptorConfig,
+
+		createInterceptor: () => new MinuteInboxInterceptor(),
+
+		/**
+		 * No verification needed - MinuteInbox doesn't require authentication.
+		 */
+		verifyCredentials: async () => ({
+			valid: true,
+			accountNumber: 'minuteinbox-temp',
+		}),
+
+		/**
+		 * Detect MinuteInbox login page.
+		 */
+		detectLoginPage: (url: string) => url.includes('minuteinbox.com/login') || url.includes('minuteinbox.com/signin'),
+
+		/**
+		 * WebSocket message for successful verification.
+		 */
+		onVerified: (result) => ({
+			type: 'minuteinbox_verified',
+			accountNumber: result.accountNumber,
+		}),
+
+		/**
+		 * WebSocket message for failed verification.
+		 */
+		onVerificationFailed: (error) => ({
+			type: 'minuteinbox_verification_failed',
+			error,
+		}),
+
+		/**
+		 * WebSocket message when login page detected.
+		 */
+		onLoginDetected: () => ({
+			type: 'minuteinbox_login_page_detected',
+		}),
+	},
+
+	/**
+	 * Investing.com financial data platform configuration.
+	 */
+	investing: {
+		...investingInterceptorConfig,
+
+		createInterceptor: () => new InvestingInterceptor(),
+
+		/**
+		 * Verify Investing.com credentials via real API call.
+		 */
+		verifyCredentials: async (headers) => {
+			try {
+				const response = await fetch('https://www.investing.com/api/user/profile', { headers });
+				if (!response.ok) {
+					return { valid: false, error: 'Unauthorized' };
+				}
+				const data = await response.json() as any;
+				return {
+					valid: true,
+					accountNumber: data.user_id,
+					firstName: data.first_name,
+					lastName: data.last_name,
+				};
+			} catch (error) {
+				return {
+					valid: false,
+					error: error instanceof Error ? error.message : 'Verification failed',
+				};
+			}
+		},
+
+		/**
+		 * Detect Investing.com login page.
+		 */
+		detectLoginPage: (url: string) => url.includes('investing.com/login'),
+
+		/**
+		 * WebSocket message for successful verification.
+		 */
+		onVerified: (result) => ({
+			type: 'investing_verified',
+			accountNumber: result.accountNumber,
+			firstName: (result as any).firstName,
+			lastName: (result as any).lastName,
+		}),
+
+		/**
+		 * WebSocket message for failed verification.
+		 */
+		onVerificationFailed: (error) => ({
+			type: 'investing_verification_failed',
+			error,
+		}),
+
+		/**
+		 * WebSocket message when login page detected.
+		 */
+		onLoginDetected: () => ({
+			type: 'investing_login_page_detected',
 		}),
 	},
 
