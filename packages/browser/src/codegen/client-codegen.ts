@@ -33,17 +33,54 @@ export interface ClientGenerationConfig {
 }
 
 /**
+ * Extract the path portion from a URL pattern (strips protocol + host).
+ * Examples:
+ * - https://www.ticketmaster.com/api/config/menu → /api/config/menu
+ * - /accounts/{id}/positions → /accounts/{id}/positions
+ */
+function extractPath(pattern: string): string {
+	try {
+		const url = new URL(pattern);
+		return url.pathname;
+	} catch {
+		return pattern; // Already a relative path
+	}
+}
+
+/**
+ * Extract the base URL (protocol + host) from a full URL pattern.
+ * Returns empty string if pattern is already relative.
+ */
+function extractBaseUrl(pattern: string): string {
+	try {
+		const url = new URL(pattern);
+		return url.origin;
+	} catch {
+		return '';
+	}
+}
+
+/**
  * Convert URL pattern to TypeScript method name.
  * Examples:
  * - /accounts/{id}/positions → getAccountPositions
- * - /options/orders/{id} → getOptionsOrder (if GET)
+ * - /api/config/menu → getApiConfigMenu
+ * - https://promoted.ticketmaster.com/browse-category → getBrowseCategory
  * - POST /orders → createOrder
  */
 function patternToMethodName(method: string, pattern: string): string {
-	const parts = pattern
+	const path = extractPath(pattern);
+	const parts = path
 		.split('/')
 		.filter((p) => p && p !== '{id}')
-		.map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+		.map((p) =>
+			p
+				.replace(/[^a-zA-Z0-9]/g, '_')
+				.split('_')
+				.filter(Boolean)
+				.map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+				.join(''),
+		);
 
 	const verb =
 		method === 'GET'
@@ -73,22 +110,26 @@ function extractUrlParams(pattern: string): string[] {
  */
 function generateEndpointMethod(pattern: EndpointPattern): string {
 	const methodName = patternToMethodName(pattern.method, pattern.pattern);
-	const urlParams = extractUrlParams(pattern.pattern);
+	const path = extractPath(pattern.pattern);
+	const urlParams = extractUrlParams(path);
 
 	// Build parameter list
 	const params = [...urlParams, 'options?: { timeout?: number }'];
 	const paramList = params.join(', ');
 
-	// Build URL construction code
-	let urlCode = `\`${pattern.baseUrl}${pattern.pattern}\``;
+	// Build URL — use the full URL from the pattern if it's absolute, otherwise use baseUrl + path
+	const isAbsolute = pattern.pattern.startsWith('http');
+	const baseForUrl = isAbsolute ? extractBaseUrl(pattern.pattern) : pattern.baseUrl;
+	let urlCode = `\`${baseForUrl}${path}\``;
 	if (urlParams.length > 0) {
 		const replacements = urlParams.map((p) => `.replace('{${p}}', String(${p}))`).join('');
-		urlCode = `\`${pattern.baseUrl}${pattern.pattern}\`${replacements}`;
+		urlCode = `\`${baseForUrl}${path}\`${replacements}`;
 	}
 
+	const fullUrl = isAbsolute ? pattern.pattern : `${pattern.baseUrl}${path}`;
 	return `
 	/**
-	 * ${pattern.method} ${pattern.pattern}
+	 * ${pattern.method} ${fullUrl}
 	 */
 	async ${methodName}(${paramList}): Promise<unknown> {
 		const url = ${urlCode};
