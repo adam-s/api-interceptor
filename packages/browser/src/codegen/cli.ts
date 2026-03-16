@@ -15,7 +15,7 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getDomainConfig } from '../domain-config';
+import { getDomain } from '../handler/domain-loader.js';
 import { type ClientGenerationConfig, generateClientFile } from './client-codegen';
 import { inferRequestSchema, inferResponseSchema } from './schema-inferencer';
 import { analyzeTraffic, summarizePatterns } from './traffic-analyzer';
@@ -60,16 +60,14 @@ async function main() {
 
 	console.log(`\n🔍 Generating API client for domain: ${domain}\n`);
 
-	// 1. Get domain config if registered, or create a minimal one for ad-hoc discovery
-	const domainConfig = getDomainConfig(domain) || {
+	// 1. Get domain plugin if registered, or use minimal defaults for ad-hoc discovery
+	const plugin = getDomain(domain);
+	const domainConfig = plugin?.config || {
 		domainName: domain,
 		interceptPatterns: [],
 		requiredHeaders: [],
-		headerSchema: null,
+		headerSchema: {} as any,
 		baseUrls: [],
-		createInterceptor: () => {
-			throw new Error('No interceptor for ad-hoc domain');
-		},
 	};
 
 	// 2. Load traffic data

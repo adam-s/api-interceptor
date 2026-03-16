@@ -1,19 +1,20 @@
 import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
-import { validateConfig } from '@interceptor/shared';
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import type { WebSocket } from 'ws';
-import { WebSocketServer } from 'ws';
-import { getBridge } from './bridge';
 import {
 	clearTrafficBuffer,
 	getBrowserHealth,
 	getTrafficEntries,
 	getTrafficSummary,
 	handleBrowserWebSocket,
-} from './browser-handler';
+} from '@interceptor/browser/handler';
+import { validateConfig } from '@interceptor/shared';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import type { WebSocket } from 'ws';
+import { WebSocketServer } from 'ws';
+import './register-domains'; // Side-effect: registers domain plugins
+import { getBridge } from './bridge';
 import { formatStartupBanner } from './format';
 import { addClient, getState, removeClient, resetState, setMultiplier, setRunning } from './state';
 
