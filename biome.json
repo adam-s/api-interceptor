@@ -1,9 +1,18 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.3.11/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.4.7/schema.json",
 	"assist": { "actions": { "source": { "organizeImports": "on" } } },
 	"linter": {
 		"enabled": true,
-		"rules": { "recommended": true }
+		"rules": {
+			"recommended": true,
+			"suspicious": {
+				"noExplicitAny": "warn",
+				"noDocumentCookie": "warn"
+			},
+			"correctness": {
+				"useExhaustiveDependencies": "warn"
+			}
+		}
 	},
 	"formatter": {
 		"enabled": true,
@@ -51,7 +60,8 @@
 			"!**/test-results",
 			"!**/data",
 			"!**/.venv",
-			"!**/next-env.d.ts"
+			"!**/next-env.d.ts",
+			"!apps/api/src/browser.ts"
 		]
 	}
 }

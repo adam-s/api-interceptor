@@ -105,7 +105,21 @@ export function analyzeTraffic(entries: TrafficEntry[]): EndpointPattern[] {
 
 		// Skip static assets — only keep JSON API responses
 		const urlLower = entry.url.toLowerCase();
-		const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.map'];
+		const staticExtensions = [
+			'.js',
+			'.css',
+			'.png',
+			'.jpg',
+			'.jpeg',
+			'.gif',
+			'.svg',
+			'.ico',
+			'.woff',
+			'.woff2',
+			'.ttf',
+			'.eot',
+			'.map',
+		];
 		if (staticExtensions.some((ext) => urlLower.split('?')[0].endsWith(ext))) {
 			continue;
 		}

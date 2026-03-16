@@ -2,15 +2,14 @@
  * Tests for API client code generator
  */
 
-import { describe, it, expect } from 'vitest';
-import { normalizeUrl, analyzeTraffic, type TrafficEntry } from '../traffic-analyzer';
-import { inferSchemaFromExamples } from '../schema-inferencer';
+import { describe, expect, it } from 'vitest';
 import { generateClientFile } from '../client-codegen';
+import { inferSchemaFromExamples } from '../schema-inferencer';
+import { analyzeTraffic, normalizeUrl, type TrafficEntry } from '../traffic-analyzer';
 
 describe('Traffic Analyzer', () => {
 	it('should normalize UUIDs to {id}', () => {
-		const url =
-			'https://api.robinhood.com/accounts/550e8400-e29b-41d4-a716-446655440000/positions';
+		const url = 'https://api.robinhood.com/accounts/550e8400-e29b-41d4-a716-446655440000/positions';
 		const normalized = normalizeUrl(url);
 		expect(normalized).toBe('https://api.robinhood.com/accounts/{id}/positions');
 	});

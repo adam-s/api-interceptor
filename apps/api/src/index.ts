@@ -1,28 +1,21 @@
 import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
+import { validateConfig } from '@interceptor/shared';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
-import { cors } from 'hono/cors';
-import { Hono } from 'hono';
-import { validateConfig } from '@interceptor/shared';
+import { getBridge } from './bridge';
 import {
-	handleBrowserWebSocket,
+	clearTrafficBuffer,
 	getBrowserHealth,
 	getTrafficEntries,
 	getTrafficSummary,
-	clearTrafficBuffer,
+	handleBrowserWebSocket,
 } from './browser-handler';
-import { getBridge } from './bridge';
 import { formatStartupBanner } from './format';
-import {
-	addClient,
-	getState,
-	removeClient,
-	resetState,
-	setMultiplier,
-	setRunning,
-} from './state';
+import { addClient, getState, removeClient, resetState, setMultiplier, setRunning } from './state';
 
 const config = validateConfig({
 	name: 'interceptor-api',
@@ -80,7 +73,7 @@ const server = createServer(async (req, res) => {
 
 		const buffer = await response.arrayBuffer();
 		res.end(Buffer.from(buffer));
-	} catch (err) {
+	} catch (_err) {
 		res.statusCode = 500;
 		res.end('Internal Server Error');
 	}

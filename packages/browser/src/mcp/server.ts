@@ -116,7 +116,8 @@ export function createBrowserMcpServer(): McpServer {
 	server.registerTool(
 		'browser_navigate',
 		{
-			description: 'Navigate the browser to a URL. Waits for the page to start loading before returning.',
+			description:
+				'Navigate the browser to a URL. Waits for the page to start loading before returning.',
 			inputSchema: z.object({
 				url: z.string().describe('The URL to navigate to (e.g., "https://example.com")'),
 			}),
@@ -170,7 +171,8 @@ export function createBrowserMcpServer(): McpServer {
 	server.registerTool(
 		'browser_type',
 		{
-			description: 'Type text into the currently focused element in the browser. Click on an input field first to focus it.',
+			description:
+				'Type text into the currently focused element in the browser. Click on an input field first to focus it.',
 			inputSchema: z.object({
 				text: z.string().describe('The text to type'),
 			}),
@@ -228,9 +230,11 @@ export function createBrowserMcpServer(): McpServer {
 			description:
 				'Press a keyboard key (Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, etc.)',
 			inputSchema: z.object({
-				key: z.string().describe(
-					'Key name: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown',
-				),
+				key: z
+					.string()
+					.describe(
+						'Key name: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown',
+					),
 			}),
 		},
 		async (args: { key: string }) => {
@@ -253,9 +257,11 @@ export function createBrowserMcpServer(): McpServer {
 			description:
 				'Execute JavaScript in the browser page context. Returns the result. Useful for reading page content, checking element states, or extracting data.',
 			inputSchema: z.object({
-				script: z.string().describe(
-					'JavaScript to evaluate in the page (e.g., "document.title" or "document.querySelector(\'h1\').textContent")',
-				),
+				script: z
+					.string()
+					.describe(
+						'JavaScript to evaluate in the page (e.g., "document.title" or "document.querySelector(\'h1\').textContent")',
+					),
 			}),
 		},
 		async (args: { script: string }) => {
@@ -284,7 +290,9 @@ export function createBrowserMcpServer(): McpServer {
 				since: z
 					.number()
 					.optional()
-					.describe('Only return entries after this Unix timestamp (ms). Omit to get all buffered traffic.'),
+					.describe(
+						'Only return entries after this Unix timestamp (ms). Omit to get all buffered traffic.',
+					),
 				clear: z
 					.boolean()
 					.optional()

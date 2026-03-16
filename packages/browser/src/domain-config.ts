@@ -12,15 +12,15 @@
  * @module browser/domain-config
  */
 
-import type { VerificationResult } from './shared/config';
-import { GenericInterceptor } from './shared/interceptor';
-import { robinhoodInterceptorConfig } from './robinhood/config';
-import { RobinhoodInterceptor } from './robinhood/interceptor';
-import { RobinhoodApiClient } from './robinhood/api-client';
-import { minuteinboxInterceptorConfig } from './minuteinbox/config';
-import { MinuteInboxInterceptor } from './minuteinbox/interceptor';
 import { investingInterceptorConfig } from './investing/config';
 import { InvestingInterceptor } from './investing/interceptor';
+import { minuteinboxInterceptorConfig } from './minuteinbox/config';
+import { MinuteInboxInterceptor } from './minuteinbox/interceptor';
+import { RobinhoodApiClient } from './robinhood/api-client';
+import { robinhoodInterceptorConfig } from './robinhood/config';
+import { RobinhoodInterceptor } from './robinhood/interceptor';
+import type { VerificationResult } from './shared/config';
+import type { GenericInterceptor } from './shared/interceptor';
 
 /**
  * WebSocket message sent when verification succeeds.
@@ -181,7 +181,8 @@ export const DOMAIN_CONFIGS: Record<string, DomainConfig> = {
 		/**
 		 * Detect MinuteInbox login page.
 		 */
-		detectLoginPage: (url: string) => url.includes('minuteinbox.com/login') || url.includes('minuteinbox.com/signin'),
+		detectLoginPage: (url: string) =>
+			url.includes('minuteinbox.com/login') || url.includes('minuteinbox.com/signin'),
 
 		/**
 		 * WebSocket message for successful verification.
@@ -224,7 +225,7 @@ export const DOMAIN_CONFIGS: Record<string, DomainConfig> = {
 				if (!response.ok) {
 					return { valid: false, error: 'Unauthorized' };
 				}
-				const data = await response.json() as any;
+				const data = (await response.json()) as any;
 				return {
 					valid: true,
 					accountNumber: data.user_id,

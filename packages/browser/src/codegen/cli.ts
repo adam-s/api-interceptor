@@ -15,10 +15,10 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { getDomainConfig } from '../domain-config';
+import { type ClientGenerationConfig, generateClientFile } from './client-codegen';
+import { inferRequestSchema, inferResponseSchema } from './schema-inferencer';
 import { analyzeTraffic, summarizePatterns } from './traffic-analyzer';
-import { inferResponseSchema, inferRequestSchema } from './schema-inferencer';
-import { generateClientFile, type ClientGenerationConfig } from './client-codegen';
-import { getDomainConfig, hasDomainConfig } from '../domain-config';
 
 /**
  * Parse command-line arguments.
@@ -67,7 +67,9 @@ async function main() {
 		requiredHeaders: [],
 		headerSchema: null,
 		baseUrls: [],
-		createInterceptor: () => { throw new Error('No interceptor for ad-hoc domain'); },
+		createInterceptor: () => {
+			throw new Error('No interceptor for ad-hoc domain');
+		},
 	};
 
 	// 2. Load traffic data

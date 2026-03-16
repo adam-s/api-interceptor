@@ -161,8 +161,7 @@ export function generateClientClass(config: ClientGenerationConfig): string {
 		.map((ep) => generateEndpointMethod(ep))
 		.join('\n');
 
-	const headerSetup =
-		config.headerSetupCode || `this.headers = headers; // Store for each request`;
+	const headerSetup = config.headerSetupCode || `this.headers = headers; // Store for each request`;
 
 	return `
 /**

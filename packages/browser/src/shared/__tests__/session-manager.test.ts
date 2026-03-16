@@ -2,7 +2,7 @@
  * Unit tests for GenericSessionManager
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GenericSessionManager } from '../session-manager';
 
 describe('GenericSessionManager', () => {

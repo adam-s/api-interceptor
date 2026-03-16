@@ -7,13 +7,8 @@
  * @module browser/robinhood/config
  */
 
-import { z } from 'zod';
 import type { InterceptorConfig } from '../shared/config';
-import {
-	INTERCEPT_PATTERNS,
-	RobinhoodHeadersSchema,
-	REQUIRED_HEADER_NAMES,
-} from './types';
+import { INTERCEPT_PATTERNS, REQUIRED_HEADER_NAMES, RobinhoodHeadersSchema } from './types';
 
 /**
  * Robinhood-specific interceptor configuration.

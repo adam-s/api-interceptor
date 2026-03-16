@@ -7,8 +7,6 @@
  * @module browser/codegen/schema-inferencer
  */
 
-import { z } from 'zod';
-
 /**
  * Type information inferred from examples.
  */
@@ -42,7 +40,10 @@ function inferType(value: unknown): InferredType {
 	if (Array.isArray(value)) {
 		const itemTypes = value.map((item) => inferType(item));
 		// Use first non-null type as item type
-		const itemType = itemTypes.find((t) => t.type !== 'null') || { type: 'unknown', nullable: true };
+		const itemType = itemTypes.find((t) => t.type !== 'null') || {
+			type: 'unknown',
+			nullable: true,
+		};
 		return {
 			type: 'array',
 			nullable: false,
@@ -74,7 +75,7 @@ function mergeTypes(types: InferredType[]): InferredType {
 		return { type: 'unknown', nullable: true };
 	}
 
-	const [first, ...rest] = types;
+	const [_first, ..._rest] = types;
 
 	// If any are null, mark as nullable
 	const nullable = types.some((t) => t.nullable || t.type === 'null');
@@ -91,7 +92,7 @@ function mergeTypes(types: InferredType[]): InferredType {
 		if (baseType === 'array') {
 			const itemTypes = nonNullTypes.map((t) => t.itemType).filter(Boolean) as InferredType[];
 			const mergedItemType: InferredType =
-			itemTypes.length > 0 ? mergeTypes(itemTypes) : { type: 'unknown', nullable: true };
+				itemTypes.length > 0 ? mergeTypes(itemTypes) : { type: 'unknown', nullable: true };
 			return {
 				type: 'array',
 				nullable,
@@ -107,7 +108,7 @@ function mergeTypes(types: InferredType[]): InferredType {
 						if (!allProperties.has(key)) {
 							allProperties.set(key, []);
 						}
-						allProperties.get(key)!.push(propType);
+						allProperties.get(key)?.push(propType);
 					}
 				}
 			}

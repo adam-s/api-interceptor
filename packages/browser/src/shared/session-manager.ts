@@ -12,10 +12,10 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProfilePath } from '../remote/profiles';
-import type { GenericSession, SessionStatus, SessionEventType, SessionEvent } from './types';
+import type { GenericSession, SessionEvent, SessionEventType, SessionStatus } from './types';
 
 /**
  * Default max age for sessions (30 days - browser cookies last this long).
@@ -31,7 +31,6 @@ const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
  * When a session's token is older than this, needsTokenRefresh() returns true.
  */
 export const TOKEN_REFRESH_THRESHOLD_MS = 20 * 60 * 60 * 1000;
-
 
 /**
  * Session manager for domain-specific authentication sessions.
@@ -79,10 +78,7 @@ export class GenericSessionManager extends EventEmitter {
 	 */
 	static getInstance(domainName: string): GenericSessionManager {
 		if (!GenericSessionManager.instances.has(domainName)) {
-			GenericSessionManager.instances.set(
-				domainName,
-				new GenericSessionManager(domainName),
-			);
+			GenericSessionManager.instances.set(domainName, new GenericSessionManager(domainName));
 		}
 		return GenericSessionManager.instances.get(domainName)!;
 	}
@@ -92,59 +88,6 @@ export class GenericSessionManager extends EventEmitter {
 	 */
 	static resetInstances(): void {
 		GenericSessionManager.instances.clear();
-	}
-
-	/**
-	 * Load persisted sessions from disk.
-	 * Called on singleton initialization.
-	 */
-	private loadPersistedSessions(): void {
-		// Try to load robinhood-trading profile session
-		const profileName = 'robinhood-trading';
-		const session = this.loadSessionFromDisk(profileName);
-		if (session) {
-			// Validate session is not expired
-			if (this.isSessionValid(session)) {
-				this.sessions.set(profileName, session);
-				console.log(
-					`[SessionManager] ✅ Restored session for ${profileName} from disk (account: ${session.accountNumber}, verified: ${session.verified})`,
-				);
-				this.emitStatusChange('restored', profileName);
-			} else {
-				console.log(
-					`[SessionManager] Found persisted session for ${profileName} but it has expired`,
-				);
-			}
-		} else {
-			console.log(`[SessionManager] No persisted session found for ${profileName}`);
-		}
-	}
-
-	/**
-	 * Load a session from the profile's session file.
-	 */
-	private loadSessionFromDisk(profileName: string): GenericSession | null {
-		try {
-			const profilePath = getProfilePath(profileName);
-			if (!profilePath) return null;
-
-			const sessionFile = join(profilePath, this.sessionFileName);
-			if (!existsSync(sessionFile)) return null;
-
-			const data = readFileSync(sessionFile, 'utf-8');
-			const session = JSON.parse(data) as GenericSession;
-
-			// Validate required fields
-			if (!session.headers || !session.connectedAt) {
-				console.log(`[SessionManager] Invalid session file for ${profileName}`);
-				return null;
-			}
-
-			return session;
-		} catch (err) {
-			console.log(`[SessionManager] Failed to load session for ${profileName}:`, err);
-			return null;
-		}
 	}
 
 	/**

@@ -87,7 +87,7 @@ export default function MultiplierPanel() {
 				numbers: state.history,
 			}),
 		);
-	}, [state?.history.length]);
+	}, [state?.history.length, state]);
 
 	const sendAction = useCallback((action: string, value?: number) => {
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;

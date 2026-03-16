@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Omnibar } from '@/components/browser/omnibar';
 import {
 	RemoteBrowserViewer,
@@ -152,7 +152,8 @@ export default function BrowserContent() {
 				{domainInfo && !domainInfo.error && (
 					<span className="ml-auto rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
 						{domainInfo.domain}: {domainInfo.firstName || domainInfo.accountNumber || 'verified'}
-						{domainInfo.buyingPower && ` — $${Number(domainInfo.buyingPower).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+						{domainInfo.buyingPower &&
+							` — $${Number(domainInfo.buyingPower).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
 					</span>
 				)}
 				{domainInfo?.error && (

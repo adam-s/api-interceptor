@@ -12,8 +12,7 @@ import { join } from 'node:path';
 import type { BrowserContext, Page } from 'patchright';
 import { chromium } from 'patchright';
 import { BlockerManager } from '../blocker';
-import { GenericInterceptor } from './interceptor';
-import type { InterceptorConfig } from './config';
+import type { GenericInterceptor } from './interceptor';
 
 /**
  * Authentication state discriminated union.
@@ -139,7 +138,9 @@ export abstract class GenericAuthService {
 
 		if (!existsSync(profilePath)) {
 			mkdirSync(profilePath, { recursive: true });
-			console.log(`[${this.config.profileName || 'default'}Auth] Created profile directory: ${profilePath}`);
+			console.log(
+				`[${this.config.profileName || 'default'}Auth] Created profile directory: ${profilePath}`,
+			);
 		}
 
 		return profilePath;

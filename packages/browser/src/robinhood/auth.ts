@@ -8,9 +8,8 @@
  * @module browser/robinhood/auth
  */
 
-import { GenericAuthService, type AuthConfig } from '../shared/auth';
+import { type AuthConfig, GenericAuthService } from '../shared/auth';
 import { RobinhoodInterceptor } from './interceptor';
-import { robinhoodInterceptorConfig } from './config';
 
 /** Robinhood-specific auth configuration */
 export interface RobinhoodAuthConfig extends AuthConfig {

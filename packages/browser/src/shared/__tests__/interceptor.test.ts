@@ -2,10 +2,10 @@
  * Unit tests for GenericInterceptor
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { GenericInterceptor } from '../interceptor';
 import type { InterceptorConfig } from '../config';
+import { GenericInterceptor } from '../interceptor';
 
 // Mock config for testing
 const testConfig: InterceptorConfig = {
@@ -20,11 +20,7 @@ const testConfig: InterceptorConfig = {
 };
 
 // Concrete test implementation
-class TestInterceptor extends GenericInterceptor {
-	constructor(config: InterceptorConfig) {
-		super(config);
-	}
-}
+class TestInterceptor extends GenericInterceptor {}
 
 describe('GenericInterceptor', () => {
 	let interceptor: TestInterceptor;

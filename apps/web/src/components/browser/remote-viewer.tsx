@@ -75,7 +75,7 @@ export function RemoteBrowserViewer({
 }: RemoteBrowserViewerProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const wsRef = useRef<WebSocket | null>(null);
-	const [isConnected, setIsConnected] = useState(false);
+	const [_isConnected, setIsConnected] = useState(false);
 	const [frameCount, setFrameCount] = useState(0);
 	const [viewport, setViewport] = useState<ViewportInfo>({ width, height });
 	const [isReady, setIsReady] = useState(false);

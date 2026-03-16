@@ -10,7 +10,7 @@
  * @module api/browser-handler
  */
 
-import type { WebSocket } from 'ws';
+import { type DomainConfig, getDomainConfig } from '@interceptor/browser/domain-config';
 import {
 	BrowserLifecycleManager,
 	browserLogger,
@@ -20,13 +20,10 @@ import {
 	profileExists,
 	RemoteBrowserService,
 } from '@interceptor/browser/remote';
-import {
-	type InterceptedRequest,
-	type InterceptedResponse,
-} from '@interceptor/browser/shared';
-import { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
+import type { InterceptedRequest, InterceptedResponse } from '@interceptor/browser/shared';
+import type { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
 import { GenericSessionManager } from '@interceptor/browser/shared/session-manager';
-import { getDomainConfig, type DomainConfig } from '@interceptor/browser/domain-config';
+import type { WebSocket } from 'ws';
 
 // --- Constants ---
 
@@ -121,13 +118,20 @@ export function getTrafficSummary(): {
 	uniqueEndpoints: number;
 	endpoints: Array<{ pattern: string; count: number; methods: string[]; statuses: number[] }>;
 } {
-	const urlPatterns = new Map<string, { count: number; methods: Set<string>; statuses: Set<number> }>();
+	const urlPatterns = new Map<
+		string,
+		{ count: number; methods: Set<string>; statuses: Set<number> }
+	>();
 	for (const entry of trafficBuffer) {
 		const pattern = entry.url
 			.replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/{id}')
 			.replace(/\/\d+\//g, '/{id}/')
 			.replace(/\?.*$/, '');
-		const existing = urlPatterns.get(pattern) || { count: 0, methods: new Set(), statuses: new Set() };
+		const existing = urlPatterns.get(pattern) || {
+			count: 0,
+			methods: new Set(),
+			statuses: new Set(),
+		};
 		existing.count++;
 		existing.methods.add(entry.method);
 		existing.statuses.add(entry.status);
@@ -328,9 +332,11 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 								if (result.valid) {
 									manager.markVerified(profile, {
 										accountNumber: result.accountNumber || '',
-										firstName: (result as any).firstName,
-										lastName: (result as any).lastName,
-										buyingPower: (result as any).buyingPower,
+										firstName: (result as Record<string, unknown>).firstName as string | undefined,
+										lastName: (result as Record<string, unknown>).lastName as string | undefined,
+										buyingPower: (result as Record<string, unknown>).buyingPower as
+											| string
+											| undefined,
 									});
 									browserLogger.debug(`${config.domainName} VERIFIED: ${JSON.stringify(result)}`);
 									const message = config.onVerified
@@ -339,7 +345,9 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 									wsSendJson(ws, message);
 								} else {
 									manager.markVerificationFailed(profile, result.error || 'Unknown error');
-									browserLogger.warn(`${config.domainName}_verification_failed`, { error: result.error });
+									browserLogger.warn(`${config.domainName}_verification_failed`, {
+										error: result.error,
+									});
 									const message = config.onVerificationFailed
 										? config.onVerificationFailed(result.error || 'Unknown error')
 										: { type: `${config.domainName}_verification_failed`, error: result.error };
@@ -354,14 +362,19 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 						});
 
 						await activeInterceptor.attach(page);
-						browserLogger.debug(`${config.domainName} interceptor attached + traffic capture enabled`);
+						browserLogger.debug(
+							`${config.domainName} interceptor attached + traffic capture enabled`,
+						);
 					}
 				}
 			}
 
 			// Generic traffic capture via ?capture=domain1.com,domain2.com
 			if (captureDomainsParam && activeBrowser) {
-				const captureDomains = captureDomainsParam.split(',').map((d) => d.trim()).filter(Boolean);
+				const captureDomains = captureDomainsParam
+					.split(',')
+					.map((d) => d.trim())
+					.filter(Boolean);
 				const page = activeBrowser.getPage();
 				if (page && captureDomains.length > 0) {
 					for (const domain of captureDomains) {
@@ -470,7 +483,9 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			browserLogger.connection('ready', { profile: profile || 'temp' });
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
-			browserLogger.error('start_failed', err instanceof Error ? err : new Error(errorMessage), { profile });
+			browserLogger.error('start_failed', err instanceof Error ? err : new Error(errorMessage), {
+				profile,
+			});
 			wsSendJson(ws, { type: 'error', message: `Failed to start browser: ${errorMessage}` });
 		}
 	} finally {
@@ -512,7 +527,12 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 					break;
 				case 'scroll':
 					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.scroll(message.x, message.y, message.deltaX || 0, message.deltaY || 0);
+						await activeBrowser.scroll(
+							message.x,
+							message.y,
+							message.deltaX || 0,
+							message.deltaY || 0,
+						);
 					}
 					break;
 				case 'paste':
@@ -585,11 +605,9 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			activeDomainConfig = undefined;
 			browserReady = false;
 		} catch (err) {
-			browserLogger.error(
-				'cleanup_error',
-				err instanceof Error ? err : new Error(String(err)),
-				{ profile: currentProfile },
-			);
+			browserLogger.error('cleanup_error', err instanceof Error ? err : new Error(String(err)), {
+				profile: currentProfile,
+			});
 		} finally {
 			try {
 				lm.releaseLock();

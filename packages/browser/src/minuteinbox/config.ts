@@ -16,10 +16,7 @@ import type { InterceptorConfig } from '../shared/config';
 export const minuteinboxInterceptorConfig: InterceptorConfig = {
 	domainName: 'minuteinbox',
 
-	interceptPatterns: [
-		'https://www.minuteinbox.com/api/**',
-		'https://api.minuteinbox.com/**',
-	],
+	interceptPatterns: ['https://www.minuteinbox.com/api/**', 'https://api.minuteinbox.com/**'],
 
 	requiredHeaders: [],
 	// MinuteInbox doesn't require auth for basic email generation

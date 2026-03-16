@@ -15,6 +15,7 @@
  * @module api/browser
  */
 
+import { type DomainConfig, getDomainConfig } from '@interceptor/browser/domain-config';
 import {
 	BrowserLifecycleManager,
 	browserLogger,
@@ -24,13 +25,9 @@ import {
 	profileExists,
 	RemoteBrowserService,
 } from '@interceptor/browser/remote';
-import {
-	type InterceptedRequest,
-	type InterceptedResponse,
-} from '@interceptor/browser/robinhood';
-import { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
+import type { InterceptedRequest, InterceptedResponse } from '@interceptor/browser/robinhood';
+import type { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
 import { GenericSessionManager } from '@interceptor/browser/shared/session-manager';
-import { getDomainConfig, type DomainConfig } from '@interceptor/browser/domain-config';
 import { Hono } from 'hono';
 import type { UpgradeWebSocket } from 'hono/ws';
 
@@ -354,7 +351,9 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 
 											// Verify credentials if domain config provides verification
 											if (config.verifyCredentials) {
-												browserLogger.debug(`Verifying credentials for domain: ${config.domainName}`);
+												browserLogger.debug(
+													`Verifying credentials for domain: ${config.domainName}`,
+												);
 												const result = await config.verifyCredentials(headers);
 
 												if (result.valid) {
@@ -385,7 +384,10 @@ export function createBrowserApp(upgradeWebSocket: UpgradeWebSocket): Hono {
 													try {
 														const message = config.onVerificationFailed
 															? config.onVerificationFailed(result.error || 'Unknown error')
-															: { type: `${config.domainName}_verification_failed`, error: result.error };
+															: {
+																	type: `${config.domainName}_verification_failed`,
+																	error: result.error,
+																};
 														ws.send(JSON.stringify(message));
 													} catch {
 														// Client may have disconnected

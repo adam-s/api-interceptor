@@ -8,7 +8,7 @@
  */
 
 import type { Page, Request, Route } from 'patchright';
-import { InterceptorConfig } from './config';
+import type { InterceptorConfig } from './config';
 import type { InterceptedRequest, InterceptedResponse, InterceptionCallback } from './types';
 
 /**
@@ -66,10 +66,7 @@ export abstract class GenericInterceptor {
 		// Validate with Zod schema
 		const result = this.config.headerSchema.safeParse(headers);
 		if (!result.success) {
-			console.warn(
-				`[${this.config.domainName}Interceptor] Invalid headers:`,
-				result.error.message,
-			);
+			console.warn(`[${this.config.domainName}Interceptor] Invalid headers:`, result.error.message);
 			return null;
 		}
 

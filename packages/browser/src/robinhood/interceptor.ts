@@ -8,13 +8,17 @@
  * @module browser/robinhood/interceptor
  */
 
+import type { Route } from 'patchright';
 import { GenericInterceptor } from '../shared/interceptor';
-import type { Page, Route } from 'patchright';
 import { robinhoodInterceptorConfig } from './config';
 import type { RobinhoodHeaders } from './types';
 
 // Re-export shared types for backward compatibility
-export type { InterceptedRequest, InterceptedResponse, InterceptionCallback } from '../shared/types';
+export type {
+	InterceptedRequest,
+	InterceptedResponse,
+	InterceptionCallback,
+} from '../shared/types';
 
 /**
  * Robinhood API request interceptor.

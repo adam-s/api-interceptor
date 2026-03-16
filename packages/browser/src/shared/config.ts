@@ -7,7 +7,7 @@
  * @module browser/shared/config
  */
 
-import { z } from 'zod';
+import type { z } from 'zod';
 
 /**
  * Configuration for a domain-specific interceptor.
