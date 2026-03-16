@@ -44,13 +44,16 @@ importers:
         version: link:../../packages/browser
       '@interceptor/domain-investing':
         specifier: workspace:*
-        version: link:../../packages/domains/investing
+        version: link:../../domains/investing
       '@interceptor/domain-minuteinbox':
         specifier: workspace:*
-        version: link:../../packages/domains/minuteinbox
+        version: link:../../domains/minuteinbox
       '@interceptor/domain-robinhood':
         specifier: workspace:*
-        version: link:../../packages/domains/robinhood
+        version: link:../../domains/robinhood
+      '@interceptor/domain-ticketmaster':
+        specifier: workspace:*
+        version: link:../../domains/ticketmaster
       '@interceptor/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -147,6 +150,73 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
+  domains/investing:
+    dependencies:
+      '@interceptor/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.5.0
+        version: 25.5.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  domains/minuteinbox:
+    dependencies:
+      '@interceptor/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.5.0
+        version: 25.5.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  domains/robinhood:
+    dependencies:
+      '@interceptor/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      cross-fetch:
+        specifier: 4.1.0
+        version: 4.1.0
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.5.0
+        version: 25.5.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  domains/ticketmaster:
+    dependencies:
+      '@interceptor/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      zod:
+        specifier: 4.3.6
+        version: 4.3.6
+    devDependencies:
+      '@types/node':
+        specifier: 25.5.0
+        version: 25.5.0
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/browser:
     dependencies:
       '@ghostery/adblocker-playwright':
@@ -158,6 +228,9 @@ importers:
       cross-fetch:
         specifier: 4.1.0
         version: 4.1.0
+      hono:
+        specifier: ^4.12.8
+        version: 4.12.8
       patchright:
         specifier: 1.58.2
         version: 1.58.2
@@ -180,57 +253,6 @@ importers:
       vitest:
         specifier: 4.1.0
         version: 4.1.0(@types/node@25.5.0)(msw@2.12.11(@types/node@25.5.0)(typescript@5.9.3))(vite@7.3.1(@types/node@25.5.0)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.2))
-
-  packages/domains/investing:
-    dependencies:
-      '@interceptor/browser':
-        specifier: workspace:*
-        version: link:../../browser
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: 25.5.0
-        version: 25.5.0
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/domains/minuteinbox:
-    dependencies:
-      '@interceptor/browser':
-        specifier: workspace:*
-        version: link:../../browser
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: 25.5.0
-        version: 25.5.0
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  packages/domains/robinhood:
-    dependencies:
-      '@interceptor/browser':
-        specifier: workspace:*
-        version: link:../../browser
-      cross-fetch:
-        specifier: 4.1.0
-        version: 4.1.0
-      zod:
-        specifier: 4.3.6
-        version: 4.3.6
-    devDependencies:
-      '@types/node':
-        specifier: 25.5.0
-        version: 25.5.0
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
 
   packages/shared:
     devDependencies:
