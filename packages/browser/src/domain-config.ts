@@ -175,3 +175,10 @@ export const DOMAIN_CONFIGS: Record<string, DomainConfig> = {
 export function getDomainConfig(profileName: string): DomainConfig | undefined {
 	return DOMAIN_CONFIGS[profileName];
 }
+
+/**
+ * Check if a profile has domain-specific configuration.
+ */
+export function hasDomainConfig(profileName: string): boolean {
+	return profileName in DOMAIN_CONFIGS;
+}
