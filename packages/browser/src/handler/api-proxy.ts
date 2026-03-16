@@ -42,7 +42,7 @@ export function createDomainProxy(
 			routes: routes.map((r) => ({
 				method: r.method,
 				path: r.path,
-				targetUrl: r.targetUrl,
+				targetUrl: r.targetUrl ?? '(custom handler)',
 				description: r.description,
 			})),
 		});
@@ -64,7 +64,12 @@ export function createDomainProxy(
 			}
 
 			try {
-				// Build request options
+				// Custom handler (Type B/B2/C): full access to Hono context + browser
+				if (route.handler) {
+					return route.handler(c, browser);
+				}
+
+				// Proxy handler (Type A): browserFetch targetUrl with cookies inherited
 				const options: {
 					method: 'GET' | 'POST' | 'PUT' | 'DELETE';
 					headers?: Record<string, string>;

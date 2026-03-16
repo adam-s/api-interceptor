@@ -22,29 +22,35 @@
  * @module browser/handler/domain-loader
  */
 
+import type { Context } from 'hono';
 import type { InterceptorConfig, VerificationResult } from '../shared/config.js';
 import type { GenericInterceptor } from '../shared/interceptor.js';
+import type { RemoteBrowserService } from '../remote/service.js';
 
 /**
  * A single API route that can be proxied through the browser.
  *
- * When the Hono server receives a request matching `path`, it calls
- * `browserFetch(targetUrl)` inside the Patchright browser context,
- * inheriting cookies and session state automatically.
+ * Two dispatch modes:
+ * - `targetUrl`: simple proxy — calls `browserFetch(targetUrl)` with cookies inherited automatically (Type A)
+ * - `handler`: custom logic — full access to Hono context + browser for SSR extraction, traffic capture, etc. (Type B/B2/C)
+ *
+ * Exactly one of `targetUrl` or `handler` must be provided.
  */
-export interface DomainRoute {
-	/** HTTP method */
-	method: 'GET' | 'POST' | 'PUT' | 'DELETE';
-
-	/** Hono route path (e.g., '/trending/searches', '/accounts/:id') */
-	path: string;
-
-	/** Full target URL to fetch inside the browser (e.g., 'https://www.ticketmaster.com/api/trending/searches/attraction') */
-	targetUrl: string;
-
-	/** Human-readable description (for docs, logging, generated OpenAPI) */
-	description?: string;
-}
+export type DomainRoute =
+	| {
+			method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+			path: string;
+			targetUrl: string;
+			handler?: never;
+			description?: string;
+	  }
+	| {
+			method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+			path: string;
+			targetUrl?: never;
+			handler: (c: Context, browser: RemoteBrowserService) => Promise<Response>;
+			description?: string;
+	  };
 
 /**
  * Domain plugin contract.
