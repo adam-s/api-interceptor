@@ -1,0 +1,103 @@
+# API Interceptor Architecture Reference
+
+Load this file when you need detailed understanding of how the framework works internally.
+
+## Project Structure
+
+```
+api-interceptor/
+  domains/                    ← Domain plugins (one per website)
+    ticketmaster/             ← Reference: proxy routes, no auth
+    robinhood/                ← Reference: full API client, auth, sessions
+    investing/                ← Reference: auth verification
+    minuteinbox/              ← Reference: no auth, utility
+  packages/
+    browser/                  ← Framework
+      src/handler/            ← WebSocket handler + domain-loader + api-proxy
+      src/shared/             ← GenericInterceptor, types, config interface
+      src/codegen/            ← Traffic analyzer → schema inferencer → client generator
+      src/remote/             ← RemoteBrowserService, profiles, lifecycle
+    shared/                   ← Utilities (logging, validation)
+  apps/
+    api/                      ← Hono server
+      src/index.ts            ← HTTP + WebSocket server, mounts all routes
+      src/register-domains.ts ← Imports and registers domain plugins
+    web/                      ← Next.js dashboard
+  data/
+    browser-profiles/         ← Persistent Chrome profiles (gitignored)
+```
+
+## DomainPlugin Interface
+
+```typescript
+interface DomainPlugin {
+  domainName: string;
+  config: InterceptorConfig;
+  routes?: DomainRoute[];          // Proxy routes for browserFetch()
+  createInterceptor: () => GenericInterceptor;
+  verifyCredentials?: (headers) => Promise<VerificationResult>;
+  detectLoginPage?: (url: string) => boolean;
+  onVerified?: (result) => Record<string, unknown>;
+  onVerificationFailed?: (error: string) => Record<string, unknown>;
+  onLoginDetected?: () => Record<string, unknown>;
+}
+
+interface DomainRoute {
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  path: string;        // Hono route: '/trending/searches'
+  targetUrl: string;    // Full URL: 'https://www.ticketmaster.com/api/trending/searches/attraction'
+  description?: string;
+}
+```
+
+## How browserFetch Works
+
+`RemoteBrowserService.browserFetch()` (packages/browser/src/remote/service.ts line 945):
+
+1. Checks if browser is on the same origin as targetUrl
+2. If not, navigates to that origin first (so cookies are included)
+3. Runs `page.evaluate(async () => fetch(url, { credentials: 'include' }))` inside the browser
+4. Returns `{ status, data, headers }`
+
+Cookies, CSRF tokens, and session state are automatic — no manual header management.
+
+## Traffic Capture Flow
+
+1. WebSocket connects to `/browser/stream?profile=name&capture=domain.com`
+2. `handleBrowserWebSocket()` launches Patchright via `RemoteBrowserService`
+3. `page.route(**/*domain/**)` intercepts matching requests
+4. Each intercepted req/res is stored in the traffic buffer
+5. `GET /browser/traffic` returns captured entries
+6. `GET /browser/traffic/summary` returns deduplicated endpoint patterns
+
+## Proxy Flow
+
+1. Domain plugin registers routes via `DomainPlugin.routes`
+2. `createDomainProxy()` creates Hono sub-app at `/api/<domainName>/`
+3. When called, each route runs `browser.browserFetch(targetUrl)`
+4. Response is returned directly to the caller as JSON
+
+## Registration Flow
+
+1. Domain package exports `plugin: DomainPlugin`
+2. `apps/api/src/register-domains.ts` imports and calls `registerDomain(plugin)`
+3. `apps/api/package.json` lists the domain as a workspace dependency
+4. `pnpm install` links the workspace package
+
+## Key Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /browser/health` | Browser connection status |
+| `GET /browser/traffic` | All captured API traffic |
+| `GET /browser/traffic/summary` | Deduplicated endpoint patterns |
+| `DELETE /browser/traffic` | Clear traffic buffer |
+| `GET /api` | List all domains and their routes |
+| `GET /api/<domain>/` | List routes for a domain |
+| `GET /api/<domain>/<path>` | Proxy request through browser |
+
+## Glob Pattern for Traffic Capture
+
+The `capture` query parameter uses `**/*<domain>/**` glob matching.
+Use the root domain (e.g., `ticketmaster.com`) to catch all subdomains
+(`www.`, `api.`, `identity.`, `promoted.`, etc.).

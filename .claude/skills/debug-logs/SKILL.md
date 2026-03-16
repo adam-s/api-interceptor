@@ -1,6 +1,6 @@
 ---
 name: debug-logs
-description: Iterative debugging with DEBUG() logs. Use when you can't solve a problem on the first attempt — add targeted logs, read output, narrow the search, repeat until fixed, then clean up.
+description: Iterative debugging with targeted logs. Use when browser connections fail, traffic capture returns empty, proxy routes return errors, WebSocket issues, or any problem that can't be solved on the first attempt. Add logs, read output, narrow the search, repeat until fixed, then clean up.
 ---
 
 # Iterative Debug Logging

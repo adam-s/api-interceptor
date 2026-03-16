@@ -1,6 +1,6 @@
 ---
 name: systematic-testing
-description: Bottom-up systematic validation for multi-layer architectures. Use when asked to test, debug, or verify any layer from backend worker through to frontend UI.
+description: Bottom-up systematic validation for multi-layer architectures. Use when testing domain plugins, proxy routes, API endpoints, browser connections, traffic capture, codegen output, or dashboard UI. Test each layer independently before testing integration.
 ---
 
 # Systematic Validation

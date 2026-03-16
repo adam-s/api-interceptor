@@ -1,6 +1,6 @@
 ---
 name: visual-dev
-description: Visual development with Patchright screenshots. Use when building, fixing, or reviewing UI — takes screenshots, analyzes layout and functionality, iterates until correct, then cleans up.
+description: Visual development with Patchright screenshots. Use when building, fixing, reviewing, or creating new UI pages and dashboard components. Use when the user wants to build a dashboard, create a new page, verify UI works correctly, or iterate on visual design. Takes screenshots, analyzes layout, iterates until correct.
 ---
 
 # Visual Development Loop

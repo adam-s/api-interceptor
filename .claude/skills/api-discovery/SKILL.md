@@ -1,53 +1,73 @@
 ---
 name: api-discovery
-description: Discover any website's API, generate typed clients, and expose proxy routes through the browser's authenticated session. Use when the user wants to create an API for a website.
+description: Discover any website's API and create domain plugins with proxy routes. Use when the user wants to create an API for a website, reverse-engineer a web service, add a new domain, capture browser traffic, build typed API clients, or integrate with a third-party site. Also use when the user mentions a website name and wants to interact with it programmatically.
 ---
 
-# API Discovery & Domain Plugin Creation
+# API Discovery
 
-Discover undocumented web APIs by capturing browser traffic, then expose them as clean REST endpoints that proxy through the browser's authenticated session. The browser handles cookies and auth automatically.
+Discover a website's internal APIs by capturing browser traffic, then expose them as clean REST proxy routes through the browser's authenticated session.
 
-## What This Skill Produces
+For detailed architecture, see [reference/architecture.md](reference/architecture.md).
 
-For any website, this skill creates:
+## Decision: Does the Domain Plugin Already Exist?
 
-1. **Captured traffic** — Real API requests/responses from the browser
-2. **Domain plugin** — A package in `domains/<name>/` with typed routes
-3. **Proxy API** — Hono REST endpoints at `/api/<name>/` that proxy through `browserFetch()`
+Check `domains/` for an existing plugin:
 
-## Architecture
-
-```
-curl /api/ticketmaster/trending    →    Hono Server    →    browserFetch()    →    Real API
-                                         (port 3001)        (page.evaluate)        (with cookies)
+```bash
+ls domains/ | grep <domain-name>
 ```
 
-The browser runs `fetch()` inside the page context via `page.evaluate()`. This means cookies, CSRF tokens, and session state are automatically included — no manual header management.
+- **If it exists**: Read its `src/routes.ts` to see available endpoints. Skip to "Use Existing Domain."
+- **If it does not exist**: Follow "Create New Domain" below.
 
-## Step-by-Step Workflow
+## Create New Domain
 
-### Step 1: Start the Server
+### Step 1: Scaffold the domain package
+
+Run the bundled scaffold script. Replace `<name>` with a short lowercase identifier and `<root-domain>` with the website's domain:
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>
+```
+
+Example: `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh stubhub stubhub.com`
+
+This creates `domains/<name>/` with package.json, config.ts, interceptor.ts, routes.ts, and index.ts from templates.
+
+### Step 2: Register the domain
+
+Add to `apps/api/src/register-domains.ts`:
+
+```typescript
+import { plugin as <name> } from '@interceptor/domain-<name>';
+registerDomain(<name>);
+```
+
+Add to `apps/api/package.json` dependencies:
+
+```json
+"@interceptor/domain-<name>": "workspace:*"
+```
+
+Run `pnpm install` to link the workspace package.
+
+### Step 3: Start the server
 
 ```bash
 pnpm run dev
-# API server: http://localhost:3001
-# Dashboard:  http://localhost:3000
 ```
 
-Verify: `curl http://localhost:3001/browser/health`
+Verify: `curl -s http://localhost:3001/browser/health | jq .status`
 
-### Step 2: Connect Browser and Capture Traffic
+### Step 4: Connect browser and capture traffic
 
-Connect a browser to the target website. Use the `capture` parameter with the site's domain:
+Connect a browser to the target website via WebSocket:
 
-```bash
-# Via dashboard (user clicks Connect):
-open "http://localhost:3000/browser?profile=<name>&capture=<domain>&url=<start-url>"
-
-# Or via WebSocket directly:
-pnpm exec tsx -e "
+```typescript
 import WebSocket from 'ws';
-const ws = new WebSocket('ws://localhost:3001/browser/stream?profile=mysite&capture=example.com&url=https://www.example.com');
+const ws = new WebSocket(
+  'ws://localhost:3001/browser/stream?profile=<name>&capture=<root-domain>&url=https://www.<root-domain>/'
+);
 ws.on('message', (data) => {
   if (data[0] === 0x7b) {
     const msg = JSON.parse(data.toString());
@@ -55,203 +75,102 @@ ws.on('message', (data) => {
     if (msg.type === 'url') console.log('URL:', msg.url);
   }
 });
-setTimeout(() => { ws.close(); process.exit(0); }, 30000);
-"
 ```
 
-**IMPORTANT**: The `capture` parameter uses glob matching `**/*<domain>/**`. Use the root domain (e.g., `ticketmaster.com`) to catch all subdomains (`www.`, `api.`, `identity.`, etc.).
+**IMPORTANT**: Use the root domain for the `capture` parameter (e.g., `stubhub.com` not `www.stubhub.com`). The glob `**/*<domain>/**` catches all subdomains.
 
-### Step 3: Navigate to Trigger API Calls
+### Step 5: Navigate to trigger API calls
 
-The browser must navigate and interact with the site to trigger API calls. Send navigation commands via WebSocket:
+Send navigation commands to trigger API traffic:
 
 ```typescript
-ws.send(JSON.stringify({ type: 'navigate', url: 'https://www.example.com/some-page' }));
+ws.send(JSON.stringify({ type: 'navigate', url: 'https://www.<root-domain>/search?q=concerts' }));
 ```
 
-Or tell the user to interact via the dashboard.
+Wait 5-10 seconds for API calls to fire.
 
-### Step 4: Read Captured Traffic
+### Step 6: Read captured traffic
 
 ```bash
-# How many API calls captured?
+# Check total captured
 curl -s http://localhost:3001/browser/traffic | jq '.total'
 
-# Summary of unique endpoints
+# See unique endpoint patterns
 curl -s http://localhost:3001/browser/traffic/summary | jq '.endpoints[] | {pattern, count, methods}'
 
-# Full traffic details
+# Full details
 curl -s http://localhost:3001/browser/traffic | jq '.entries[] | {method, url: .url[:100], status}'
-
-# Clear buffer before next navigation
-curl -X DELETE http://localhost:3001/browser/traffic
 ```
 
-### Step 5: Generate Domain Plugin
+### Step 7: Extract routes from traffic
 
-Once you have captured enough traffic, create a domain plugin package:
+Read the traffic summary. For each JSON API endpoint (skip HTML pages, JS, CSS, images):
 
-```bash
-mkdir -p domains/<name>/src
-```
+1. Identify the method (GET/POST)
+2. Extract the full URL
+3. Create a clean path for the Hono route
+4. Write a description
 
-**`domains/<name>/package.json`**:
-```json
-{
-  "name": "@interceptor/domain-<name>",
-  "version": "0.0.1",
-  "type": "module",
-  "main": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "dependencies": {
-    "@interceptor/browser": "workspace:*",
-    "zod": "4.3.6"
-  }
-}
-```
+Update `domains/<name>/src/routes.ts`:
 
-**`domains/<name>/src/routes.ts`** — Extract from captured traffic:
 ```typescript
-import type { DomainRoute } from '@interceptor/browser/handler/domain-loader';
-
 export const routes: DomainRoute[] = [
   {
     method: 'GET',
-    path: '/trending',
-    targetUrl: 'https://www.example.com/api/trending',
-    description: 'Trending items',
+    path: '/search',
+    targetUrl: 'https://api.<root-domain>/v1/search',
+    description: 'Search for events/items',
   },
-  // ... more routes from captured traffic
+  // ... more routes from traffic
 ];
 ```
 
-**`domains/<name>/src/config.ts`**:
-```typescript
-import type { InterceptorConfig } from '@interceptor/browser/shared/config';
-import { z } from 'zod';
+Also update `domains/<name>/src/config.ts` with the actual `interceptPatterns` and `baseUrls` discovered from the traffic URLs.
 
-export const config: InterceptorConfig = {
-  domainName: '<name>',
-  interceptPatterns: ['https://www.example.com/api/**', 'https://api.example.com/**'],
-  requiredHeaders: [],
-  headerSchema: z.object({ Cookie: z.string().optional() }),
-  baseUrls: ['https://www.example.com'],
-};
-```
+### Step 8: Test proxy routes
 
-**`domains/<name>/src/interceptor.ts`**:
-```typescript
-import { GenericInterceptor } from '@interceptor/browser/shared/interceptor';
-import { config } from './config';
-
-export class MyInterceptor extends GenericInterceptor {
-  constructor() { super(config); }
-}
-```
-
-**`domains/<name>/src/index.ts`**:
-```typescript
-import type { DomainPlugin } from '@interceptor/browser/handler/domain-loader';
-import { config } from './config';
-import { MyInterceptor } from './interceptor';
-import { routes } from './routes';
-
-export const plugin: DomainPlugin = {
-  domainName: '<name>',
-  config,
-  routes,
-  createInterceptor: () => new MyInterceptor(),
-};
-```
-
-### Step 6: Register the Domain
-
-**`apps/api/src/register-domains.ts`** — Add import:
-```typescript
-import { plugin as mysite } from '@interceptor/domain-<name>';
-registerDomain(mysite);
-```
-
-**`apps/api/package.json`** — Add dependency:
-```json
-"@interceptor/domain-<name>": "workspace:*"
-```
-
-Then: `pnpm install`
-
-### Step 7: Test the Proxy
+Restart the server, then verify:
 
 ```bash
-# Restart server
-pnpm run dev
+# List registered routes
+curl -s http://localhost:3001/api | jq '.domains[] | select(.name == "<name>")'
 
-# Check routes are registered
-curl http://localhost:3001/api | jq '.domains[] | select(.name == "<name>")'
-
-# Connect browser to the site
-# (browser must be on the domain for cookies to work)
-
-# Call a proxy route
-curl http://localhost:3001/api/<name>/trending
+# Connect browser (required for proxy to work)
+# Then call a proxy route:
+curl -s http://localhost:3001/api/<name>/search
 ```
 
-### Step 8: Run Codegen (Optional)
-
-For a standalone TypeScript client (no browser needed, uses captured headers):
+### Step 9: Clear traffic and iterate
 
 ```bash
-# Save traffic
-curl -s http://localhost:3001/browser/traffic > /tmp/traffic.json
-
-# Generate typed client
-pnpm exec tsx packages/browser/src/codegen/cli.ts <name> \
-  --traffic /tmp/traffic.json \
-  --output domains/<name>/src/client.ts
+curl -X DELETE http://localhost:3001/browser/traffic
 ```
 
-## Gotchas & Lessons Learned
+Navigate to more pages to discover additional endpoints. Repeat steps 6-8 until all needed APIs are captured.
 
-| Problem | Cause | Fix |
-|---------|-------|-----|
-| Traffic buffer shows 0 entries | `capture` domain doesn't match request URLs | Use root domain (e.g., `ticketmaster.com`) not `www.ticketmaster.com` — glob catches subdomains |
-| Proxy returns HTML instead of JSON | Browser not on the target origin yet | Wait for browser to fully load the site before calling proxy |
-| Proxy returns 503 "Browser not connected" | No WebSocket connection active | Connect browser first via dashboard or wscat |
-| `browserFetch` navigates away from page | Target URL is on a different origin than current page | browserFetch auto-navigates to the origin — this is expected |
-| JS/CSS assets in captured traffic | Capture pattern too broad | Codegen filters static assets automatically; or narrow `interceptPatterns` |
-| Module import errors at runtime | Missing `"type": "module"` in package.json | All packages need `"type": "module"` for ESM |
-| pnpm can't find new domain package | Not in `pnpm-workspace.yaml` | Workspace config must include `'domains/*'` |
+## Use Existing Domain
 
-## Project Structure
+If the domain plugin exists in `domains/<name>/`:
 
-```
-api-interceptor/
-  domains/                    ← Domain plugins (one per website)
-    ticketmaster/             ← Reference: has routes, config, interceptor
-    robinhood/                ← Full impl: API client, auth, session mgmt
-    investing/
-    minuteinbox/
-  packages/
-    browser/                  ← Framework (interceptor, codegen, remote browser, handler)
-      src/handler/            ← WebSocket handler + domain-loader + api-proxy
-      src/shared/             ← GenericInterceptor, types, config interface
-      src/codegen/            ← Traffic analyzer → schema inferencer → client generator
-      src/remote/             ← RemoteBrowserService, profiles, lifecycle
-    shared/                   ← Utilities (logging, validation, Python bridge)
-  apps/
-    api/                      ← Hono server (mounts browser + proxy routes)
-    web/                      ← Next.js dashboard
-  data/
-    browser-profiles/         ← Persistent Chrome profiles (gitignored)
-```
+1. Ensure it is registered in `apps/api/src/register-domains.ts`
+2. Start the server: `pnpm run dev`
+3. Connect browser: `?profile=<name>&capture=<root-domain>&url=https://www.<root-domain>/`
+4. Call proxy routes: `curl http://localhost:3001/api/<name>/<path>`
 
-## Key Endpoints
+## Reference Files
 
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /browser/health` | Browser connection status |
-| `GET /browser/traffic` | All captured API traffic |
-| `GET /browser/traffic/summary` | Deduplicated endpoint patterns |
-| `DELETE /browser/traffic` | Clear traffic buffer |
-| `GET /api` | List all registered domains and their routes |
-| `GET /api/<domain>/` | List routes for a specific domain |
-| `GET /api/<domain>/<path>` | Proxy request through browser |
+- **Templates**: See [templates/](templates/) for domain package scaffolding
+- **Scaffold script**: See [scripts/scaffold-domain.sh](scripts/scaffold-domain.sh)
+- **Architecture details**: See [reference/architecture.md](reference/architecture.md)
+- **Example domains**: See `domains/ticketmaster/` (simple) and `domains/robinhood/` (complex)
+
+## Gotchas
+
+| Problem | Fix |
+|---------|-----|
+| Traffic shows 0 entries | Use root domain in `capture=` (e.g., `stubhub.com` not `www.stubhub.com`) |
+| Proxy returns HTML not JSON | Browser not on target origin yet — wait for page to fully load |
+| Proxy returns 503 | No browser connected — connect via WebSocket first |
+| Module import error | Ensure `"type": "module"` in domain's package.json |
+| pnpm can't find domain | Run `pnpm install` after adding to workspace; check `pnpm-workspace.yaml` includes `'domains/*'` |
+| JS/CSS in captured traffic | Codegen filters these automatically; or only add JSON endpoints to routes.ts |
