@@ -209,32 +209,35 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 3 — Vacation Rental Intelligence (next test: test/rental-v1)
+Prompt:        Prompt 4 (next — TBD)
 
-Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3:
-  ✅ Yahoo Finance domain plugin (news poller, quote, chart routes)
-  ✅ /market dashboard (watchlist sidebar, sparkline, sentiment badges, WS live updates)
-  ✅ browserFetch() navigateTo pattern for cross-origin subdomain CORS
-  ✅ broadcastMessage() in state.ts (backported to base)
-  ✅ Chrome/145 UA + sec-ch-ua override in service.ts (backported to base)
-  ✅ Root cause of 429: poisoned profile session — fix is rm -rf profile dir
+Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1:
+  ✅ Airbnb domain plugin (SSR DOM search, __NEXT_DATA__ listing detail)
+  ✅ VRBO domain plugin (SSR DOM search — no public JSON API found)
+  ✅ Zillow domain plugin (PUT /async-create-search-page-state, __NEXT_DATA__ detail)
+  ✅ /rentals dashboard — sequential fetching, source badges, per-source error states
+  ✅ RemoteBrowserService.evaluate() — execute JS in current page context
+  ✅ RemoteBrowserService.extractFromPage() — navigate + wait + evaluate (SSR pattern)
 
-All base fixes applied and committed (d4c0679):
-  ✅ scaffold-domain.sh: camelCase/PascalCase for hyphenated names (was already correct)
-  ✅ api-discovery skill: TLS fingerprinting guidance
-  ✅ api-discovery skill: TTL cache Map, broadcastMessage wiring, RSS parsing patterns
-  ✅ api-discovery skill: poisoned profile / 429 recovery procedure
-  ✅ api-discovery skill: unix timestamp time-series API pattern
-  ✅ ROADMAP.md: code block language specifiers (were already correct)
-  ✅ DEVELOPER_PROMPTS.md: Prompt 3 replaced with Vacation Rental Intelligence
-  ✅ Dockerfiles: fixed @volat/api → @interceptor/api (CI was failing)
+Base fixes applied from Prompt 3 iteration:
+  ✅ service.ts: evaluate() and extractFromPage() methods (generic SSR extraction)
+  ✅ api-discovery skill: SSR Extraction Patterns section (3 strategies)
+  ✅ api-discovery skill: Airbnb/VRBO discovery notes (no public JSON API)
+  ✅ api-discovery skill: Zillow PUT /async-create-search-page-state reference
+  ✅ api-discovery skill: Gotchas table updated (Traffic shows 0 entries → extractFromPage)
 
-Next iteration (test/rental-v1):
-  → Create branch from base
-  → Run Prompt 3: Airbnb + VRBO + Zillow public API discovery + /rentals dashboard
-  → Expected new gaps: GraphQL proxy, public API key extraction from page JS,
-    shared schema across sibling domains, geospatial bounding-box queries,
-    Python bridge coordinate matching
+Framework gaps discovered (Prompt 3):
+  - VRBO has no public JSON search API (obfuscated HMAC URLs) — SSR-only
+  - extractFromPage() is needed for any Next.js/SSR site serving initial data in HTML
+  - Shared Listing interface across domains defined locally in each domain (no shared type pkg)
+  - Cross-domain lat/lng matching not yet implemented (Python bridge needed for geospatial)
+  - Airbnb StaysSearch GraphQL only fires on client filter changes, not initial page load
+
+Previous:
+Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
+Prompt 1 (StubHub) — SOLVED
+
+Next iteration: Run Prompt 4 (from docs/temp/DEVELOPER_PROMPTS.md)
 ```
 
 ## Conventions

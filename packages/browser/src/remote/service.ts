@@ -1073,6 +1073,45 @@ export class RemoteBrowserService {
 	}
 
 	/**
+	 * Execute JavaScript in the browser page context and return the result.
+	 * Useful for extracting data from SSR pages where content is rendered into the DOM
+	 * rather than returned by a JSON XHR endpoint.
+	 *
+	 * The function is serialized and run inside the Patchright page — it has access to
+	 * `document`, `window`, and all DOM APIs. It cannot reference Node.js variables.
+	 *
+	 * @param fn - Function to execute in browser context. Must be serializable (no closures over Node vars).
+	 */
+	async evaluate<T>(fn: () => T | Promise<T>): Promise<T> {
+		if (!this.page) throw new Error('Browser not started');
+		return this.page.evaluate(fn);
+	}
+
+	/**
+	 * Navigate to a URL, wait for DOM content to load, then execute a function in page context.
+	 * The canonical method for extracting data from SSR pages.
+	 *
+	 * Use this when:
+	 * - The page renders data via server-side rendering (not XHR)
+	 * - `browserFetch()` won't work because the data lives in the DOM, not a JSON endpoint
+	 * - You need `window.__NEXT_DATA__`, `window.__REDUX_STATE__`, or DOM card data
+	 *
+	 * @param url - Full URL to navigate to (the page to extract data from)
+	 * @param fn - DOM extraction function — runs after the page loads
+	 * @param waitMs - Extra delay after DOMContentLoaded for JS hydration (default: 3000)
+	 */
+	async extractFromPage<T>(
+		url: string,
+		fn: () => T | Promise<T>,
+		{ waitMs = 3000 }: { waitMs?: number } = {},
+	): Promise<T> {
+		if (!this.page) throw new Error('Browser not started');
+		await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+		if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+		return this.page.evaluate(fn);
+	}
+
+	/**
 	 * Get the current page URL.
 	 */
 	getUrl(): string {

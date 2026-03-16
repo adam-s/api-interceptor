@@ -290,6 +290,88 @@ StubHub is a pure SSR site — CDP shows 0 traffic, all data is in the DOM.
 
 See `domains/stubhub/src/routes.ts` for the complete implementation.
 
+## SSR Extraction Patterns
+
+When CDP traffic buffer is empty after navigation, the site uses **Server-Side Rendering** (SSR) — the initial page HTML contains all the data, not XHR calls. There are two strategies depending on how Airbnb-style sites deliver their data.
+
+### Strategy 1: `extractFromPage()` — Navigate, wait, evaluate
+
+`RemoteBrowserService.extractFromPage(url, fn, { waitMs })` is the canonical method for SSR data extraction:
+
+```typescript
+// In a Type B route handler:
+handler: async (c, browser) => {
+  const listings = await browser.extractFromPage<Array<{id: string; name: string; price: string}>>(
+    `https://www.airbnb.com/s/Austin--TX/homes?currency=USD`,
+    () => {
+      // This function runs inside the browser page — has access to DOM, window, document
+      const results: Array<{id: string; name: string; price: string}> = [];
+      for (const link of document.querySelectorAll('a[href*="/rooms/"]')) {
+        const anchor = link as HTMLAnchorElement;
+        const id = anchor.href.match(/\/rooms\/(\d+)/)?.[1] ?? '';
+        const name = link.querySelector('[data-testid="listing-card-title"]')?.textContent?.trim() ?? '';
+        const price = link.querySelector('[data-testid="price-availability-row"]')?.textContent?.trim() ?? '';
+        if (id && name) results.push({ id, name, price });
+      }
+      return results.slice(0, 20);
+    },
+    { waitMs: 4000 }, // wait extra for JS hydration after DOMContentLoaded
+  );
+  return c.json({ listings });
+},
+```
+
+`waitMs` (default: 3000ms) is the hydration delay — how long after `DOMContentLoaded` to wait before extracting. React/Next.js apps need 2–5s for full hydration. Pure server-rendered pages need 0ms.
+
+### Strategy 2: `window.__NEXT_DATA__` — SSR JSON blob
+
+Next.js apps embed all SSR data as JSON in `window.__NEXT_DATA__`. For listing detail pages (Airbnb, Zillow), this contains the full object hierarchy:
+
+```typescript
+const data = await browser.extractFromPage<{name: string; lat: number}>(
+  `https://www.airbnb.com/rooms/${id}`,
+  () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nd = (window as any).__NEXT_DATA__;
+    if (!nd) return { name: null, lat: null };
+    // Navigate the props hierarchy — varies by site, requires inspection
+    const listing = nd?.props?.pageProps?.listing ?? {};
+    return { name: listing.name ?? null, lat: listing.lat ?? null };
+  },
+  { waitMs: 3000 },
+);
+```
+
+Other common SSR data globals: `window.__REDUX_STATE__`, `window.__INITIAL_STATE__`, `window.__APP_STATE__`.
+
+### Strategy 3: `evaluate()` — Extract from current page
+
+`RemoteBrowserService.evaluate(fn)` runs a function on the current browser page (no navigation):
+
+```typescript
+// Useful when you've already navigated and just need to extract something
+const title = await browser.evaluate(() => document.title);
+const loginState = await browser.evaluate(() => !!(window as any).__USER_ID__);
+```
+
+Use this when navigation happens elsewhere (e.g., user navigated in the browser viewport) and you just need to read the current DOM.
+
+### When each SSR strategy applies
+
+| Site type | What to use | Signal |
+|-----------|------------|--------|
+| SPA (React, Next.js) search page | `extractFromPage()` + DOM query | Traffic buffer empty; cards render as `<a href="/rooms/...">` |
+| Next.js detail page | `extractFromPage()` + `__NEXT_DATA__` | `<script id="__NEXT_DATA__" type="application/json">` in page HTML |
+| Current page read | `evaluate()` | Already navigated; just need to read DOM |
+| Has JSON XHR | `browserFetch()` | Traffic buffer shows 200 JSON responses |
+
+### Airbnb/VRBO discovery notes
+
+- **Airbnb search** is pure SSR — `StaysSearch` GraphQL only fires on client-side filter changes, not initial page load. DOM extraction via `a[href*="/rooms/"]` is the only reliable approach.
+- **VRBO** uses obfuscated HMAC-signed URL paths for all analytics/data (`/2oWWs7BA09XCe/...`). No usable public JSON API was found. DOM extraction is the only option.
+- **Airbnb API key** (`d306zoyjsyarp7ifhu67rjxn52tv0t20`): stable public key embedded in page JS. Captured from `X-Airbnb-API-Key` header in CDP traffic on listing detail page loads. Use in `browserFetch` header for GraphQL persisted queries.
+- **Zillow** exposes a JSON API: `PUT https://www.zillow.com/async-create-search-page-state`. Call via `browserFetch(..., { navigateTo: 'https://www.zillow.com' })` so cookies are present.
+
 ## Use Existing Domain
 
 If `domains/<name>/` exists:
@@ -490,7 +572,7 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 
 | Problem | Fix |
 |---------|-----|
-| Traffic shows 0 entries | CDP only captures XHR/Fetch JSON. If empty: site is SSR — extract from DOM via `page.evaluate()`. |
+| Traffic shows 0 entries | CDP only captures XHR/Fetch JSON. If empty: site is SSR — use `browser.extractFromPage(url, fn)` to navigate and extract DOM data. See "SSR Extraction Patterns" above. |
 | Body text is empty `""` after navigate | Site is bot-protected. Check `bodyInnerHTML` for DataDome captcha iframe (`captcha-delivery.com`). |
 | `textContent` gives concatenated text | Use `innerText` — respects CSS layout and adds `\n` between blocks. |
 | `browserFetch` loses session cookies | Cross-origin navigate loses session. If the API subdomain has CORS from the main site, use `navigateTo: 'https://main-site.com'`. If no CORS, use Type B2 traffic capture. |
