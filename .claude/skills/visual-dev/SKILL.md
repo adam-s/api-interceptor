@@ -393,6 +393,8 @@ await page.unrouteAll(); // remove all route intercepts before next state
 
 ## UI Component Reference
 
+Full shadcn/ui catalog: **https://ui.shadcn.com/docs/components** — install any component with `cd apps/web && npx shadcn@latest add <name>`.
+
 When building or improving pages, use these components for progressive disclosure — showing more information without leaving the current context.
 
 ### Available Components

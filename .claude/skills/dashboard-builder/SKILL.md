@@ -140,7 +140,7 @@ const fetchAll = async (query: string) => {
 };
 ```
 
-Use `Promise.allSettled` (not `Promise.all`) so one domain failing doesn't block others.
+**Sequential, not parallel** — see the Single Browser Singleton warning above. Always `await` each domain call in sequence.
 
 ## Step 6: Verify with Visual Dev
 
@@ -152,19 +152,70 @@ After building the page, use the visual-dev skill to take screenshots and verify
 
 ## Available UI Components
 
-The project uses shadcn/ui. Installed components are in `apps/web/src/components/ui/`. Check what's available:
+The project uses shadcn/ui. Full component catalog: **https://ui.shadcn.com/docs/components**
 
-```bash
-ls apps/web/src/components/ui/
-```
-
-To add new components:
+Installed components are in `apps/web/src/components/ui/`. Add new ones with:
 
 ```bash
 cd apps/web && npx shadcn@latest add <component-name>
 ```
 
 Common components for dashboards: `table`, `card`, `tabs`, `badge`, `skeleton`, `input`, `select`.
+
+### List view vs detail view
+
+Every data-heavy dashboard follows one of two patterns. Pick based on how much detail the user needs without losing their place:
+
+| Pattern | When to use | Implementation |
+|---------|-------------|----------------|
+| **Inline expand** | Detail fits in 2–4 lines; user browses many rows | Collapsible row or Tooltip |
+| **Side sheet** | Detail needs its own layout; user compares against list | `Sheet` slides in from right, list stays visible behind it |
+| **Full page** | Detail has sub-navigation (tabs, charts, history) | `router.push('/item/[id]')` — only when sheet is too small |
+
+Default: start with Sheet. Upgrade to full page only when the detail view needs its own URL or has too many components to fit in a panel.
+
+### Pagination
+
+When a list can grow beyond ~25 items, paginate server-side. State pattern:
+
+```typescript
+const PAGE_SIZE = 25;
+const [page, setPage] = useState(0);
+const totalPages = Math.ceil(total / PAGE_SIZE);
+// In fetch: append `?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`
+// Reset to page 0 whenever filters change
+```
+
+Optional copy-paste pager component (generic, drop into `apps/web/src/components/ui/grid-pagination.tsx`):
+
+```typescript
+import { Button } from '@/components/ui/button';
+import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
+
+interface GridPaginationProps {
+  page: number;          // 0-indexed
+  totalPages: number;
+  totalItems: number;
+  itemLabel?: string;    // e.g. "results", "events"
+  onPageChange: (page: number) => void;
+}
+
+export function GridPagination({ page, totalPages, totalItems, itemLabel = 'items', onPageChange }: GridPaginationProps) {
+  return (
+    <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/20 text-xs shrink-0">
+      <div className="text-muted-foreground font-mono">
+        Page {page + 1} of {totalPages} ({totalItems} {itemLabel})
+      </div>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(0)} disabled={page === 0}><ChevronsLeft className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(page - 1)} disabled={page === 0}><ChevronLeft className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages - 1}><ChevronRight className="h-3 w-3" /></Button>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(totalPages - 1)} disabled={page >= totalPages - 1}><ChevronsRight className="h-3 w-3" /></Button>
+      </div>
+    </div>
+  );
+}
+```
 
 ## API Call Pattern
 
