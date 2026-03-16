@@ -150,3 +150,21 @@ function sendTo(client: WsClient, state: State): void {
 		clients.delete(client);
 	}
 }
+
+/**
+ * Broadcast an arbitrary JSON message to all connected WS clients.
+ * Used by domain pollers (e.g., news:update) to push data without going
+ * through the state machine.
+ */
+export function broadcastMessage(payload: unknown): void {
+	const json = JSON.stringify(payload);
+	for (const client of clients) {
+		if (client.closed) continue;
+		try {
+			client.ws.send(json);
+		} catch {
+			client.closed = true;
+			clients.delete(client);
+		}
+	}
+}
