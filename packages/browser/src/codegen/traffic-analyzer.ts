@@ -103,6 +103,19 @@ export function analyzeTraffic(entries: TrafficEntry[]): EndpointPattern[] {
 			continue;
 		}
 
+		// Skip static assets — only keep JSON API responses
+		const urlLower = entry.url.toLowerCase();
+		const staticExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.map'];
+		if (staticExtensions.some((ext) => urlLower.split('?')[0].endsWith(ext))) {
+			continue;
+		}
+
+		// Skip HTML pages (keep JSON/API responses)
+		const contentType = entry.responseHeaders?.['content-type'] || '';
+		if (contentType.includes('text/html') && !contentType.includes('json')) {
+			continue;
+		}
+
 		const baseUrl = extractBaseUrl(entry.url);
 		const pattern = normalizeUrl(entry.url);
 		const key = `${entry.method}:${baseUrl}${pattern}`;
