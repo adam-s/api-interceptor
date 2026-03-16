@@ -559,6 +559,12 @@ If any viewport has issues, fix and re-screenshot that viewport. Apply the same 
 
 ---
 
+## Common Visual Bugs
+
+Before marking a screenshot pass as "done", check against the common bugs list: [reference/common-visual-bugs.md](reference/common-visual-bugs.md). This list grows as new bugs are discovered across projects. Add any new bugs you find.
+
+---
+
 ## Phase 6: Cleanup
 
 ```bash

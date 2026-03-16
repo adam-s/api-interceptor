@@ -8,14 +8,26 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 1: Event Ticket Price Comparison
 
-> Create domains that capture event ticket prices across StubHub, Ticketmaster, SeatGeek, and TicketNetwork. Search for events by artist name, get concert dates and locations across all four sites, and build a dashboard page where I type "Bad Bunny" and see a grid of tickets from all sites organized by section with prices compared side by side.
+> Create domains that capture event ticket prices across StubHub, Ticketmaster, SeatGeek, and TicketNetwork.
+>
+> First, discover the search API for each site so I can search by artist name. Then discover the event detail and ticket listing APIs so I can get available tickets with sections and prices.
+>
+> Build a polished dashboard page at /tickets where I type "Bad Bunny" into a search box. It should:
+> 1. Search all four sites in parallel and show a list of matching events with dates and venues
+> 2. When I click an event, show all available tickets across all four marketplaces
+> 3. Match tickets by section (e.g., "Section 101" on StubHub = "Sec 101" on Ticketmaster) and show a comparison grid with prices side by side
+> 4. Highlight the cheapest option for each section
+> 5. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other sites
+>
+> Use the visual-dev skill to iterate on the UI until it looks professional — no visual bugs, clean layout, readable at a glance.
 
 **What this tests:**
 - Creating 4 domain plugins from scratch
-- Search API discovery (query parameters)
-- Pagination and result aggregation
-- Dashboard UI with search input → results grid
-- Cross-domain data normalization (matching sections across different naming conventions)
+- Multi-step API discovery (search → event detail → ticket listings)
+- Dashboard UI with search → event list → ticket comparison drill-down
+- Cross-domain data normalization (matching section names across sites)
+- Error resilience (sites failing independently)
+- Visual polish via iterative screenshot loop
 
 ---
 
