@@ -10,12 +10,15 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 > Create domain plugins for StubHub and Ticketmaster. Discover the search API for each site so I can search by artist name. Then discover the event detail and ticket listing APIs to get available tickets with sections, rows, and prices.
 >
-> Build a polished dashboard page at /tickets where I type "Bad Bunny" into a search box. It should:
-> 1. Search both sites in parallel and show a merged list of matching events with dates and venues (same event from both sites = one row, with both marketplace badges)
+> Build a polished dashboard page at /tickets where I type an artist name into a search box. It should:
+>
+> 1. Search both sites sequentially and show a merged list of matching events with dates and venues (same event from both sites = one row, with both marketplace badges)
 > 2. When I click an event, fetch ticket listings from both marketplaces and show a seat-level comparison grid
 > 3. Rows = sections (normalize names: "Section 101" = "Sec 101" = "101"), columns = StubHub | Ticketmaster
 > 4. Each cell shows min price and listing count; where individual seat numbers match across both platforms, show the seat row with cheapest highlighted
 > 5. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other site
+>
+> **Test with a US-touring artist** like "Coldplay" or "Billie Eilish" — use someone with upcoming US dates so both TM (US domain only) and StubHub return real shows. Avoid artists whose tours are exclusively in other regions; TM returns US results only and will show tribute events instead of the real artist if no US dates exist.
 
 **What this tests:**
 - Creating 2 domain plugins from scratch (1 SSR Type B, 1 hybrid Type B/B2)
