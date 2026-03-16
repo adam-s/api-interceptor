@@ -117,3 +117,36 @@ Use the root domain (e.g., `ticketmaster.com`) to catch all subdomains
 - The headless browser stealth (Patchright) bypasses basic detection but not advanced WAF challenges
 - A persistent profile with real cookies (from a manual login) may solve this
 - The skill should instruct users to: navigate manually once in a non-headless browser to establish cookies, then use the same profile in headless mode
+
+## SSR + Pagination Pattern (StubHub, 2026-03-16)
+
+Many sites load initial data via SSR (embedded in HTML) and use JSON APIs for pagination:
+
+1. **Page 1**: Data embedded in SSR HTML response (no separate API call)
+2. **Page 2+**: POST to the page URL with pagination params → JSON response
+
+### StubHub Example
+- Initial load: GET returns HTML with first 16 tickets embedded
+- Click "Show more": POST to same URL with JSON body:
+  ```json
+  {"ShowAllTickets":true,"Quantity":2,"CurrentPage":2,"PageSize":16,"SortBy":"RECOMMENDED"}
+  ```
+- Response: JSON with `items[]` containing `section`, `row`, `seat`, `availableTickets`, price data
+
+### Discovery Approach
+1. Navigate to the page, wait for full render
+2. Use `page.click('button:has-text("Show more")')` or similar to trigger pagination
+3. CDP captures the POST request with the pagination params
+4. The request body reveals the API contract (what params to send)
+5. The response body reveals the data shape (what fields are returned)
+
+### For the Domain Plugin
+Create a route that proxies the pagination POST:
+```typescript
+{
+  method: 'POST',
+  path: '/event/:eventId/listings',
+  targetUrl: 'https://www.stubhub.com/path/event/{eventId}/',
+  description: 'Get ticket listings for an event (pagination)',
+}
+```
