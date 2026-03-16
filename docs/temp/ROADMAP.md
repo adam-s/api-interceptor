@@ -2,7 +2,7 @@
 
 ## The Goal
 
-A developer clones this repo, pastes a prompt like "compare ticket prices across StubHub, Ticketmaster, and SeatGeek," and Claude Code uses the skills to discover each site's API, create typed domain plugins, build a working dashboard, and wire everything together — without any manual intervention beyond the initial prompt. The skills are the product. The test prompts are the proof.
+A developer clones this repo, pastes a prompt like "compare ticket prices across StubHub and Ticketmaster," and Claude Code uses the skills to discover each site's API, create typed domain plugins, build a working dashboard, and wire everything together — without any manual intervention beyond the initial prompt. The skills are the product. The test prompts are the proof.
 
 ---
 

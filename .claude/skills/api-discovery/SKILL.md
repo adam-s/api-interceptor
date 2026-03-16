@@ -311,5 +311,7 @@ For multi-domain dashboards: the UI layer must call each domain's API **sequenti
 | DataDome/Cloudflare blocks | Classify as Type D. Return `{ blocked: true }` from all routes, show as offline in UI. |
 | API key visible in traffic URL | Embed it directly in `targetUrl` — it's the site's own key, fine to use. |
 | Data visible on page but not in traffic | SSR — data is in the HTML response, not XHR calls. Extract from DOM. |
-| API calls go to unexpected domains | CDP catches all domains. Check traffic for subdomains like `tn-apis.com`, `viagogo.net`. |
+| API calls go to unexpected domains | CDP catches all domains. Check traffic for subdomains like `api.example-cdn.com`, `viagogo.net`. |
 | Event URLs point to wrong regional domain | TM/similar sites geolock to `.es`, `.de`, `.co.uk` based on browser IP. Check event URL domain in results — if regional, use that domain in routes. |
+| Performer/category pages include unrelated recommendations | Pages include "Recommended" / "You may also like" sections with events from other artists. Extracting all `/event/` links captures these. Fix: filter extracted URLs to only those containing the performer name slug. Derive slug from `performerUrl.split('/').find(s => s.endsWith('-tickets'))?.replace(/-tickets$/, '')`. |
+| Calling `/browser/navigate` or `/browser/evaluate` as REST endpoints | These are server-side methods on `BrowserService`, called inside `handler` functions in `routes.ts`. No HTTP endpoints exist for them — they return 404. Navigation and DOM evaluation happen only inside route handlers. |

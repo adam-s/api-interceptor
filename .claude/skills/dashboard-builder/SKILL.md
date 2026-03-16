@@ -61,20 +61,29 @@ export default function Page() {
 
 ## Step 4: Create the Client Component
 
-Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx`:
+Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx`.
+
+Use shadcn/ui components — not raw divs. The template below is a starting point; replace the Card body with real data fields from your API response.
 
 ```typescript
 'use client';
 
 import { useState } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PageContent() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
+    if (!query.trim()) return;
     setLoading(true);
+    setSearched(true);
     try {
       const res = await fetch(`http://localhost:3001/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}`);
       const data = await res.json();
@@ -87,32 +96,59 @@ export default function PageContent() {
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
+    <div className="flex flex-1 flex-col gap-4 p-6 max-w-4xl mx-auto w-full">
+      <div>
+        <h1 className="text-2xl font-bold">Page Title</h1>
+        <p className="text-muted-foreground text-sm mt-1">Short description of what this page does.</p>
+      </div>
+
       <div className="flex gap-2">
-        <input
-          type="text"
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           placeholder="Search..."
-          className="flex-1 rounded border border-border bg-background px-3 py-2"
+          className="flex-1"
         />
-        <button
-          onClick={handleSearch}
-          disabled={loading}
-          className="rounded bg-primary px-4 py-2 text-primary-foreground"
-        >
+        <Button onClick={handleSearch} disabled={loading}>
           {loading ? 'Searching...' : 'Search'}
-        </button>
+        </Button>
       </div>
 
-      <div className="grid gap-4">
-        {results.map((item, i) => (
-          <div key={i} className="rounded border border-border p-4">
-            <pre className="text-xs">{JSON.stringify(item, null, 2)}</pre>
-          </div>
-        ))}
-      </div>
+      {/* Loading state */}
+      {loading && (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i}><CardContent className="py-4 px-5"><Skeleton className="h-4 w-3/4" /></CardContent></Card>
+          ))}
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && searched && results.length === 0 && (
+        <Card><CardContent className="py-8 text-center text-muted-foreground">No results found for "{query}"</CardContent></Card>
+      )}
+
+      {/* Idle state */}
+      {!loading && !searched && (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <p>Search above to get started.</p>
+        </div>
+      )}
+
+      {/* Results */}
+      {!loading && results.length > 0 && (
+        <div className="flex flex-col gap-3">
+          {results.map((item: unknown, i) => (
+            <Card key={i} className="cursor-pointer hover:border-primary/60 transition-colors">
+              <CardContent className="py-4 px-5">
+                {/* Replace with real fields from your API response */}
+                <p className="font-medium">{(item as Record<string, unknown>).name as string}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -120,27 +156,21 @@ export default function PageContent() {
 
 ## Step 5: Multi-Domain Composition
 
-When combining data from multiple domains (e.g., ticket prices from StubHub + Ticketmaster):
+When combining data from multiple domains, **always await each call sequentially**. The server has one shared browser — parallel calls race on the same page (see Single Browser Singleton warning above).
 
 ```typescript
-const fetchAll = async (query: string) => {
-  const [stubhubRes, ticketmasterRes] = await Promise.allSettled([
-    fetch(`http://localhost:3001/api/stubhub/events/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }),
-    }),
-    fetch(`http://localhost:3001/api/ticketmaster/trending/searches`),
-  ]);
+// ✓ CORRECT — sequential, catch each source independently
+const sourceA = await fetchSourceA(query).catch(() => null);
+const sourceB = await fetchSourceB(query).catch(() => null);
 
-  return {
-    stubhub: stubhubRes.status === 'fulfilled' ? await stubhubRes.value.json() : null,
-    ticketmaster: ticketmasterRes.status === 'fulfilled' ? await ticketmasterRes.value.json() : null,
-  };
+// Track which sources are offline
+const offline = {
+  sourceA: sourceA === null,
+  sourceB: sourceB === null,
 };
 ```
 
-**Sequential, not parallel** — see the Single Browser Singleton warning above. Always `await` each domain call in sequence.
+If a source returns `null` or `{ error }`, mark it offline and continue — never let one failing source break the whole page.
 
 ## Step 6: Verify with Visual Dev
 
@@ -216,6 +246,53 @@ export function GridPagination({ page, totalPages, totalItems, itemLabel = 'item
   );
 }
 ```
+
+## Visual Design Guidance
+
+The Step 4 template is a starting scaffold. For a professional dashboard, apply these principles before calling the page done.
+
+### Required states
+
+Every page must implement all of these — not just the happy path:
+
+| State | When | What to show |
+|-------|------|-------------|
+| Idle | No search yet | Centered prompt: "Search above to get started" |
+| Loading | Fetch in progress | `Skeleton` components matching real content shape |
+| Empty | 0 results returned | `Card` with message: "No results for '...'" |
+| Populated | Data present | Real content with proper typography hierarchy |
+| Detail loading | Sheet/panel open, fetching | `Skeleton` rows inside the panel |
+| Detail populated | Detail data present | Full detail view with clear visual hierarchy |
+| Partial offline | One source failed | `Alert` naming the failing source; other sources intact |
+| Full offline | All sources failed | `Alert` per source, clear recovery instruction |
+
+### Component choices for common patterns
+
+**List items** → `Card` with `CardContent`. Never raw `<div>`. Adds hover state, border, proper spacing.
+
+**Data source labels** → `Badge`. Color-code sources consistently and carry that color into every view where that source appears (list badges, table column headers, offline alerts).
+
+**Detail view** → `Sheet` sliding from right. The list stays visible behind it — user keeps spatial context. Use `SheetHeader` + `SheetTitle` for the panel header.
+
+**Comparison grids** (multiple sources × multiple entities) → `Table`. Rows = entities, columns = sources. Highlight the "best" value per row in `font-semibold text-green-600`. Missing data → `—` (not blank, not 0).
+
+**Loading placeholders** → `Skeleton` with dimensions matching the real content. Prevents layout shift.
+
+**Per-source errors** → `Alert` with `AlertDescription`. Name the specific source: "StubHub unavailable — browser not connected." Never a generic "Error loading data."
+
+### Install components as needed
+
+```bash
+cd apps/web && npx shadcn@latest add card badge sheet table skeleton alert input button
+```
+
+### Dark mode
+
+Use semantic tokens, not hardcoded colors:
+- Surfaces: `bg-background`, `bg-muted`, `border-border`
+- Text: `text-foreground`, `text-muted-foreground`
+- Accent panels: `bg-blue-950/30 border-blue-500/20` (not `bg-blue-50`)
+- Hover: `hover:bg-muted` (not `hover:bg-gray-50`)
 
 ## API Call Pattern
 
