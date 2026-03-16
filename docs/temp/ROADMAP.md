@@ -19,7 +19,10 @@ test branch (from base)
   └─ record failures in "Observed Failures Log" below
 
 return to base
-  └─ strip all domain artifacts the test created (routes, UI pages, registrations, package.json deps)
+  └─ strip all domain artifacts the test created:
+       • routes, UI pages, nav registrations, package.json deps
+       • browser profiles for removed domains: rm -rf data/browser-profiles/<domain>
+       • test scripts and screenshots: rm -rf test-results/dev-screenshots/
   └─ START WITH A PLAN — call EnterPlanMode before touching any skill or utility code
   └─ fix the skills/utilities based on observed failures
   └─ nothing domain-specific — every fix must generalize

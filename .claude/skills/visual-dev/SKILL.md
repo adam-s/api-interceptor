@@ -569,9 +569,13 @@ Before marking a screenshot pass as "done", check against the common bugs list: 
 
 ## Phase 6: Cleanup
 
+Delete the entire directory — this removes both the screenshots **and any scripts** (e.g., `check.ts`, `sheet.ts`) you created there during this session.
+
 ```bash
 rm -rf test-results/dev-screenshots/
 ```
+
+**Do this before committing or switching branches.** Never leave Patchright scripts in the repo.
 
 Never leave temporary scripts in the permanent test directory.
 
