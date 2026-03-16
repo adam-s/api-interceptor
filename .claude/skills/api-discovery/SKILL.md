@@ -5,241 +5,73 @@ description: Discover any website's API and create domain plugins with proxy rou
 
 # API Discovery
 
-Discover a website's internal APIs by capturing browser traffic, then expose them as clean REST proxy routes through the browser's authenticated session.
+Discover how a website delivers its data, then create a domain plugin that extracts it. Works with JSON APIs, SSR pages, and hybrid sites.
 
-For detailed architecture, see [reference/architecture.md](reference/architecture.md).
+For architecture details, see [reference/architecture.md](reference/architecture.md).
 
-## Decision: Does the Domain Plugin Already Exist?
-
-Check `domains/` for an existing plugin:
+## Quick Check: Does the Domain Plugin Already Exist?
 
 ```bash
 ls domains/ | grep <domain-name>
 ```
 
-- **If it exists**: Read its `src/routes.ts` to see available endpoints. Skip to "Use Existing Domain."
-- **If it does not exist**: Follow "Create New Domain" below.
+If it exists, read `domains/<name>/src/routes.ts` and skip to "Use Existing Domain" at the bottom.
 
-## Create New Domain
+## Phase 1: Observe
 
-### Step 1: Scaffold the domain package
+Navigate to the target page and see what data is visible.
 
-Run the bundled scaffold script. Replace `<name>` with a short lowercase identifier and `<root-domain>` with the website's domain:
-
-```bash
-bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>
-```
-
-Example: `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh stubhub stubhub.com`
-
-This creates `domains/<name>/` with package.json, config.ts, interceptor.ts, routes.ts, and index.ts from templates.
-
-### Step 2: Register the domain
-
-Add to `apps/api/src/register-domains.ts`:
-
-```typescript
-import { plugin as <name> } from '@interceptor/domain-<name>';
-registerDomain(<name>);
-```
-
-Add to `apps/api/package.json` dependencies:
-
-```json
-"@interceptor/domain-<name>": "workspace:*"
-```
-
-Run `pnpm install` to link the workspace package.
-
-### Step 3: Start the server
+### 1a. Start the server and connect the browser
 
 ```bash
 pnpm run dev
 ```
 
-Verify: `curl -s http://localhost:3001/browser/health | jq .status`
-
-### Step 4: Connect browser and capture traffic
-
-Connect a browser to the target website via WebSocket:
+Open a browser session via WebSocket:
 
 ```typescript
 import WebSocket from 'ws';
-const ws = new WebSocket(
-  'ws://localhost:3001/browser/stream?profile=<name>&capture=<root-domain>&url=https://www.<root-domain>/'
-);
-ws.on('message', (data) => {
-  if (data[0] === 0x7b) {
-    const msg = JSON.parse(data.toString());
-    if (msg.type === 'ready') console.log('Browser ready');
-    if (msg.type === 'url') console.log('URL:', msg.url);
-  }
-});
+const ws = new WebSocket('ws://localhost:3001/browser/stream?profile=default&url=<target-url>');
 ```
 
-**IMPORTANT**: Use the root domain for the `capture` parameter (e.g., `stubhub.com` not `www.stubhub.com`). The glob `**/*<domain>/**` catches all subdomains.
+Or open the dashboard: `http://localhost:3000/browser?profile=default&url=<target-url>`
 
-### Step 5: Navigate to trigger API calls
+### 1b. Take a screenshot to see the rendered data
 
-Send navigation commands to trigger API traffic:
+Use the visual-dev skill or a quick Patchright script:
 
 ```typescript
-ws.send(JSON.stringify({ type: 'navigate', url: 'https://www.<root-domain>/search?q=concerts' }));
+await page.screenshot({ path: 'test-results/dev-screenshots/discovery.png' });
 ```
 
-Wait 5-10 seconds for API calls to fire.
+Read the screenshot. Identify what data is visible: prices, names, sections, dates, listings, etc. This is the data we need to extract.
 
-### Step 6: Read captured traffic
+### 1c. Capture ALL network traffic via CDP
+
+CDP `Network.enable` is already active in the handler. Check what API calls were made:
 
 ```bash
-# Check total captured
 curl -s http://localhost:3001/browser/traffic | jq '.total'
-
-# See unique endpoint patterns
-curl -s http://localhost:3001/browser/traffic/summary | jq '.endpoints[] | {pattern, count, methods}'
-
-# Full details
-curl -s http://localhost:3001/browser/traffic | jq '.entries[] | {method, url: .url[:100], status}'
+curl -s http://localhost:3001/browser/traffic | jq '[.entries[] | {method, url: .url[:120], status}]'
 ```
 
-### Step 7: Extract routes from traffic
+## Phase 2: Classify the Data Source
 
-Read the traffic summary. For each JSON API endpoint (skip HTML pages, JS, CSS, images):
+Compare what you SEE on the page vs what CDP CAPTURED.
 
-1. Identify the method (GET/POST)
-2. Extract the full URL
-3. Create a clean path for the Hono route
-4. Write a description
+### Decision tree:
 
-Update `domains/<name>/src/routes.ts`:
+**Q: Does the captured traffic contain the visible data (prices, listings, etc.)?**
 
-```typescript
-export const routes: DomainRoute[] = [
-  {
-    method: 'GET',
-    path: '/search',
-    targetUrl: 'https://api.<root-domain>/v1/search',
-    description: 'Search for events/items',
-  },
-  // ... more routes from traffic
-];
-```
+- **YES → Type A: JSON API** — The data comes from XHR/Fetch calls returning JSON. Create proxy routes for these endpoints.
 
-Also update `domains/<name>/src/config.ts` with the actual `interceptPatterns` and `baseUrls` discovered from the traffic URLs.
+- **NO → Type B: SSR (Server-Side Rendered)** — The data is embedded in the initial HTML response. Need to extract from HTML.
 
-### Step 8: Verify each endpoint works
+- **PARTIALLY → Type C: Hybrid** — Page 1 data is SSR, but pagination/filtering triggers JSON API calls. Need both extraction approaches.
 
-Before adding a route to `routes.ts`, verify it actually returns useful data. With the browser still connected:
+### How to confirm SSR data
 
-```bash
-# Test each captured endpoint via the proxy
-curl -s http://localhost:3001/api/<name>/<path> | jq 'type'
-# Should return "object" or "array" for JSON APIs
-# If it returns "string", the response is HTML (SSR endpoint)
-```
-
-For each endpoint, determine:
-1. **Does it return JSON?** → Good, add to routes.ts
-2. **Does it return HTML?** → SSR endpoint, may need parsing (see "Classifying Discovered Endpoints")
-3. **Does it return 400/403?** → Wrong request format or anti-bot. Check captured traffic for the correct request body/headers
-4. **What data does it contain?** → Read the response to write an accurate `description` field
-
-Only add endpoints to `routes.ts` that return actionable data. Skip telemetry, analytics, and tracking endpoints.
-
-### Step 9: Test proxy routes
-
-Restart the server, then verify all routes work:
-
-```bash
-# List registered routes
-curl -s http://localhost:3001/api | jq '.domains[] | select(.name == "<name>")'
-
-# Connect browser (required for proxy to work)
-# Then test each route:
-curl -s http://localhost:3001/api/<name>/search | jq '.[:2]'
-```
-
-### Step 9: Clear traffic and iterate
-
-```bash
-curl -X DELETE http://localhost:3001/browser/traffic
-```
-
-Navigate to more pages to discover additional endpoints. Repeat steps 6-8 until all needed APIs are captured.
-
-## Use Existing Domain
-
-If the domain plugin exists in `domains/<name>/`:
-
-1. Ensure it is registered in `apps/api/src/register-domains.ts`
-2. Start the server: `pnpm run dev`
-3. Connect browser: `?profile=<name>&capture=<root-domain>&url=https://www.<root-domain>/`
-4. Call proxy routes: `curl http://localhost:3001/api/<name>/<path>`
-
-## Reference Files
-
-- **Templates**: See [templates/](templates/) for domain package scaffolding
-- **Scaffold script**: See [scripts/scaffold-domain.sh](scripts/scaffold-domain.sh)
-- **Architecture details**: See [reference/architecture.md](reference/architecture.md)
-- **Example domains**: See `domains/ticketmaster/` (simple) and `domains/robinhood/` (complex)
-
-## Classifying Discovered Endpoints
-
-After capturing traffic, classify each endpoint before adding it to routes.ts:
-
-### Type 1: JSON API (ideal)
-- Response `content-type` includes `application/json`
-- Returns structured data directly usable by the dashboard
-- Add directly to `routes.ts` — browserFetch proxy works perfectly
-
-### Type 2: Server-Side Rendered HTML (SSR)
-- Response `content-type` is `text/html`
-- Data is embedded in the HTML, no separate JSON API
-- Signs: search pages that return 200 with HTML, status 202 before 200
-- Example: StubHub `/secure/search?q=Bad+Bunny` returns HTML with results embedded
-- **Solution**: The browserFetch still works — it fetches the HTML with cookies. The route handler needs to parse the HTML response (use regex or a DOM parser) to extract the structured data. Document this in the route description.
-
-### Type 3: Telemetry/Analytics (skip)
-- URLs containing: `jsa/v1/events`, `analytics`, `tracking`, `log`, `beacon`, `pixel`
-- Request body contains metrics (TTFB, FCP, page views)
-- **Do not add to routes.ts** — these are internal telemetry, not user-facing APIs
-
-### Type 4: Anti-Bot Challenge
-- Status codes: 403, 429, or redirect to CAPTCHA page
-- Response contains Cloudflare challenge tokens (`__cf_chl_rt_tk`)
-- Signs: URL changes include challenge tokens, page briefly shows "checking your browser"
-- **Solution**: The Patchright stealth settings usually bypass these. If blocked, try:
-  1. Use a persistent profile (cookies survive restarts)
-  2. Navigate to the homepage first, then to the target page
-  3. Add delays between navigations (2-3 seconds)
-  4. Check if Ghostery ad-blocker is blocking required scripts
-
-### Type 5: WebSocket/Streaming
-- URL uses `wss://` protocol or EventSource
-- Response is chunked/streaming, not a single JSON payload
-- **Not supported by browserFetch proxy** — needs a different approach (WebSocket forwarding)
-- Document as a limitation for now
-
-## Gotchas
-
-| Problem | Fix |
-|---------|-----|
-| Traffic shows 0 entries | Use root domain in `capture=` (e.g., `stubhub.com` not `www.stubhub.com`) |
-| All endpoints return HTML, no JSON APIs | Site is SSR — the data is in the HTML. Use browserFetch to get the page and parse the response |
-| Proxy returns 400 validation error | Wrong endpoint — check request body shape from captured traffic. Telemetry endpoints aren't search APIs |
-| Proxy returns 503 | No browser connected — connect via WebSocket first |
-| Cloudflare challenge (403/redirect) | Use persistent profile, navigate to homepage first, add delays |
-| Module import error | Ensure `"type": "module"` in domain's package.json |
-| pnpm can't find domain | Run `pnpm install` after adding to workspace; check `pnpm-workspace.yaml` includes `'domains/*'` |
-| JS/CSS in captured traffic | Codegen filters these automatically; or only add JSON endpoints to routes.ts |
-
-## SSR Data Extraction
-
-Many sites embed data in their initial HTML response (Server-Side Rendering). The API isn't a separate XHR call — it's inside the page HTML.
-
-### How to detect SSR data
-
-After navigating to a page, search the HTML response for embedded JSON:
+Search the initial HTML response for the data you see on screen:
 
 ```typescript
 const cdp = await page.context().newCDPSession(page);
@@ -250,39 +82,150 @@ cdp.on('Network.loadingFinished', async (params) => {
   const body = await cdp.send('Network.getResponseBody', { requestId: params.requestId });
   const html = body.body;
 
-  // Search for JSON data patterns
+  // Search for data patterns
   const hasItems = html.includes('"items":[');
-  const hasSections = /"section":"[^"]+"/g.test(html);
   const hasPrices = /"price":\d|"rawPrice":\d|"amount":\d/.test(html);
+  const hasSections = /"section":"[^"]+"/g.test(html);
 
-  if (hasItems || hasSections || hasPrices) {
-    // Extract the JSON block
-    const match = html.match(/\{"items":\[.*?\]\}/s);
-    if (match) {
-      const data = JSON.parse(match[0]);
-      console.log('Found', data.items.length, 'items in SSR HTML');
-    }
-  }
+  console.log('SSR data:', { hasItems, hasPrices, hasSections, htmlLength: html.length });
 });
 ```
 
 ### How to discover pagination APIs
 
-After extracting page 1 from SSR, look for "Show more", "Load more", or "Next page" buttons:
+Click "Show more", "Load more", "Next page", or scroll down. Watch for new API calls:
 
 ```typescript
-const btn = await page.waitForSelector('button:has-text("Show more"), button:has-text("Load more")', { timeout: 5000 });
-if (btn) {
-  await btn.click();
-  // CDP will capture the POST/GET that fetches the next page
-  // The request body reveals pagination params (page, offset, cursor)
-  // The response body is the JSON API contract
+await page.click('button:has-text("Show more")');
+// CDP captures the POST/GET that fetches more data
+// Check: curl -s http://localhost:3001/browser/traffic | jq '.entries[-1]'
+```
+
+## Phase 3: Extract
+
+Based on the classification, write extraction code.
+
+### Type A: JSON API routes
+
+The data comes from API calls. Create proxy routes in the domain plugin:
+
+```typescript
+// domains/<name>/src/routes.ts
+export const routes: DomainRoute[] = [
+  {
+    method: 'GET',
+    path: '/search',
+    targetUrl: 'https://api.example.com/v1/search',
+    description: 'Search for items',
+  },
+];
+```
+
+These routes proxy through `browserFetch()` — cookies and auth are automatic.
+
+### Type B: SSR extraction
+
+Write a script that fetches the page HTML and parses the embedded JSON:
+
+```typescript
+// Extract JSON data embedded in SSR HTML
+const html = await browser.browserFetch(targetUrl);
+const match = html.data.match(/\{"items":\[.*?\]\}/s);
+if (match) {
+  const data = JSON.parse(match[0]);
+  // data.items contains the structured data
 }
 ```
 
-### The SSR + Pagination pattern
+For the domain plugin, create a Hono route that does this extraction:
 
-1. **Page 1**: Embedded in HTML → parse with regex or DOM
-2. **Page 2+**: POST/GET API call triggered by interaction → JSON response
-3. **Domain plugin**: Create a route for the pagination API, use `browserFetch()` to proxy it
-4. **For page 1**: Either re-request the HTML and parse it, or use the pagination API with `CurrentPage: 1`
+```typescript
+app.get('/listings/:eventId', async (c) => {
+  const html = await browser.browserFetch(`https://www.example.com/event/${c.req.param('eventId')}/`);
+  const match = html.data.match(/\{"items":\[.*?\]\}/s);
+  return c.json(match ? JSON.parse(match[0]) : { items: [] });
+});
+```
+
+### Type C: Hybrid (SSR + pagination API)
+
+Combine both approaches:
+- Page 1: Extract from SSR HTML
+- Page 2+: Use the pagination POST API with `browserFetch()`
+
+```typescript
+// The pagination API contract (discovered by clicking "Show more"):
+const response = await browser.browserFetch(eventUrl, {
+  method: 'POST',
+  body: { CurrentPage: 2, PageSize: 16, Quantity: 2, SortBy: 'RECOMMENDED' },
+});
+// response.data.items contains page 2 ticket listings
+```
+
+## Phase 4: Verify
+
+Test that the extraction works and returns the expected data.
+
+### Write a test script
+
+```typescript
+// Quick verification
+const result = await fetch('http://localhost:3001/api/<domain>/listings/12345');
+const data = await result.json();
+console.log('Items:', data.items?.length);
+console.log('First item:', data.items?.[0]);
+// Should show: section, row, seat, price — matching what the screenshot showed
+```
+
+### Compare against screenshot
+
+The extracted data should match what's visible on the page. If the screenshot shows "Section 222, Row 19, $1,084" — the extraction should return that exact data.
+
+## Phase 5: Create Domain Plugin
+
+### Scaffold the package
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>
+```
+
+### Populate routes from discovery
+
+Update `domains/<name>/src/routes.ts` with the routes discovered in Phases 2-3.
+
+### Register and install
+
+Add to `apps/api/src/register-domains.ts` and `apps/api/package.json`, then `pnpm install`.
+
+### Test end-to-end
+
+```bash
+curl -s http://localhost:3001/api/<domain>/listings/12345 | jq '.items | length'
+```
+
+## Use Existing Domain
+
+If `domains/<name>/` exists:
+1. Ensure registered in `apps/api/src/register-domains.ts`
+2. `pnpm run dev`
+3. Connect browser to the domain
+4. Call proxy routes: `curl http://localhost:3001/api/<name>/<path>`
+
+## Reference Files
+
+- **Templates**: See [templates/](templates/) for domain package scaffolding
+- **Scaffold script**: See [scripts/scaffold-domain.sh](scripts/scaffold-domain.sh)
+- **Architecture**: See [reference/architecture.md](reference/architecture.md)
+- **Example domains**: `domains/ticketmaster/` (JSON API), `domains/robinhood/` (complex auth)
+
+## Gotchas
+
+| Problem | Fix |
+|---------|-----|
+| Traffic shows 0 entries | CDP captures automatically. Check `curl localhost:3001/browser/traffic` |
+| Data visible on page but not in traffic | SSR — data is in the HTML response, not XHR calls. Search the HTML. |
+| API calls go to unexpected domains | CDP catches all domains. Check traffic for `viagogo.net`, `stubhub.net`, etc. |
+| Pagination API only fires on button click | Use `page.click('button:has-text("Show more")')` to trigger it |
+| WAF challenge blocks content | Some sites withhold data until challenge passes. Use persistent profiles with real cookies. |
+| Content-type header missing | Our CDP capture includes responses with no content-type. Not an issue. |
+| Bot detection (`BotDLog: true`) | Page may load but with limited data. Try persistent profile, warmup, or non-headless mode. |
