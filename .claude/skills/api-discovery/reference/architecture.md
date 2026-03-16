@@ -101,3 +101,19 @@ Cookies, CSRF tokens, and session state are automatic — no manual header manag
 The `capture` query parameter uses `**/*<domain>/**` glob matching.
 Use the root domain (e.g., `ticketmaster.com`) to catch all subdomains
 (`www.`, `api.`, `identity.`, `promoted.`, etc.).
+
+## Bot Protection Patterns Discovered
+
+### AWS WAF Challenge (StubHub, 2026-03-16)
+- Page renders seat map and header normally
+- Ticket listing cards are withheld until WAF challenge passes
+- `challenge.compact.js` makes a POST to the event URL as a verification step
+- In real browsers this passes silently; in headless Patchright the challenge fails
+- Ticket data IS in the initial SSR HTML response but the React components that render individual ticket cards require the WAF challenge to complete
+- Result: page shows "70 listings" but cards don't render
+
+### Implications for the Framework
+- Some sites require passing bot protection BEFORE data becomes accessible
+- The headless browser stealth (Patchright) bypasses basic detection but not advanced WAF challenges
+- A persistent profile with real cookies (from a manual login) may solve this
+- The skill should instruct users to: navigate manually once in a non-headless browser to establish cookies, then use the same profile in headless mode
