@@ -13,3 +13,4 @@ export { GenericInterceptor } from './interceptor';
 export type { InterceptorConfig } from './config';
 export { GenericSessionManager } from './session-manager';
 export type { VerificationResult } from './config';
+export type { InterceptedRequest, InterceptedResponse, InterceptionCallback, SessionStatus } from './types';

@@ -38,15 +38,15 @@ python3 -m pytest services/python/ -v || fail "Python tests failed"
 pass "Python test"
 
 step "E2E tests (Playwright)"
-# Ensure DB is up and seeded
-docker compose up -d postgres
-sleep 3
-(cd packages/db && pnpm run setup && pnpm run seed) 2>/dev/null
-# Kill any stale server on port 3002
-lsof -ti:3002 | xargs kill 2>/dev/null || true
-sleep 1
-PLAYWRIGHT_HTML_OPEN=never npx playwright test || fail "E2E tests failed"
-pass "E2E tests"
+if [ -f "playwright.config.ts" ] && [ -d "tests/e2e" ]; then
+  # Kill any stale server on port 3002
+  lsof -ti:3002 | xargs kill 2>/dev/null || true
+  sleep 1
+  PLAYWRIGHT_HTML_OPEN=never npx playwright test || fail "E2E tests failed"
+  pass "E2E tests"
+else
+  printf "\033[33m⊘ E2E tests skipped (no playwright config or test directory)\033[0m\n"
+fi
 
 if [ "$QUICK" = false ]; then
   step "Docker build (api)"

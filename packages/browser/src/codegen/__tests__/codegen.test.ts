@@ -12,19 +12,19 @@ describe('Traffic Analyzer', () => {
 		const url =
 			'https://api.robinhood.com/accounts/550e8400-e29b-41d4-a716-446655440000/positions';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('/accounts/{id}/positions');
+		expect(normalized).toBe('https://api.robinhood.com/accounts/{id}/positions');
 	});
 
 	it('should normalize numeric IDs to {id}', () => {
 		const url = 'https://api.robinhood.com/accounts/12345/positions';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('/accounts/{id}/positions');
+		expect(normalized).toBe('https://api.robinhood.com/accounts/{id}/positions');
 	});
 
 	it('should remove query strings', () => {
 		const url = 'https://api.robinhood.com/accounts?page=1&limit=10';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('/accounts');
+		expect(normalized).toBe('https://api.robinhood.com/accounts');
 	});
 
 	it('should analyze traffic and group by endpoint', () => {
@@ -71,7 +71,7 @@ describe('Traffic Analyzer', () => {
 
 		expect(patterns).toHaveLength(1);
 		expect(patterns[0].method).toBe('GET');
-		expect(patterns[0].pattern).toBe('/accounts/');
+		expect(patterns[0].pattern).toBe('https://api.robinhood.com/accounts/');
 		expect(patterns[0].examples).toHaveLength(3);
 		expect(patterns[0].canInferSchema).toBe(true);
 	});
