@@ -15,6 +15,7 @@
 		"./shared/interceptor": "./src/shared/interceptor.ts",
 		"./shared/session-manager": "./src/shared/session-manager.ts",
 		"./handler": "./src/handler/index.ts",
+		"./handler/api-proxy": "./src/handler/api-proxy.ts",
 		"./handler/domain-loader": "./src/handler/domain-loader.ts",
 		"./codegen": "./src/codegen/index.ts",
 		"./registry": "./src/registry.ts",
@@ -30,6 +31,7 @@
 		"@ghostery/adblocker-playwright": "2.14.1",
 		"@modelcontextprotocol/sdk": "1.27.1",
 		"cross-fetch": "4.1.0",
+		"hono": "^4.12.8",
 		"patchright": "1.58.2",
 		"ws": "8.18.2",
 		"zod": "4.3.6"

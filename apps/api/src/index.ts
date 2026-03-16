@@ -3,11 +3,14 @@ import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
 import {
 	clearTrafficBuffer,
+	getActiveBrowser,
 	getBrowserHealth,
 	getTrafficEntries,
 	getTrafficSummary,
 	handleBrowserWebSocket,
 } from '@interceptor/browser/handler';
+import { createDomainProxy } from '@interceptor/browser/handler/api-proxy';
+import { getDomain, listDomains } from '@interceptor/browser/handler/domain-loader';
 import { validateConfig } from '@interceptor/shared';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -44,6 +47,29 @@ app.delete('/browser/traffic', (c) => {
 	const cleared = clearTrafficBuffer();
 	return c.json({ cleared });
 });
+
+// Domain API proxy routes — each domain's routes proxy through browserFetch()
+// GET /api → list all domains and their routes
+app.get('/api', (c) => {
+	const domains = listDomains().map((name) => {
+		const plugin = getDomain(name);
+		return {
+			name,
+			routeCount: plugin?.routes?.length ?? 0,
+			routes: plugin?.routes?.map((r) => `${r.method} /api/${name}${r.path}`) ?? [],
+		};
+	});
+	return c.json({ domains, browserConnected: getActiveBrowser() !== null });
+});
+
+// Mount each registered domain's proxy routes at /api/<domainName>/
+for (const name of listDomains()) {
+	const plugin = getDomain(name);
+	if (plugin?.routes && plugin.routes.length > 0) {
+		const proxy = createDomainProxy(name, plugin.routes, getActiveBrowser);
+		app.route(`/api/${name}`, proxy);
+	}
+}
 
 // Create Node.js HTTP server
 const server = createServer(async (req, res) => {

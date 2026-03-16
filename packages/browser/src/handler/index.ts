@@ -39,6 +39,18 @@ let browserReady = false;
 let currentProfile: string | null = null;
 let currentDomain: string | null = null;
 
+// --- Accessors for API proxy layer ---
+
+/** Get the active browser instance (for browserFetch proxy). Returns null if not connected. */
+export function getActiveBrowser(): RemoteBrowserService | null {
+	return browserReady ? activeBrowser : null;
+}
+
+/** Get the currently active domain plugin. */
+export function getActivePlugin(): DomainPlugin | undefined {
+	return activePlugin;
+}
+
 // --- Traffic Capture Buffer ---
 
 interface TrafficEntry {
