@@ -13,7 +13,8 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /** Profile metadata returned by list operations */
 export interface ProfileInfo {
@@ -50,17 +51,25 @@ const CLEANUP_DIRS = [
 // Files to clean
 const CLEANUP_FILES = ['History', 'History-journal', 'Visited Links', 'Network Action Predictor'];
 
+// Resolve monorepo root from this file's known location:
+// packages/browser/src/remote/profiles.ts → 4 levels up → root
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const MONOREPO_ROOT = resolve(__dirname, '..', '..', '..', '..');
+
 /**
  * Get the profiles directory from environment or default.
+ *
+ * Priority:
+ * 1. BROWSER_PROFILES_DIR env var (Docker, CI, custom setups)
+ * 2. <monorepo-root>/data/browser-profiles/ (local dev)
  */
 export function getProfilesDir(): string {
 	const envDir = process.env.BROWSER_PROFILES_DIR;
 	if (envDir) {
 		return resolve(envDir);
 	}
-	// Default: ./data/browser-profiles relative to project root
-	// In monorepo, this resolves to the root data folder
-	return resolve(process.cwd(), 'data', 'browser-profiles');
+	return resolve(MONOREPO_ROOT, 'data', 'browser-profiles');
 }
 
 /**
