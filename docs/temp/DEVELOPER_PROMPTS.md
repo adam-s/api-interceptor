@@ -103,6 +103,69 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
+## Prompt 7: Yahoo Finance Market Intelligence
+
+> Create a `yahoo-finance` domain plugin. The app has three data layers:
+>
+> **1. News with sentiment — polled every 60 seconds**
+> Fetch headlines for a watchlist of stock symbols using Yahoo Finance's per-ticker
+> RSS feeds (no browser needed — plain HTTP):
+> `https://feeds.finance.yahoo.com/rss/2.0/headline?s={TICKER}&region=US&lang=en-US`
+>
+> Build a server-side background poller that runs every 60 seconds, fetches RSS for
+> each symbol in the watchlist (AAPL, TSLA, NVDA, MSFT, SPY), and passes new articles
+> through the Python bridge for sentiment classification. Extend `services/python/worker.py`
+> with a `batch_sentiment` method using VADER (`pip install vaderSentiment`). Map compound
+> score to: bull (>0.05), flat (-0.05–0.05), bear (<-0.05). After each poll cycle,
+> broadcast the updated article list to all connected dashboard clients via the existing
+> WebSocket infrastructure. Cache each symbol's RSS response for 5 minutes to respect
+> rate limits.
+>
+> Route: `GET /api/yahoo-finance/news?symbols=TSLA,AAPL` →
+> `[{ symbol, title, summary, url, publishedAt, sentiment: "bull"|"flat"|"bear", score }]`
+>
+> **2. Quote + chart data — discovered via CDP**
+> Navigate to `https://finance.yahoo.com/quote/TSLA` and watch CDP traffic to find the
+> internal REST endpoints (likely on `query1.finance.yahoo.com` or
+> `query2.finance.yahoo.com`). Discover endpoints for: current price, % change, volume,
+> market cap, 52-week high/low, P/E ratio, and intraday chart data (5-min intervals).
+>
+> Routes (proxy through browser with inherited session headers):
+> - `GET /api/yahoo-finance/quote/:symbol` → price, change, key stats
+> - `GET /api/yahoo-finance/chart/:symbol?interval=5m&range=1d` → OHLC array
+>
+> **3. Dashboard at `/market`**
+> - Left sidebar: watchlist (AAPL, TSLA, NVDA, MSFT, SPY, BTC-USD) — click to focus
+> - Main panel when a symbol is focused:
+>   - Quote card: price (large), change % (green/red), volume, market cap, P/E, 52w range
+>   - Mini sparkline using **visx** (`@visx/sparkline` or `@visx/shape` + `@visx/scale`) — last 7 data points from chart endpoint
+>   - News feed: article cards for this symbol, each with bull/flat/bear badge
+> - Bottom panel: "All News" — articles from all watchlist symbols merged chronologically, each card showing its symbol badge and sentiment badge
+> - Live updates: the dashboard subscribes to the server's WebSocket and re-renders when new articles arrive from the 60-second poll cycle (no manual refresh needed)
+>
+> Show a "last updated" timestamp and a subtle pulse indicator when a new poll cycle completes. If Yahoo rate-limits a request, show the cached value with a faint "stale" tag rather than an error.
+>
+> **Stretch goal — faster price refresh via SSE**
+> Add a server-sent event endpoint that polls `GET /api/yahoo-finance/quote/:symbol`
+> on the server every 5 seconds and streams each result as an SSE event:
+> `GET /api/yahoo-finance/stream?symbols=TSLA,AAPL`
+> Each event: `{ symbol, price, changePercent, volume, timestamp }`
+> Wire the quote card to this SSE stream so prices update without a full page refresh.
+> This tests a new server push pattern (SSE) without requiring binary protocol decoding.
+
+**What this tests:**
+
+- Browserless domain routes — direct `fetch()` in route handlers without Patchright navigation
+- Server-side scheduled polling — background loop that exposes the framework's lack of job/timer infrastructure
+- Server → client push — WebSocket broadcast driven by a real data pipeline, not a toy counter
+- Python bridge NLP — extending `worker.py` with VADER sentiment analysis
+- Route-level TTL caching — no caching infrastructure exists; Yahoo rate limits will surface this gap immediately
+- CDP REST API discovery — `query1/query2.finance.yahoo.com` nested JSON (richer than TM ISMDS)
+- Cross-source symbol linking — news + quote + chart all keyed by the same ticker
+- SSE streaming (stretch) — server polls REST every 5s and pushes via SSE; new push pattern without binary decoding
+
+---
+
 ## How to Use These Prompts
 
 1. Clone the repository

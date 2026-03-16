@@ -24,6 +24,17 @@ The API server has **one shared browser instance** across all domain routes. Thi
   ```
 - This applies to any sequence of API calls that ultimately navigate the proxy browser: search → detail → listings must all be awaited sequentially.
 
+## Visual Quality Standard
+
+Every dashboard page should look clean, simple, and polished. These rules apply regardless of domain:
+
+- **Consistent spacing**: `gap-4` or `gap-6` between sections; `p-4` inside cards — never mix arbitrary pixel values
+- **Typographic hierarchy**: Page title large + bold → section labels `text-sm text-muted-foreground uppercase tracking-wide` → data values `text-2xl font-semibold`
+- **Color meaning**: Green = positive/bull, Red = negative/bear, `text-muted-foreground` = neutral/secondary — be consistent throughout the page
+- **Empty and loading states are first-class**: Every data container needs a `<Skeleton>` (loading) and a deliberate empty state message — never a blank panel
+- **Badges over raw text for categorical values**: Source names, sentiment labels, status values → `<Badge>` with a variant color, not plain text
+- **Cards with subtle borders**: `border border-border/50 rounded-lg` gives depth without heaviness; avoid heavy drop shadows
+
 ## Prerequisites
 
 - Domain plugins must exist with proxy routes registered (use api-discovery skill first)

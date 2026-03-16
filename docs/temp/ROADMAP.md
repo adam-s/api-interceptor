@@ -77,6 +77,15 @@ API discovery requires live browsers, real navigation, and curl verification —
 | 2: Dashboard UI | `checkpoint/ticket-l2-ui` | /tickets screenshot shows real events + comparison grid |
 | 3: Full prompt | (solved — no checkpoint needed) | All 4 sites handled, dynamic search, visual polish complete |
 
+### Phases for Prompt 2 (market intelligence)
+
+| Phase | Checkpoint name | Done when |
+|-------|----------------|-----------|
+| 1: News pipeline | `checkpoint/market-l1-news` | `curl /api/yahoo-finance/news?symbols=TSLA` returns articles with sentiment labels |
+| 2: Quote routes | `checkpoint/market-l2-quotes` | `curl /api/yahoo-finance/quote/TSLA` returns live price + key stats |
+| 3: Dashboard + live updates | `checkpoint/market-l3-ui` | `/market` shows news cards auto-refreshing every 60s |
+| 4: SSE streaming (stretch) | (solved — no checkpoint needed) | Quote card updates every 5s via SSE without client-side polling |
+
 ---
 
 ## Code: What Needs to Change
