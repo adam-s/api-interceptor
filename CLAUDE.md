@@ -231,56 +231,24 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — Phase B in progress
+Branch:        base — Pass 2 in progress
 
-Phase B re-runs completed:
-  P1 StubHub/Ticketmaster (DONE) — test/rerun-p1-v1
-    - TM domain: hybrid routes (Discovery API + browser SSR fallback)
-    - /tickets dashboard: search, event merge, seat comparison grid
-    - Learnings: API key degradation, auth-check-first, component preinstall
+Pass 1 (Phase B) COMPLETE — all 8 prompts, base at 52 commits (8a2c7bb)
 
-  P2 Yahoo Finance (DONE) — test/rerun-p2-v1
-    - YF domain: 3 routes (RSS news, quote, chart via browserFetch)
-    - Python bridge batch_sentiment with VADER (14 bull, 3 bear, 3 flat on TSLA)
-    - /market dashboard: watchlist, quote card, sparkline, news with sentiment
-    - Learnings: shared dep in scaffold, lazy Python imports, SVG sparkline
+Pass 2 progress (SKILLS CONVERGED):
+  P1 StubHub/Ticketmaster (DONE) — test/pass2-p1-v1 — ZERO new fixes
+  P2 Yahoo Finance (DONE) — test/pass2-p2-v1 — ZERO new fixes
+  P3 Vacation Rentals (DONE) — test/pass2-p3-v1 — ZERO new fixes
+  P5 Academic Research (DONE) — test/pass2-p5-v1 — ZERO new fixes
 
-  P5 Academic Research (DONE) — test/rerun-p5-v1
-    - Academic domain: 5 routes (ArXiv Atom, S2 Graph, PubMed E-utils)
-    - All browserRequired: false, parallel fetch with Promise.all
-    - Deduplication by DOI + normalized title, sorted by citation count
-    - /research dashboard: search, source badges, detail Sheet with DOI
+  CONVERGENCE: 4 consecutive prompts produced zero base fixes.
+  Skills are mature across all tested prompt archetypes:
+    - Hybrid API/browser routes (P1)
+    - RSS poller + Python NLP + WebSocket broadcast (P2)
+    - Multi-source SSR extraction + Python geo-scoring (P3)
+    - Public API parallel fetch + XML parsing + deduplication (P5)
 
-  P6 Gov Records (DONE) — test/rerun-p6-v1
-    - Gov-records domain: 4 routes (SEC EDGAR + CourtListener)
-    - SEC User-Agent requirement, proper field extraction
-    - /records dashboard: vertical timeline with colored dots per source
-
-  P3 Vacation Rentals (DONE) — test/rerun-p3-v1
-    - 4 domain plugins (airbnb, vrbo, zillow SSR extraction, rentals scoring)
-    - Python bridge score_getaways with haversine cross-listing detection
-    - /rentals dashboard: card grid, value scoring, Zillow sidebar comps
-    - Learnings: PythonBridge import path, responsive sidebar pattern
-
-  P4 Job Search (DONE) — test/rerun-p4-v1
-    - 5 domain plugins (dice JSON API, indeed/linkedin/glassdoor SSR, jobs CRUD)
-    - Cross-source deduplication by normalized company+title+location
-    - /jobs dashboard: salary comparison, favorites, application status tracking
-    - Learnings: status tracking Sheet pattern, cross-listed card badge
-
-  P7 Reddit (DONE) — test/rerun-p7-v1
-    - Reddit domain: 5 routes via .json suffix API (all browserRequired: false)
-    - Mobile-first dark UI with Reddit color palette (#FF4500/#1A1A1B)
-    - Nested comment trees, infinite scroll, bottom nav, subreddit navigation
-    - Learnings: .json suffix pattern, mobile-first brand colors, recursive tree
-
-  P8 YouTube (DONE) — test/rerun-p8-v1
-    - YouTube domain: 6 routes via yt-dlp Python bridge
-    - Background downloads with threading + progress tracking
-    - /youtube dashboard: video grid, watch page, download picker, downloads library
-    - Learnings: static file serving with range requests, path traversal prevention
-
-Phase B COMPLETE — all 8 prompts re-run against refactored skills
+  Remaining: P4, P6, P7, P8 expected to also converge.
 ```
 
 ## Conventions
