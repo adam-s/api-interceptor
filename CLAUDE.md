@@ -15,7 +15,7 @@ Every improvement to base skills, utilities, or architecture should serve this m
 Every skill improvement, utility fix, documentation update, architectural insight, and framework capability MUST land on `base` — never only on a test branch. When you create a new test branch from `base`, it inherits every fix ever applied across every previous iteration. When a test branch is done, it is stripped and abandoned. Only `base` grows.
 
 | Lives on `base` (permanent) | Lives only on test branches (ephemeral) |
-|---|---|
+| --- | --- |
 | `.claude/skills/` | `domains/<name>/` — domain plugins |
 | `CLAUDE.md` | Domain-specific route files |
 | `docs/temp/ROADMAP.md` | Domain-specific UI pages |
@@ -231,17 +231,21 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — skill refactor in progress (Phase A)
-Phase:         Phase A — SKILL.md refactor, then Phase B re-run all prompts
+Branch:        base — Phase A complete, ready for Phase B prompt re-runs
 
 Completed prompts (all SOLVED on v1):
   P1 StubHub, P2 Yahoo Finance (v3), P3 Rental, P4 Jobs, P5 Academic,
   P6 Gov Records, P7 Reddit, P8 YouTube
 
-Current work:
-  - Refactoring skills to separate generalized patterns from domain-specific hints
-  - Domain-specific details moved to DEVELOPER_PROMPTS.md as per-prompt hints
-  - Phase B: re-run prompts 1-8 to validate refactored skills
+Phase A completed:
+  - api-discovery: 857→766 lines (domain-specific → DEVELOPER_PROMPTS.md hints)
+  - dashboard-builder/visual-dev: minor domain-name removal
+  - CLAUDE.md: 313→252 lines (consolidated rules, compressed history)
+  - ROADMAP.md: 350→285 lines (replaced stale architecture plan)
+  - handler/index.ts: extracted shared WS handler, fixed 9 missing message types
+  - All 8 prompts have domain-specific discovery hints in DEVELOPER_PROMPTS.md
+
+Phase B next: re-run prompts 1-8 to validate refactored skills
 ```
 
 ## Conventions
