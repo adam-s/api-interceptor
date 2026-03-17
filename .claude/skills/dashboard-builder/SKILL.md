@@ -642,6 +642,32 @@ For embedded video or media content, wrap in an aspect-ratio container:
 
 For privacy-conscious embeds, prefer `-nocookie` variants of embed domains when available. For locally-served video files, use `<video>` with `controls` attribute and ensure the server supports `Content-Range` headers for seeking.
 
+### Static file serving with range requests
+
+When domain routes serve large files (video, audio, downloads), return a raw `Response` with `Content-Range` headers for seeking support:
+
+```typescript
+// In routes.ts handler
+const filepath = resolve(DOWNLOADS_DIR, filename);
+if (filename.includes('..') || filename.includes('/')) {
+  return c.json({ error: 'Invalid filename' }, 400); // path traversal prevention
+}
+const stat = statSync(filepath);
+const range = c.req.header('range');
+if (range) {
+  const [startStr, endStr] = range.replace('bytes=', '').split('-');
+  const start = parseInt(startStr);
+  const end = endStr ? parseInt(endStr) : stat.size - 1;
+  const stream = createReadStream(filepath, { start, end });
+  return new Response(Readable.toWeb(stream) as ReadableStream, {
+    status: 206,
+    headers: { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Type': 'video/mp4' },
+  });
+}
+```
+
+Key: return a raw `new Response()` -- not `c.json()`. Import `createReadStream` from `node:fs` and `Readable` from `node:stream`.
+
 ## API Call Pattern
 
 All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.
