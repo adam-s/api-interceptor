@@ -21,9 +21,7 @@ If it exists, read `domains/<name>/src/routes.ts` and skip to "Use Existing Doma
 
 ## Phase 0: Check for a Public API
 
-Before any WebSearch, check `docs/temp/DEVELOPER_PROMPTS.md` for a matching prompt with Discovery hints. These hints contain hard-won knowledge from previous iterations — reading them first can save hours of discovery work.
-
-Before launching a browser, check if the target site has a documented public REST API.
+Before launching a browser, check if the target site has a documented public REST API. If the user's prompt includes discovery hints or notes about the target site, read them first — they may contain answers that save hours of trial and error.
 
 ### How to check
 
