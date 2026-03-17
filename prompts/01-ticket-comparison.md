@@ -1,8 +1,16 @@
-I want to compare ticket prices across StubHub and Ticketmaster. Build domain plugins for both sites — figure out how they serve their search results, event details, and ticket listings.
+I want to compare ticket prices across StubHub and Ticketmaster. Build domain plugins for both sites using browser interception — discover how they serve their data by navigating as a real user and capturing traffic. Even if a public API exists, prefer the browser interception approach for this prompt — this is exploratory and I want to understand how these sites work internally.
 
-Build me a dashboard at `/tickets` where I search by artist name and see events from both platforms merged together. Same venue + same date = same event, show both badges. When I click an event, show me a side-by-side comparison of available seats and prices — I want to see which platform is cheaper for each section.
+The flow should work like this:
 
-If only one platform has an event, still show it. If a platform's browser isn't connected, show that cleanly without breaking the other one.
+**Step 1: Search and disambiguate.** I type an artist or team name like "Knicks" or "Kendrick Lamar" and get a list of matching performers/teams from both platforms. I pick the one I actually want. Don't auto-select — Ticketmaster often lists the soonest event first which might be a tribute band or a different artist. Let me choose.
+
+**Step 2: Event calendar.** After I pick the artist, show me a two-column table — Ticketmaster events on the left, StubHub events on the right. Match rows by date and venue. If TM has a show on March 22 at Madison Square Garden and StubHub has the same show, they should be on the same row. If one platform has an event the other doesn't, show it with the other column empty. VIP and regular events at the same venue/date/time should be separate rows. I want to scan this table and see at a glance where both platforms have the same event.
+
+**Step 3: Compare tickets.** On rows where both platforms have the event, show a "Compare" button. When I click it, fetch all available tickets from both platforms. Match them by section — normalize section names aggressively ("Section 101" = "Sec 101" = "101"). Show a comparison table: rows are sections, columns are StubHub and Ticketmaster. Each cell shows the price range and number of available tickets for that section. Highlight the cheaper option per section in green. Sections only available on one platform still show with the other column as a dash.
+
+Think about pagination — don't just grab page 1 of ticket listings. Get as many tickets as the site will give you so the comparison is comprehensive.
+
+Dashboard at `/tickets`. If a platform's browser isn't connected, show that cleanly without breaking the other one.
 
 ## Hints
 
@@ -12,4 +20,3 @@ If only one platform has an event, still show it. If a platform's browser isn't 
 - Performer pages on both sites include "Recommended" / "You may also like" sections. Filter extracted URLs to only those containing the performer name slug.
 - `data-price` attributes on StubHub may differ from displayed text in non-USD geolocations. Read prices from displayed text.
 - TM geolocks to regional domains based on browser IP. Ensure event URLs use the correct domain.
-- TM Discovery API (`app.ticketmaster.com/discovery/v2`) is free but requires email-verified registration. Without `TM_API_KEY` env var, fall back to browser SSR extraction. Use the graceful degradation pattern.
