@@ -28,7 +28,7 @@ Before launching a browser, check if the target site has a **documented public R
 1. **Use WebSearch** -- search for `"<site-name> API documentation"` or `"<site-name> API reference"` or `"<site-name> developer API"`. Do NOT guess at endpoints. Read the official docs page first. This is mandatory -- not optional.
 2. Look for API subdomains in the site's docs: `api.example.com`, `developer.example.com`
 3. **Common patterns to look for:**
-   - Some sites expose a `.json` suffix on regular URLs for read-only JSON access (no API key needed)
+   - Some sites expose a `.json` suffix on regular URLs for read-only JSON access (no API key needed). This is the fastest path to a working domain plugin -- all routes can be `browserRequired: false` with direct `fetch()`. Examples: Reddit (`reddit.com/r/programming.json`), Hacker News. Pagination via `after` cursor token.
    - Academic databases often have free REST APIs with generous rate limits for unauthenticated use
    - Government APIs often require a descriptive User-Agent header with contact info (requests without it get 403)
    - Court record systems may have free open-source mirrors that avoid CAPTCHA/paid auth

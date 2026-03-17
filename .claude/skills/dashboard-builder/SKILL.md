@@ -575,6 +575,55 @@ function Sparkline({ data }: { data: (number | null)[] }) {
 
 For complex charts (axes, tooltips, interactions), install `@visx/shape` + `@visx/scale`.
 
+## Mobile-First Dark Mode with Brand Colors
+
+When the prompt calls for a mobile-native feel with specific brand colors (e.g., Reddit orange `#FF4500`), use a color constants object with inline `style` rather than Tailwind classes. This gives precise control over brand palettes:
+
+```tsx
+const COLORS = {
+  bg: '#1A1A1B',
+  cardBg: '#272729',
+  border: '#343536',
+  textPrimary: '#D7DADC',
+  textSecondary: '#818384',
+  accent: '#FF4500',
+};
+
+// Use in components:
+<div style={{ backgroundColor: COLORS.bg, color: COLORS.textPrimary }}>
+```
+
+Touch targets: `min-w-[44px] min-h-[44px]` on all interactive elements. Bottom nav bar for mobile app feel. Use `className` for layout (flex, gap, padding) and `style` for colors.
+
+## Nested Comment / Thread Tree
+
+For threaded content (Reddit comments, forum replies, nested discussions), use a recursive component:
+
+```tsx
+function CommentTree({ comment, depth = 0 }: { comment: Comment; depth?: number }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const indent = Math.min(depth, 6) * 16;
+  return (
+    <div style={{ marginLeft: indent }}>
+      <div className="py-2 border-l-2 pl-3"
+        style={{ borderColor: `hsl(${depth * 60 % 360}, 50%, 40%)` }}>
+        <button onClick={() => setCollapsed(!collapsed)}>
+          {/* author, score, timeAgo */}
+        </button>
+        {!collapsed && (
+          <>
+            <p>{comment.body}</p>
+            {comment.replies.map(r => <CommentTree key={r.id} comment={r} depth={depth + 1} />)}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+Key: colored left-border per depth level creates visual thread lines. Cap at maxDepth (6) to prevent infinite nesting. Click header to collapse.
+
 ## Video / Iframe Embed Pattern
 
 For embedded video or media content, wrap in an aspect-ratio container:
