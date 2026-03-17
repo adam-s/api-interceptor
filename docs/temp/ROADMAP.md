@@ -2,283 +2,70 @@
 
 ## The Goal
 
-A developer clones this repo, pastes a prompt like "compare ticket prices across StubHub and Ticketmaster," and Claude Code uses the skills to discover each site's API, create typed domain plugins, build a working dashboard, and wire everything together — without any manual intervention beyond the initial prompt. The skills are the product. The test prompts are the proof.
-
----
-
-## The Iteration Loop
-
-```text
-base branch
-  └─ develop/improve generalized skills and utilities (no domain-specific content)
-
-test branch (from base)
-  └─ paste a developer prompt
-  └─ Claude attempts to execute using only the skills
-  └─ observe every point where Claude gets stuck, goes wrong, or commits bad code
-  └─ record failures in "Observed Failures Log" below
-
-return to base
-  └─ strip all domain artifacts the test created:
-       • routes, UI pages, nav registrations, package.json deps
-       • browser profiles for removed domains: rm -rf data/browser-profiles/<domain>
-       • test scripts and screenshots: rm -rf test-results/dev-screenshots/
-  └─ START WITH A PLAN — call EnterPlanMode before touching any skill or utility code
-  └─ fix the skills/utilities based on observed failures
-  └─ nothing domain-specific — every fix must generalize
-  └─ repeat
-```
-
-A prompt is "solved" when Claude can execute it end-to-end from a cold start with no corrections.
+A developer clones this repo, pastes a prompt, and Claude Code uses the skills to discover APIs, create domain plugins, and build a working dashboard — without manual intervention beyond the initial prompt. The skills are the product. The test prompts are the proof.
 
 ---
 
 ## Checkpoint Branches
 
-Every developer prompt has natural phases — API discovery comes before UI, UI before polish. Once a phase is reliably solved (verified with curl or screenshots), save that state as a **checkpoint branch**. Future iterations on the next phase branch from the checkpoint instead of base, so solved work is never re-done.
-
-### How it works
+Every prompt has natural phases — API discovery before UI, UI before polish. Save verified phases as checkpoint branches so solved work is never re-done.
 
 ```text
 base
-  └─ test/ticket-l1-v1  (Phase 1: API discovery — fails)
-     fix api-discovery skill on base, repeat
-  └─ test/ticket-l1-v2  (Phase 1: API discovery — verified with curl ✓)
-     └─ promote → checkpoint/ticket-l1-apis   ← frozen, never commit to directly
+  └─ test/ticket-l1-v1  (API discovery — fails)
+     fix skill on base, retry
+  └─ test/ticket-l1-v2  (API discovery — verified with curl ✓)
+     └─ promote → checkpoint/ticket-l1-apis   ← frozen
 
 checkpoint/ticket-l1-apis
-  └─ test/ticket-l2-v1  (Phase 2: dashboard UI — fails)
-     fix dashboard-builder skill on base, repeat
-  └─ test/ticket-l2-v2  (Phase 2: dashboard — screenshot confirmed ✓)
-     └─ promote → checkpoint/ticket-l2-ui
-
-checkpoint/ticket-l2-ui
-  └─ test/ticket-l3-v1  (Phase 3: polish, edge cases, all 4 sites)
+  └─ test/ticket-l2-v1  (dashboard UI — fails)
+     fix skill on base, retry from checkpoint
+  └─ test/ticket-l2-v2  (dashboard — screenshot confirmed ✓)
 ```
 
-When a later phase fails: fix the skill on `base`, then re-branch from the **checkpoint** (not base) to retry. The checkpoint preserves the work that doesn't need to be repeated.
-
-### Rules
-
-- Only promote to checkpoint when the phase is **fully verified** — curl returns real data, screenshots confirm the UI renders real content
-- Checkpoints are frozen starting points. Never commit directly to a checkpoint branch.
-- Skills are always fixed on `base`. Checkpoints hold verified domain-specific state for one phase.
-- Checkpoint names: `checkpoint/<prompt-id>-l<n>-<label>` e.g. `checkpoint/ticket-l1-apis`
-
-### Why this matters
-
-API discovery requires live browsers, real navigation, and curl verification — it takes time. Once that phase is saved in a checkpoint, every subsequent UI or polish iteration starts with working APIs already in place. This makes Phase 2 and 3 iterations dramatically faster, and isolates which skill needs fixing when something breaks.
-
-### Phases for Prompt 1 (ticket comparison)
-
-| Phase | Checkpoint name | Done when |
-|-------|----------------|-----------|
-| 1: API discovery | `checkpoint/ticket-l1-apis` | ≥2 sites return real search + listings JSON from curl |
-| 2: Dashboard UI | `checkpoint/ticket-l2-ui` | /tickets screenshot shows real events + comparison grid |
-| 3: Full prompt | (solved — no checkpoint needed) | All 4 sites handled, dynamic search, visual polish complete |
-
-### Phases for Prompt 2 (market intelligence)
-
-| Phase | Checkpoint name | Done when |
-|-------|----------------|-----------|
-| 1: News pipeline | `checkpoint/market-l1-news` | `curl /api/yahoo-finance/news?symbols=TSLA` returns articles with sentiment labels |
-| 2: Quote routes | `checkpoint/market-l2-quotes` | `curl /api/yahoo-finance/quote/TSLA` returns live price + key stats |
-| 3: Dashboard + live updates | `checkpoint/market-l3-ui` | `/market` shows news cards auto-refreshing every 60s |
-| 4: SSE streaming (stretch) | (solved — no checkpoint needed) | Quote card updates every 5s via SSE without client-side polling |
+**Rules:**
+- Only promote when phase is fully verified (curl returns real data, screenshot shows real content)
+- Checkpoints are frozen starting points — never commit to them directly
+- Skills are always fixed on `base` — checkpoints hold verified domain state
 
 ---
 
-## Architecture (Completed)
+## Lessons Learned (from 8 prompts × 3 passes)
 
-The framework was refactored from a Robinhood-coupled monolith to a generic domain plugin system:
+These are the non-obvious discoveries that shaped the skills. Each one was a real bug that cost time.
 
-- `packages/browser/src/shared/` -- Generic base classes (interceptor, session manager, config)
-- `packages/browser/src/handler/` -- Domain loader, API proxy, WebSocket handler
-- `domains/<name>/` -- Each domain plugin (~200 LOC, config + routes)
-- Adding a new domain: scaffold with `scaffold-domain.sh`, implement routes, register in `register-domains.ts`
+### Discovery phase
+- **Never guess URLs.** Navigate from the homepage using the site's own search. The resulting URL is the one to proxy.
+- **CDP catches everything; page.route() misses things.** Use CDP `Network.enable` for discovery, narrow to `page.route()` for proxy interception once you know the endpoints.
+- **Check for public APIs first.** ArXiv, Semantic Scholar, PubMed, SEC EDGAR, CourtListener, Reddit all have public APIs. Browser interception was unnecessary for 4 of 8 prompts.
+- **Some sites expose `.json` suffix APIs.** Appending `.json` to a URL returns structured data with no auth required.
+- **CLI tools beat browser automation for hostile sites.** YouTube, Instagram, Spotify block browsers aggressively. yt-dlp, gallery-dl, spotdl via Python bridge are battle-tested alternatives.
 
-All 8 prompts have been solved using this architecture.
+### Browser interception
+- **`browserFetch()` navigates to the target origin by default.** For CORS subdomains, use `navigateTo` to stay on the main site. For SPA-internal endpoints, don't navigate at all — the endpoint depends on the SPA's page context.
+- **`textContent` concatenates; `innerText` separates.** Always use `innerText` for SSR extraction — it respects CSS layout and adds `\n` between block elements.
+- **Session profiles get poisoned.** Heavy testing triggers rate limits tied to cookies. Symptom: all endpoints 429, but incognito returns 200. Fix: wipe `data/browser-profiles/<domain>`.
+- **TLS fingerprinting blocks Node.js `fetch()`.** Some sites (Yahoo Finance) detect Node.js by its TLS fingerprint (JA3/JA4). Use `browserFetch()` inside the route handler instead of direct `fetch()`.
 
----
+### Dashboard building
+- **An untested button is a broken button.** The agent built download buttons that didn't work because it never walked the full user journey to reach them.
+- **`setState(x)` then `setTimeout(() => handler(), 0)` reads stale state.** Pass the value directly: `handler(x)` not `setQuery(x); handleSearch()`.
+- **The first visit with zero setup IS the product.** Pages that show "Browser not connected" on first load are not done.
+- **Silent `catch {}` blocks = infinite loading.** Every catch must surface something to the user.
+- **Mobile is a different product.** Overlapping text at 375px, invisible hover-only affordance, tiny touch targets — test at mobile viewport every time.
 
-## Skills Status
-
-Skills teach HOW to discover/build/verify. Domain-specific hints live in `DEVELOPER_PROMPTS.md`.
-
-Current skill sizes after refactoring:
-
-- `api-discovery`: ~766 lines (generalized patterns, no domain-specific lookups)
-- `dashboard-builder`: ~529 lines (UI patterns, component guidance)
-- `visual-dev`: ~615 lines (screenshot loop, state enumeration, dark mode)
-- `debug-logs`: ~128 lines (targeted logging workflow)
-- `systematic-testing`: ~144 lines (bottom-up layer validation)
-- `ci-check`: ~60 lines
-- `ec2-deploy`: ~262 lines
-- `plan`: ~59 lines
-
----
-
-## Observed Failures Log
-
-### Prompt 3 (Vacation Rental Intelligence): `test/rental-v1`
-
-**Bot detection encountered:**
-
-| Site | Challenge type | Blocks headless? | Fix |
-| --- | --- | --- | --- |
-| Zillow | Cloudflare Turnstile — "Press & Hold" (~1-2s hold) | Yes — fresh session has no history | Pre-warm: `/browser?profile=zillow&capture=zillow.com`, pass the hold once, profile persists |
-| Airbnb | Bot detection on fresh session | Yes | Same — persistent profile needed |
-| VRBO | Bot detection on fresh session | Yes | Same |
-
-**"Press & Hold" Turnstile specifics (Zillow):**
-
-- Challenge: `zillow.com` → Cloudflare Turnstile with a "Press & Hold to confirm you are a human" button
-- Reference ID format: `32dd5f29-219c-11f1-b9a4-61c50bee7ad3`
-- Requires: real `mousedown` held for ~1-2 seconds, then `mouseup` — not a click
-- Browser page fix applied: `remote-viewer.tsx` now sends `mousedown`/`mouseup` separately; `RemoteBrowserService` has `mouseDown()`/`mouseUp()` methods; WS handler routes both message types
-- **To pass manually**: navigate to `/browser?profile=zillow&capture=zillow.com` → navigate to `https://zillow.com` → press and hold the "Press & Hold" button in the browser canvas → profile cookie is saved for future headless runs
-
-**Framework gap:** No SMS bridge — Airbnb/VRBO require phone verification to create an account. Disposable email (minuteinbox domain) gets through email verification but is blocked at phone step.
+### Bot detection
+- **Cloudflare Turnstile "Press & Hold"** requires real mousedown held ~1-2 seconds, then mouseup. The browser page now supports `mouseDown()`/`mouseUp()` separately.
+- **No SMS bridge.** Airbnb/VRBO require phone verification. Disposable email (minuteinbox) passes email verification but blocks at phone step. This is an unsolved gap.
+- **CAPTCHA gate protocol.** Routes return structured 403 `{ blocked, captchaRequired, browserUrl }` so the dashboard can prompt the user to authenticate manually via `/browser`.
 
 ---
 
-### Iteration 3 — Prompt 1 (ticket comparison): `test/ticket-comparison`
+## Status
 
-**What was attempted:** Discovery for StubHub, Ticketmaster, SeatGeek, TicketNetwork. Phase B5 gate + UI not reached.
+All 8 developer prompts solved. Skills converged — Pass 2 produced zero new base fixes across all 8 prompts. The framework supports four data access paradigms:
 
-**What was delivered:**
-
-- StubHub ✓ — 4 routes working: search (SSR/performer cards), performer-events, listings (data-listing-id + innerText), trending
-- Ticketmaster ✓ — 2 routes working: search (SSR/event cards), tickets (traffic capture for ISMDS API)
-- SeatGeek ✗ — DataDome captcha on all pages; routes return `{ blocked: true }`
-- TicketNetwork — API at `tn-apis.com/catalog/v2/events/search?consumerKey=fuTwxN_M6RKMaobcsfJ5qSvcVAUa` discovered in CDP traffic; routes not written (iteration stopped before UI gate)
-
-**Failures observed:**
-
-| # | Failure | Root cause | Fix applied to base |
-| --- | --- | --- | --- |
-| 1 | `browserFetch(cross-origin-url)` returned empty | browserFetch navigates to target origin first, loses session cookies | Added `⚠️ browserFetch cross-origin warning` to skill |
-| 2 | `page.evaluate(fetch(cors-url))` → "TypeError: Failed to fetch" | CORS rejects manual fetch from different origin | Added Type B2 traffic capture pattern to skill |
-| 3 | `textContent` gave `"Section 235Row 7"` (no space) | `textContent` concatenates child text nodes without separators | Added `innerText` vs `textContent` guidance to skill |
-| 4 | Performer name included `"Concert Tickets • 29 events"` | `.*` doesn't cross newlines; `innerText` adds `\n` between blocks | Added `[\s\S]*` vs `.*` note to Gotchas |
-| 5 | Quantity regex returned null for "2 tickets together" | `$` end anchor fails when more text follows | Fixed regex to use `(?:\s\|$)` in Gotchas |
-| 6 | TM eventId regex captured `09006463` from `09006463FB941AC4` | Alphanumeric IDs need `[A-Z0-9]+` not `\d+` | Added to Gotchas |
-| 7 | Server returned old routes after editing `routes.ts` | Server started before file change; no auto-reload without `--watch` | Added "Route returns 404 after editing" to Gotchas |
-| 8 | SeatGeek body empty after navigate | DataDome replaced body with captcha iframe | Added Type D detection via `bodyInnerHTML.includes('captcha-delivery.com')` |
-
-**What the skills still need for Prompt 1 to be fully solved:**
-
-- TicketNetwork routes not written — need to finalize `targetUrl` routes using discovered consumerKey
-- UI not built — `dashboard-builder` skill untested on multi-domain offline-graceful comparison grid
-- SeatGeek permanently offline — UI should show graceful degraded state, not break
-
----
-
-### Iteration 9 — Prompt 8 (YouTube Without YouTube): `test/youtube-v1`
-
-**What was attempted:** Create a YouTube domain plugin with search, video player, and downloads. YouTube aggressively blocks browser automation, so yt-dlp (battle-tested CLI tool) via the Python bridge was the primary strategy.
-
-**What was delivered:** Fully working end-to-end. yt-dlp handles search, video info extraction, and downloads without any API key or browser interception. Dashboard at /youtube with responsive video grid, embedded player (youtube-nocookie.com), download management with progress tracking, and keyboard shortcuts.
-
-**Key discoveries:**
-- yt-dlp is a fourth data access paradigm: "CLI tool orchestration via Python bridge." No API keys, no browser, no interception patterns. Just `yt_dlp.YoutubeDL().extract_info()`.
-- macOS system python3 is 3.9 which doesn't support `int | float` union syntax. Fix: `from __future__ import annotations` at top of worker.py.
-- PythonBridge path resolution from domain plugins: `import.meta.dirname` in `domains/<name>/src/` needs exactly 3 `../` to reach project root: `resolve(import.meta.dirname, '../../../services/python/worker.py')`.
-- YouTube download can hit HTTP 403 (anti-bot). yt-dlp can work around this with cookies from a real browser session, but that wasn't needed for search/info endpoints.
-- Background download threading: `threading.Thread(daemon=True)` with module-level job dict + lock for progress reporting through the JSON-RPC bridge.
-- YouTube embed pattern: `youtube-nocookie.com/embed/{id}` provides ad-free, tracking-free playback without API auth.
-
-**No failures requiring test branch reruns.** Fourth consecutive prompt solved on v1.
-
----
-
-### Iteration 8 — Prompt 7 (Reddit Mobile Client): `test/reddit-v1`
-
-**What was attempted:** Create a Reddit domain plugin using CDP traffic capture for GraphQL discovery (gql.reddit.com). Build a mobile-responsive Reddit client with feed, post detail with nested comments, search, and dark mode.
-
-**What was delivered:** Fully working end-to-end. Reddit's public .json API (append .json to any URL) was sufficient for all read operations -- GraphQL discovery was NOT needed.
-
-**Key discovery:** Reddit exposes a .json suffix API that returns the same data as the HTML page in JSON format. This is a third paradigm: not a REST API endpoint, not XML, but "append .json to the HTML URL." No API key or OAuth needed for read-only. Write operations (vote, save, subscribe) would require OAuth.
-
-**No failures requiring test branch reruns.** Third consecutive prompt solved on v1.
-
----
-
-### Iteration 7 — Prompt 6 (Government & Public Records Monitor): `test/gov-records-v1`
-
-**What was attempted:** Create domains for SEC EDGAR, state business registry, county property records, and PACER. Search by company name, aggregate filings and court cases. Build a due diligence dashboard with timeline.
-
-**What was delivered:** Fully working end-to-end. SEC EDGAR (public REST API) and CourtListener (free PACER alternative) both use `browserRequired: false`. Dashboard shows company info panel, timeline of all activity, and tabbed views.
-
-**Key discoveries:**
-- PACER requires paid account + CAPTCHA. CourtListener (courtlistener.com) is a free, open-source alternative that mirrors PACER data.
-- SEC EDGAR requires a descriptive User-Agent with contact email. Requests without it get 403.
-- OpenCorporates API timed out on test -- dropped.
-- Timeline view pattern: map multiple source events to `{ date, type, title, subtitle, source, link }`, sort descending. Visual: vertical line with colored dots.
-
-**No failures requiring test branch reruns.** Second consecutive prompt solved on v1.
-
----
-
-### Iteration 6 — Prompt 5 (Academic Research Aggregator): `test/academic-v1`
-
-**What was attempted:** Create domains for PubMed, Semantic Scholar, and ArXiv. Search for a research topic, collect papers with citations and abstracts. Deduplicate papers across databases. Build a literature review dashboard.
-
-**What was delivered:** Fully working end-to-end. All three domains created with public REST APIs (zero browser dependency). Dashboard with cross-database search, DOI dedup, citation network, and "Most Influential Papers" panel.
-
-**Key discovery:** All three domains (ArXiv, Semantic Scholar, PubMed) have documented public REST APIs. The api-discovery skill had NO guidance for this case — it assumed browser interception was always needed. Added "Phase 0: Check for a Public API" to the skill.
-
-**Failures observed:**
-
-| # | Failure | Root cause | Fix applied to base |
-|---|---------|-----------|---------------------|
-| 1 | api-discovery skill has no "public API" path | Skill always starts with browser + CDP | Added Phase 0 section with public API detection and `browserRequired: false` pattern |
-| 2 | Semantic Scholar returns total:0 with 200 status under load | Soft rate limit — not a true empty result | Added gotcha row documenting this behavior |
-| 3 | ArXiv and PubMed return XML, not JSON | No XML parsing guidance in skill | Added gotcha row referencing regex-based XML parsing |
-
-**No failures requiring test branch reruns.** First prompt solved on v1 with no re-iterations needed.
-
----
-
-### Iteration 2 — Prompt 1 (ticket comparison): `test/iteration-2`
-
-**What was attempted:** Full Prompt 1 — discover APIs for StubHub, Ticketmaster, SeatGeek, TicketNetwork; build /tickets dashboard.
-
-**What was delivered:** StubHub listings only (one hardcoded event). No search. No cross-site comparison.
-
-**Failures observed:**
-
-| # | Failure | Root cause | Fix needed |
-|---|---------|-----------|------------|
-| 1 | Guessed wrong StubHub search URL (`/find/s/?q=`) → 404 | Skill says "navigate to target page" but doesn't say "use the site's own search box to find the correct URL" | Add step to api-discovery: "Navigate from homepage, use the site's native search, observe the resulting URL — do not guess URL formats" |
-| 2 | SeatGeek completely blocked — DataDome CAPTCHA on first request | Skill has no guidance for CAPTCHA-protected sites | Add classification: "CAPTCHA-protected (Type D)" — skip headless discovery, note manual intervention required |
-| 3 | StubHub + Ticketmaster search results are SSR HTML, not JSON | The skill describes SSR extraction but the DomainRoute proxy just returns raw HTML — no server-side parsing mechanism | Add SSR-to-JSON transformer support to DomainRoute OR add guidance that SSR sites require a custom handler, not a simple proxy route |
-| 4 | Ticketmaster event links point to `.es` (Spanish) domain when browser geo-detected Spain | No awareness that TM geolocks to regional subdomains | Note in skill: "check the domain of returned event URLs — if they differ from the site root, the proxy must target the regional domain" |
-| 5 | Scaffold script created incomplete domain (only `src/routes.ts`) — missing `package.json`, `config.ts`, `interceptor.ts`, `index.ts` | `scaffold-domain.sh` template is incomplete | Fix scaffold script to create all required files from ticketmaster template |
-| 6 | Browser must be connected before proxy works — no skill step for this | visual-dev skill takes screenshots without connecting the proxy browser first | Add "dual-browser pattern" as explicit prerequisite in both api-discovery and visual-dev: connect proxy browser before running any proxy verification or screenshots |
-| 7 | TicketNetwork had no domain or browser profile — scaffold + discover would need to start from zero | No guidance on starting from a completely new domain | Add to api-discovery: "create browser profile first with `mkdir -p data/browser-profiles/<domain>`" |
-
-**What the skills need to support to solve this prompt:**
-- A way to handle SSR sites that return HTML (server-side HTML→JSON transformer in proxy)
-- CAPTCHA detection and fallback strategy
-- URL discovery from homepage (not guessing)
-- Regional domain detection
-- Complete domain scaffold (all 5 files)
-- Browser connection prerequisite check before proxy verification
-
----
-
-### Iteration 1 — Prompt 1 (ticket comparison): `test/ticket-v1`, `test/ticket-v2`, `test/ticket-v3`
-
-**What was attempted:** Build a ticket price comparison dashboard for StubHub and Ticketmaster.
-
-**Failures observed:**
-
-| Failure | Root cause | Fix needed in base |
-|---------|-----------|-------------------|
-| Claude committed code that didn't work | `CLAUDE.md` said "Always run before committing" + ci-check skill said "Use before committing" — normalized commits as expected | Add explicit "NEVER commit unless asked" to `CLAUDE.md` |
-| Claude jumped straight to code, no alignment | No planning mandate | Add `EnterPlanMode` requirement to `CLAUDE.md`; create `plan` skill |
-| Screenshots showed blank ticket cards | Proxy browser (port 3001) was not connected when screenshot browser visited `localhost:3000/tickets` | Add "dual-browser pattern" to `visual-dev` skill: proxy browser must be alive before screenshot browser makes API calls |
-| Ticketmaster side always empty | `tickets-content.tsx` called `/api/ticketmaster/trending/searches` (wrong endpoint) but skill had no guidance on verifying API returns the right data type before building UI | Add "verify API returns expected data shape before writing UI" step to `dashboard-builder` skill |
-| Repeated failed iterations without progress | No honest verification gate — Claude would "fix" something, not verify, then commit | Add verification requirement to skill: "prove it works with curl/screenshot before moving on" |
-| StubHub route hardcoded to one event | Routes were scaffolded with example values and never updated to be dynamic | Scaffold templates should use `{paramName}` substitutions and document that example values must be replaced |
+1. **Browser interception** — CDP traffic capture + `browserFetch()` proxy (StubHub, Yahoo Finance, Airbnb)
+2. **Public REST APIs** — direct `fetch()` with `browserRequired: false` (ArXiv, SEC EDGAR, CourtListener)
+3. **URL suffix APIs** — append `.json` to HTML URLs for structured data (Reddit)
+4. **CLI tool bridge** — Python worker orchestrating battle-tested tools (YouTube via yt-dlp)
