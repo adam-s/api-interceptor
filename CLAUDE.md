@@ -224,6 +224,8 @@ Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1:
 Base fixes applied from Prompt 4 iteration:
   ✅ dashboard-builder skill: In-Process CRUD State section (favorites, status pattern)
   ✅ dashboard-builder skill: Cross-Source Entity Deduplication section (compound key, merge map)
+  ✅ autoStartHeadlessBrowser(): headless browser auto-starts at server boot — eliminates 503 "Browser not connected"
+  ✅ visual-dev skill: "Getting Unstuck" row for Browser not connected / 503 symptom
 
 Framework gaps discovered (Prompt 4):
   - LinkedIn and Glassdoor require persistent authenticated session (no SMS/OAuth bridge)
