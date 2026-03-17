@@ -31,9 +31,11 @@ RUN pnpm build --filter=@interceptor/api
 # Alpine lacks the glibc/X11 libraries Chromium needs — Debian is required.
 FROM node:22-slim AS runner
 
-# Install Chromium, xvfb, dbus, and Python for IPC bridge
+# Install Google Chrome (not Chromium — Chrome has window.chrome, plugins, WebGL
+# that bot detectors check for. Chromium is a stripped build that fails these.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    chromium \
+    wget \
+    gnupg \
     xvfb \
     dbus \
     fonts-liberation \
@@ -45,10 +47,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxss1 \
     libasound2 \
     python3 \
+    && wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Tell Patchright to use system Chromium instead of downloading its own
-ENV CHROMIUM_PATH=/usr/bin/chromium
+# Use real Chrome — channel: 'chrome' in Patchright finds it at this path
+ENV CHROME_PATH=/usr/bin/google-chrome-stable
 # Default to headed mode (Turnstile bypass). Set BROWSER_HEADLESS=true to override.
 ENV BROWSER_HEADLESS=false
 

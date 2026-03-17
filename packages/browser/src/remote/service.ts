@@ -357,8 +357,9 @@ export class RemoteBrowserService {
 			commonArgs.push('--no-default-browser-check');
 		}
 
-		// Use system chromium if CHROMIUM_PATH is set (Docker), otherwise use Patchright's bundled browser
-		const executablePath = process.env.CHROMIUM_PATH || undefined;
+		// Use system Chrome/Chromium if CHROME_PATH or CHROMIUM_PATH is set (Docker),
+		// otherwise Patchright finds Chrome via channel: 'chrome' (local dev).
+		const executablePath = process.env.CHROME_PATH || process.env.CHROMIUM_PATH || undefined;
 
 		// Use consistent Mac User-Agent across all platforms to avoid bot detection
 		// Chrome 145 — matches real Chrome binary version and sec-ch-ua override below.
