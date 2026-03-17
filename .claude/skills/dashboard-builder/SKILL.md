@@ -347,6 +347,94 @@ Use semantic tokens, not hardcoded colors:
 - Accent panels: `bg-blue-950/30 border-blue-500/20` (not `bg-blue-50`)
 - Hover: `hover:bg-muted` (not `hover:bg-gray-50`)
 
+## In-Process CRUD State
+
+When the prompt asks for user state (favorites, tracking, bookmarks, notes) and there's no database requirement, use a domain plugin with **in-process state** + `browserRequired: false` routes. No external deps, resets on server restart.
+
+Create a dedicated domain (e.g., `domains/jobs/`) with module-level state:
+
+```typescript
+// domains/jobs/src/routes.ts
+
+// Module-level store — persists for server lifetime, resets on restart
+const favorites = new Set<string>();
+const statusMap = new Map<string, string>();
+
+export const routes: DomainRoute[] = [
+  {
+    method: 'POST',
+    path: '/favorites',
+    browserRequired: false,
+    handler: async (c) => {
+      const { id } = await c.req.json() as { id: string };
+      const added = !favorites.has(id);
+      added ? favorites.add(id) : favorites.delete(id);
+      return c.json({ id, favorited: added });
+    },
+  },
+  {
+    method: 'GET',
+    path: '/favorites',
+    browserRequired: false,
+    handler: async (c) => c.json({ favorites: Array.from(favorites) }),
+  },
+  {
+    method: 'PUT',
+    path: '/status',
+    browserRequired: false,
+    handler: async (c) => {
+      const { id, status } = await c.req.json() as { id: string; status: string };
+      statusMap.set(id, status);
+      return c.json({ id, status });
+    },
+  },
+];
+```
+
+Register the plugin in `apps/api/src/register-domains.ts` alongside browser-based domains.
+
+**Pattern: optimistic UI update** — update local React state immediately, then fire the API call in background. Don't await the server sync before updating the UI.
+
+```typescript
+const toggleFavorite = async (id: string) => {
+  const newFavs = new Set(favorites);
+  newFavs.has(id) ? newFavs.delete(id) : newFavs.add(id);
+  setFavorites(newFavs); // optimistic
+  await fetch(`${API}/api/jobs/favorites`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  }).catch(() => {}); // don't revert on network error
+};
+```
+
+## Cross-Source Entity Deduplication
+
+When multiple sources return the same real-world entity (same job, same product, same paper), merge by a stable compound key rather than concatenating arrays. This avoids showing the same entity with 4 source badges as 4 separate cards.
+
+```typescript
+function dedupKey(company: string, title: string, location: string): string {
+  const norm = (s: string) => s.toLowerCase()
+    .replace(/\s+(inc\.?|llc\.?|corp\.?|ltd\.?|co\.?)$/i, '') // strip legal suffixes
+    .replace(/[^a-z0-9]/g, '');
+  return `${norm(company)}|${norm(title)}|${norm(location)}`;
+}
+
+// Merge: Map<key, { sources: Source[], bestPrice?, crossListed }>
+const byKey = new Map<string, MergedEntity>();
+for (const item of sourceAResults) {
+  const k = dedupKey(item.company, item.title, item.location);
+  const existing = byKey.get(k);
+  if (existing) {
+    existing.sources.push({ source: 'sourceA', ...item });
+    existing.crossListed = true;
+  } else {
+    byKey.set(k, { id: k, sources: [{ source: 'sourceA', ...item }], crossListed: false });
+  }
+}
+```
+
+**When to show cross-listed callout**: if the same entity appears on 2+ sources with different prices/salaries, show `"Source B lists $X higher"` next to the cheaper source. Normalize: `format(diff)` → `"$12K"` or `"$15/hr"`.
+
 ## API Call Pattern
 
 All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.

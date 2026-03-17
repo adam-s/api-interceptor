@@ -209,35 +209,34 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 4 (next — TBD)
+Prompt:        Prompt 5 (next — Social Media Cross-Poster)
 
-Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1:
-  ✅ Airbnb domain plugin (SSR DOM search, __NEXT_DATA__ listing detail)
-  ✅ VRBO domain plugin (SSR DOM search — no public JSON API found)
-  ✅ Zillow domain plugin (PUT /async-create-search-page-state, __NEXT_DATA__ detail)
-  ✅ /rentals dashboard — sequential fetching, source badges, per-source error states
-  ✅ RemoteBrowserService.evaluate() — execute JS in current page context
-  ✅ RemoteBrowserService.extractFromPage() — navigate + wait + evaluate (SSR pattern)
+Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1:
+  ✅ Dice domain plugin — direct JSON API (job-search-api.dice.com), browserRequired: false
+  ✅ Indeed domain plugin — DOM extraction via extractFromPage(), job card selectors
+  ✅ LinkedIn domain plugin — DOM extraction, geoId map, bot-detection documented
+  ✅ Glassdoor domain plugin — __NEXT_DATA__ + DOM extraction fallback, bot-detection documented
+  ✅ Jobs CRUD domain — in-process favorites/status state, browserRequired: false
+  ✅ /jobs dashboard — sequential fetch, dedup by company|title|location, salary comparison
+  ✅ Star favorites + application status tracking (saved/applied/interviewing/rejected/offer)
+  ✅ Cross-listed badge + salary callout ("Source B lists $12K higher")
 
-Base fixes applied from Prompt 3 iteration:
-  ✅ service.ts: evaluate() and extractFromPage() methods (generic SSR extraction)
-  ✅ api-discovery skill: SSR Extraction Patterns section (3 strategies)
-  ✅ api-discovery skill: Airbnb/VRBO discovery notes (no public JSON API)
-  ✅ api-discovery skill: Zillow PUT /async-create-search-page-state reference
-  ✅ api-discovery skill: Gotchas table updated (Traffic shows 0 entries → extractFromPage)
+Base fixes applied from Prompt 4 iteration:
+  ✅ dashboard-builder skill: In-Process CRUD State section (favorites, status pattern)
+  ✅ dashboard-builder skill: Cross-Source Entity Deduplication section (compound key, merge map)
 
-Framework gaps discovered (Prompt 3):
-  - VRBO has no public JSON search API (obfuscated HMAC URLs) — SSR-only
-  - extractFromPage() is needed for any Next.js/SSR site serving initial data in HTML
-  - Shared Listing interface across domains defined locally in each domain (no shared type pkg)
-  - Cross-domain lat/lng matching not yet implemented (Python bridge needed for geospatial)
-  - Airbnb StaysSearch GraphQL only fires on client filter changes, not initial page load
+Framework gaps discovered (Prompt 4):
+  - LinkedIn and Glassdoor require persistent authenticated session (no SMS/OAuth bridge)
+  - Cross-domain type sharing: Job interface defined locally in each domain (4 copies)
+  - Direct JSON API domains (Dice) work with browserRequired: false — first real-world example
+  - No salary normalization utility — implemented ad-hoc per domain
 
 Previous:
+Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
 Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
 Prompt 1 (StubHub) — SOLVED
 
-Next iteration: Run Prompt 4 (from docs/temp/DEVELOPER_PROMPTS.md)
+Next iteration: Run Prompt 5 (from docs/temp/DEVELOPER_PROMPTS.md)
 ```
 
 ## Conventions
