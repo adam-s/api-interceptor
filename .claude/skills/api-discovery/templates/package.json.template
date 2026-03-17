@@ -8,6 +8,7 @@
 	},
 	"dependencies": {
 		"@interceptor/browser": "workspace:*",
+		"@interceptor/shared": "workspace:*",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {

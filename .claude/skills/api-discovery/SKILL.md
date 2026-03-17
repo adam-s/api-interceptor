@@ -103,6 +103,22 @@ handler: async (c, browser) => {
 
 This pattern lets routes work with OR without the key -- the key path is faster and more reliable, but browser extraction is the universal fallback.
 
+### Python bridge for NLP / analytics
+
+When the prompt requires text analysis (sentiment, classification, scoring), add a method to `services/python/worker.py`. Import heavy libraries lazily inside the handler so the worker degrades gracefully if the library isn't installed:
+
+```python
+def handle_batch_sentiment(params):
+    try:
+        from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    except ImportError:
+        return {"results": [{"sentiment": "flat", "score": 0.0} for _ in params["articles"]]}
+    analyzer = SentimentIntensityAnalyzer()
+    # ... process articles ...
+```
+
+Register in `METHODS` dict and call from TypeScript via `bridge.call('batch_sentiment', { articles })`.
+
 ### CLI tool bridge -- when sites aggressively block automation
 
 Some sites have public APIs that require paid/complex auth AND aggressively block browser automation. For these, use battle-tested CLI tools via the Python bridge instead. Common tools: `yt-dlp` (video), `gallery-dl` (images), `spotdl` (audio), `aria2` (generic downloads).

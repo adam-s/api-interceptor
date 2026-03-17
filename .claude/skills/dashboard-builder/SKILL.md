@@ -501,6 +501,31 @@ useEffect(() => {
 
 Show progress with `<Progress value={job.progress} />` and a status `<Badge>`. Include the job list in a Downloads or Activity tab.
 
+## Mini Sparkline Pattern (SVG)
+
+For simple sparklines (price charts, trend indicators), use an inline SVG polyline. No dependencies needed:
+
+```tsx
+function Sparkline({ data }: { data: (number | null)[] }) {
+  const valid = data.filter((d): d is number => d != null);
+  if (valid.length < 2) return null;
+  const min = Math.min(...valid), max = Math.max(...valid), range = max - min || 1;
+  const w = 120, h = 32;
+  const points = valid.map((v, i) =>
+    `${(i / (valid.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`
+  ).join(' ');
+  const isUp = valid[valid.length - 1] >= valid[0];
+  return (
+    <svg width={w} height={h}>
+      <polyline points={points} fill="none" stroke={isUp ? '#22c55e' : '#ef4444'}
+        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+```
+
+For complex charts (axes, tooltips, interactions), install `@visx/shape` + `@visx/scale`.
+
 ## Video / Iframe Embed Pattern
 
 For embedded video or media content, wrap in an aspect-ratio container:
