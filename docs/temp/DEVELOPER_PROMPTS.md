@@ -21,6 +21,15 @@ Each prompt tests different capabilities of the framework. Use these to validate
 >
 > **Test with a major US-touring artist** like "Kendrick Lamar" or "Morgan Wallen" — someone with real upcoming US arena/stadium shows so both TM (US domain only) and StubHub return actual concerts. Avoid artists whose tours are exclusively outside the US (e.g. Bad Bunny, Taylor Swift at time of writing); TM returns US results only and will surface tribute events instead.
 
+**Discovery hints for this prompt:**
+
+- StubHub is pure SSR (Type B) -- CDP traffic buffer is empty; all data is in the DOM via `a[href*="/event/"]` and `[data-listing-id]` elements. Use `innerText` split by `\n` for section/row/quantity parsing.
+- Ticketmaster uses a hybrid model: search results may be SSR, but ticket availability data comes from an internal API (`services.ticketmaster.com` ISMDS endpoints) that is CORS-blocked -- use Type B2 traffic capture.
+- Ticketmaster event IDs are alphanumeric hex -- use `[A-Z0-9]+` not `\d+` in regex.
+- Performer pages on both sites include "Recommended" / "You may also like" sections. Filter extracted URLs to only those containing the performer name slug to avoid unrelated events.
+- `data-price` attributes on StubHub may hold USD-internal values that differ from displayed text in non-USD geolocations. Read prices from displayed text.
+- TM geolocks to regional domains (`.es`, `.de`, `.co.uk`) based on browser IP. Ensure event URLs use the correct domain.
+
 **What this tests:**
 
 - Creating 2 domain plugins from scratch (1 SSR Type B, 1 hybrid Type B/B2)
@@ -81,16 +90,27 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > Wire the quote card to this SSE stream so prices update without a full page refresh.
 > This tests a new server push pattern (SSE) without requiring binary protocol decoding.
 
+**Discovery hints for this prompt:**
+
+- Yahoo Finance's frontend is SvelteKit -- initial data is SSR-embedded in `<script type="application/json" data-sveltekit-fetched>` tags. Client-side interactions (chart range changes) trigger XHR to `query2.finance.yahoo.com`.
+- Use `query2.finance.yahoo.com` for chart/quote data. Both `query1` and `query2` subdomains work; `query2` is more reliable.
+- Yahoo Finance uses CORS from the main site (`finance.yahoo.com`). Use `browserFetch(url, { navigateTo: 'https://finance.yahoo.com' })` to stay on the main site and let CORS carry cookies.
+- Chart endpoints use unix timestamps in seconds for `period1`/`period2` parameters.
+- The `crumb` session token is embedded in page state -- visible in POST `/v1/finance/visualization` traffic. For most endpoints, the crumb is optional if the session cookie is valid. Cache it in a module-level variable.
+- Heavy testing poisons the browser profile session. If all quote endpoints return 429 but CDN-cached screener endpoints return 200, wipe the browser profile directory and reconnect.
+- Node.js `fetch()` gets 429 due to TLS fingerprinting (JA3/JA4). Use `browserFetch()` instead of direct `fetch()` for any Yahoo Finance data endpoints.
+- RSS feeds at `https://feeds.finance.yahoo.com/rss/2.0/headline?s={TICKER}` are `browserRequired: false` -- plain HTTP, no auth needed.
+
 **What this tests:**
 
-- Browserless domain routes — direct `fetch()` in route handlers without Patchright navigation
-- Server-side scheduled polling — background loop that exposes the framework's lack of job/timer infrastructure
-- Server → client push — WebSocket broadcast driven by a real data pipeline, not a toy counter
-- Python bridge NLP — extending `worker.py` with VADER sentiment analysis
-- Route-level TTL caching — no caching infrastructure exists; Yahoo rate limits will surface this gap immediately
-- CDP REST API discovery — `query1/query2.finance.yahoo.com` nested JSON (richer than TM ISMDS)
-- Cross-source symbol linking — news + quote + chart all keyed by the same ticker
-- SSE streaming (stretch) — server polls REST every 5s and pushes via SSE; new push pattern without binary decoding
+- Browserless domain routes -- direct `fetch()` in route handlers without Patchright navigation
+- Server-side scheduled polling -- background loop that exposes the framework's lack of job/timer infrastructure
+- Server -> client push -- WebSocket broadcast driven by a real data pipeline, not a toy counter
+- Python bridge NLP -- extending `worker.py` with VADER sentiment analysis
+- Route-level TTL caching -- no caching infrastructure exists; Yahoo rate limits will surface this gap immediately
+- CDP REST API discovery -- `query1/query2.finance.yahoo.com` nested JSON (richer than TM ISMDS)
+- Cross-source symbol linking -- news + quote + chart all keyed by the same ticker
+- SSE streaming (stretch) -- server polls REST every 5s and pushes via SSE; new push pattern without binary decoding
 
 ---
 
@@ -181,16 +201,24 @@ Each prompt tests different capabilities of the framework. Use these to validate
 > endpoints and add them as additional routes. Expected outcome: blocked at phone step —
 > record this as a gap (no SMS bridge in the framework).
 
+**Discovery hints for this prompt:**
+
+- Airbnb search is pure SSR -- the `StaysSearch` GraphQL call only fires on client-side filter changes, not initial page load. DOM extraction via `a[href*="/rooms/"]` is the only reliable approach for search results.
+- Airbnb has a stable public API key (look for `X-Airbnb-API-Key` header in CDP traffic on listing detail page loads). Use it in `browserFetch` headers for GraphQL persisted queries.
+- VRBO uses obfuscated HMAC-signed URL paths for all analytics/data (`/2oWWs7BA09XCe/...`). No usable public JSON API was found. DOM extraction is the only option.
+- Zillow exposes a JSON API: `PUT https://www.zillow.com/async-create-search-page-state`. Call via `browserFetch(..., { navigateTo: 'https://www.zillow.com' })` so cookies are present.
+- Both Airbnb and VRBO are Next.js apps -- check `window.__NEXT_DATA__` on detail pages for structured listing data.
+
 **What this tests:**
 
-- API catalog as a first-class deliverable — discovery before implementation, typed schemas from real traffic
-- GraphQL proxy — Airbnb and VRBO POST GraphQL with named operations; first time the framework must forward and parse a GraphQL body
-- Public API key extraction — `X-Airbnb-API-Key` pulled from CDP request headers, not assumed or hardcoded
-- Shared schema across sibling domains — Airbnb and VRBO return the same conceptual data; forces a normalisation layer
-- Geospatial bounding-box queries — `ne_lat/ne_lng/sw_lat/sw_lng` parameters new to the framework
-- Python bridge geo-analytics — coordinate proximity matching + value scoring; first non-NLP bridge use
-- Cross-domain lat/lng entity matching — same property on two platforms matched by coordinate radius
-- 10-minute mail as account enabler — tests whether the minuteinbox domain can unlock auth-gated endpoints
+- API catalog as a first-class deliverable -- discovery before implementation, typed schemas from real traffic
+- GraphQL proxy -- Airbnb and VRBO POST GraphQL with named operations; first time the framework must forward and parse a GraphQL body
+- Public API key extraction -- `X-Airbnb-API-Key` pulled from CDP request headers, not assumed or hardcoded
+- Shared schema across sibling domains -- Airbnb and VRBO return the same conceptual data; forces a normalisation layer
+- Geospatial bounding-box queries -- `ne_lat/ne_lng/sw_lat/sw_lng` parameters new to the framework
+- Python bridge geo-analytics -- coordinate proximity matching + value scoring; first non-NLP bridge use
+- Cross-domain lat/lng entity matching -- same property on two platforms matched by coordinate radius
+- 10-minute mail as account enabler -- tests whether the minuteinbox domain can unlock auth-gated endpoints
 
 ---
 
@@ -212,6 +240,13 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 > Create domains for PubMed, Semantic Scholar, and ArXiv. Some of these may have public REST APIs — prefer using those directly over browser interception when available. Search for a research topic, collect papers with citations, abstracts, and authors. Deduplicate papers that appear in multiple databases. Build a literature review dashboard that shows citation networks and identifies the most influential papers in a field.
 
+**Discovery hints for this prompt:**
+
+- ArXiv has a public Atom API at `export.arxiv.org/api` -- returns XML (Atom format). Parse with regex: `/<entry>([\s\S]*?)<\/entry>/g`. No API key needed.
+- Semantic Scholar has a public REST API at `api.semanticscholar.org/graph/v1` -- 100 req/5min unauthenticated. It may return `total: 0` with 200 status under load (soft rate limit) -- retry after a few seconds.
+- PubMed/NCBI uses E-utilities at `eutils.ncbi.nlm.nih.gov` -- returns NCBI XML. Parse with `/<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g`.
+- All three are `browserRequired: false` -- no browser interception needed.
+
 **What this tests:**
 
 - Hybrid approach: direct API calls (ArXiv, Semantic Scholar have public APIs) vs browser interception (PubMed may need it)
@@ -226,6 +261,12 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 > Create domains for SEC EDGAR, my state's business registry, county property records, and the federal court docket system (PACER). Search by company name, aggregate all filings, registrations, and court cases. Build a due diligence dashboard that shows a timeline of all activity and alerts me when new filings appear.
 
+**Discovery hints for this prompt:**
+
+- SEC EDGAR has public APIs at `efts.sec.gov` and `data.sec.gov` -- `browserRequired: false`. **Important**: SEC requires a descriptive User-Agent with contact info: `'api-interceptor/1.0 (research tool; admin@example.com)'`. Requests without it get 403.
+- PACER (federal court dockets) requires paid auth and CAPTCHA. Use CourtListener (`courtlistener.com/api/rest/v4`) as a free open-source mirror instead.
+- State business registries are typically pure SSR (Type B) -- no client-side APIs, need DOM extraction.
+
 **What this tests:**
 
 - Server-side rendered sites with no client-side API (worst case for interception)
@@ -233,7 +274,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - Scheduled monitoring (check for new filings periodically)
 - Timeline/chronological data visualization
 - PDF document handling (SEC filings, court documents)
-- The compelling "why browser interception matters" story — these sites resist automation
+- The compelling "why browser interception matters" story -- these sites resist automation
 
 ---
 
@@ -275,16 +316,22 @@ Each prompt tests different capabilities of the framework. Use these to validate
 >
 > The entire app should use **CSS-only responsive layout** (no separate mobile/desktop builds). Use `tailwindcss` with mobile-first breakpoints. Touch targets must be at least 44×44px. Animate transitions between views (slide left/right).
 
+**Discovery hints for this prompt:**
+
+- Reddit exposes a `.json` suffix on any URL (e.g., `reddit.com/r/programming/hot.json`) for read-only JSON. No API key needed. ~60 req/min rate limit. Pagination via `after` cursor token.
+- The internal Reddit API uses GraphQL at `gql.reddit.com` and OAuth endpoints at `oauth.reddit.com`. Look for `Authorization: Bearer ...` and `x-reddit-*` headers in CDP traffic.
+- The `.json` suffix pattern is simpler and sufficient for most read operations. The internal GraphQL API provides richer data (awards, flair, nested comments) for write operations and authenticated features.
+
 **What this tests:**
 
-- GraphQL API discovery — Reddit's internal GQL endpoint with operation names and variables
-- POST mutations through browser proxy — voting, saving, commenting, subscribing (first write-heavy prompt)
-- Mobile-first responsive design — testing whether the framework + skills can build a phone-native experience
-- Infinite scroll with cursor-based pagination — `after` cursor pattern, load-more triggers
-- Nested data rendering — comment trees with arbitrary depth, collapse/expand state
-- Optimistic UI updates — client-side state management ahead of server confirmation
-- Media proxying — images, videos (v.redd.it), galleries through the browser session
-- Real-time interaction density — many tappable elements per screen (votes, comments, save, subscribe)
+- GraphQL API discovery -- Reddit's internal GQL endpoint with operation names and variables
+- POST mutations through browser proxy -- voting, saving, commenting, subscribing (first write-heavy prompt)
+- Mobile-first responsive design -- testing whether the framework + skills can build a phone-native experience
+- Infinite scroll with cursor-based pagination -- `after` cursor pattern, load-more triggers
+- Nested data rendering -- comment trees with arbitrary depth, collapse/expand state
+- Optimistic UI updates -- client-side state management ahead of server confirmation
+- Media proxying -- images, videos (v.redd.it), galleries through the browser session
+- Real-time interaction density -- many tappable elements per screen (votes, comments, save, subscribe)
 
 ---
 
@@ -346,16 +393,25 @@ Each prompt tests different capabilities of the framework. Use these to validate
 >
 > Store watch history in browser localStorage: `{ videoId, title, thumbnail, channel, watchedAt, progress }`. Show a "Continue watching" row on the home page with a progress bar overlay on thumbnails. When opening a previously watched video, seek to the saved position.
 
+**Discovery hints for this prompt:**
+
+- YouTube aggressively blocks browser automation. Use `yt-dlp` (CLI tool bridge pattern) via Python bridge rather than browser interception for all data operations.
+- `yt-dlp` Python API: `YoutubeDL({'extract_flat': True}).extract_info('ytsearch20:query', download=False)` for search; `YoutubeDL({'skip_download': True}).extract_info(url, download=False)` for video info.
+- For downloads, use `threading.Thread(daemon=True)` with a module-level job dict for progress tracking. Parse yt-dlp stdout for `[download] XX.X% of ~XXMiB` progress.
+- All routes should be `browserRequired: false` -- yt-dlp handles everything.
+- System Python on macOS is 3.9 -- add `from __future__ import annotations` at the top of worker.py.
+- `PythonBridge` path from domain plugins: `resolve(import.meta.dirname, '../../../services/python/worker.py')` (3 levels up).
+
 **What this tests:**
 
-- YouTube's internal API (`youtubei`) — POST-based with nested context objects, continuation token pagination
-- Python bridge for CLI tool orchestration — shelling out to `yt-dlp`, parsing stdout progress, managing background downloads
-- Static file serving — serving large MP4 files with range request support (seeking in `<video>` element)
-- Background job tracking — download-as-async-job pattern with polling for progress
-- Video streaming through proxy — proxying YouTube's adaptive streams or serving local files
-- Anti-bot resilience — YouTube aggressively blocks automation; yt-dlp as the battle-tested fallback
-- localStorage persistence — client-side watch history without a database
-- Keyboard shortcut handling — media player hotkeys in a web app
+- YouTube's internal API (`youtubei`) -- POST-based with nested context objects, continuation token pagination
+- Python bridge for CLI tool orchestration -- shelling out to `yt-dlp`, parsing stdout progress, managing background downloads
+- Static file serving -- serving large MP4 files with range request support (seeking in `<video>` element)
+- Background job tracking -- download-as-async-job pattern with polling for progress
+- Video streaming through proxy -- proxying YouTube's adaptive streams or serving local files
+- Anti-bot resilience -- YouTube aggressively blocks automation; yt-dlp as the battle-tested fallback
+- localStorage persistence -- client-side watch history without a database
+- Keyboard shortcut handling -- media player hotkeys in a web app
 
 ---
 
