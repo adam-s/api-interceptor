@@ -27,7 +27,8 @@ Before launching a browser, check if the target site has a **documented public R
 
 1. Search for `<site-name> API documentation` or `<site-name> developer API`
 2. Look for API subdomains in the site's docs: `api.example.com`, `developer.example.com`
-3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), SEC EDGAR (`efts.sec.gov`, `data.sec.gov`), CourtListener (`courtlistener.com/api/rest/v4`), GitHub, Reddit (OAuth), Wikipedia, OpenStreetMap, etc.
+3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), SEC EDGAR (`efts.sec.gov`, `data.sec.gov`), CourtListener (`courtlistener.com/api/rest/v4`), Reddit (`.json` suffix on any URL), GitHub, Wikipedia, OpenStreetMap, etc.
+   - **Reddit pattern**: append `.json` to any Reddit URL (`reddit.com/r/programming/hot.json`) for read-only JSON. No API key needed. ~60 req/min rate limit. Pagination via `after` cursor token.
 4. When the primary data source requires paid auth or CAPTCHA (e.g., PACER for court records), look for **free open-source mirrors** — CourtListener mirrors PACER data for free.
 
 ### If a public API exists — skip browser interception entirely

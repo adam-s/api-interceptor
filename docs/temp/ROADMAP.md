@@ -240,6 +240,18 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ---
 
+### Iteration 8 — Prompt 7 (Reddit Mobile Client): `test/reddit-v1`
+
+**What was attempted:** Create a Reddit domain plugin using CDP traffic capture for GraphQL discovery (gql.reddit.com). Build a mobile-responsive Reddit client with feed, post detail with nested comments, search, and dark mode.
+
+**What was delivered:** Fully working end-to-end. Reddit's public .json API (append .json to any URL) was sufficient for all read operations -- GraphQL discovery was NOT needed.
+
+**Key discovery:** Reddit exposes a .json suffix API that returns the same data as the HTML page in JSON format. This is a third paradigm: not a REST API endpoint, not XML, but "append .json to the HTML URL." No API key or OAuth needed for read-only. Write operations (vote, save, subscribe) would require OAuth.
+
+**No failures requiring test branch reruns.** Third consecutive prompt solved on v1.
+
+---
+
 ### Iteration 7 — Prompt 6 (Government & Public Records Monitor): `test/gov-records-v1`
 
 **What was attempted:** Create domains for SEC EDGAR, state business registry, county property records, and PACER. Search by company name, aggregate filings and court cases. Build a due diligence dashboard with timeline.
