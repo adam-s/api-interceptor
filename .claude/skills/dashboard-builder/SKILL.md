@@ -437,14 +437,14 @@ for (const item of sourceAResults) {
 
 ## Cross-Source Timeline View
 
-When combining chronological events from multiple sources (SEC filings, court cases, transactions, publications), build a unified timeline sorted by date. This is the natural view for due diligence, activity monitoring, and audit trails.
+When combining chronological events from multiple sources, build a unified timeline sorted by date. This is the natural view for activity monitoring, audit trails, and multi-source research.
 
 ```typescript
 interface TimelineItem {
   date: string;       // ISO date for sorting
-  type: string;       // 'filing' | 'case' | 'transaction' — drives dot color
+  type: string;       // category string -- drives dot color per source type
   title: string;
-  subtitle: string;   // source-specific context (company name, court name)
+  subtitle: string;   // source-specific context
   source: string;     // display label
   link: string;       // external URL
 }
@@ -491,14 +491,14 @@ useEffect(() => {
 
 Show progress with `<Progress value={job.progress} />` and a status `<Badge>`. Include the job list in a Downloads or Activity tab.
 
-## Video Embed Pattern
+## Video / Iframe Embed Pattern
 
-For video content, use privacy-enhanced YouTube embeds instead of raw `<video>` elements:
+For embedded video or media content, wrap in an aspect-ratio container:
 
 ```tsx
 <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
   <iframe
-    src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
+    src={embedUrl}
     className="w-full h-full"
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
     allowFullScreen
@@ -507,7 +507,7 @@ For video content, use privacy-enhanced YouTube embeds instead of raw `<video>` 
 </div>
 ```
 
-The `-nocookie` domain avoids tracking cookies. No API key or auth required.
+For privacy-conscious embeds, prefer `-nocookie` variants of embed domains when available. For locally-served video files, use `<video>` with `controls` attribute and ensure the server supports `Content-Range` headers for seeking.
 
 ## API Call Pattern
 
@@ -515,7 +515,7 @@ All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.
 
 - The browser must be connected to the domain for proxy to work
 - If browser is not connected, proxy returns `503 { error: "Browser not connected" }`
-- GET endpoints: `fetch('http://localhost:3001/api/stubhub/events/search')`
+- GET endpoints: `fetch('http://localhost:3001/api/<domain>/<path>')`
 - POST endpoints: include `Content-Type: application/json` and body
 
 ## Gotchas

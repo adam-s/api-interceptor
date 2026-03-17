@@ -590,7 +590,7 @@ If the script fails, don't retry the same thing. Diagnose first:
 | `goto` timeout (15s+) | Wrong port — another project's server is on the expected port | `curl` ALL listening ports, match HTML `<title>` to this project |
 | `tsx: command not found` | PATH issue with `npx` | Use `./node_modules/.bin/tsx` |
 | "Undeclared Automated Tool" or "Bot Detection" | Using `@playwright/test` instead of `patchright`, or missing stealth args | Use `import { chromium } from "patchright"` + `launchPersistentContext` + `STEALTH_BROWSER_ARGS` + real `USER_AGENT` |
-| "Request Rate Threshold Exceeded" (SEC) | Too many requests from same IP in short window | Wait 10+ min for rate limit to expire; add 2-3s delays between page loads to the same domain |
+| "Request Rate Threshold Exceeded" | Too many requests from same IP in short window | Wait 10+ min for rate limit to expire; add 2-3s delays between page loads to the same domain |
 | Redirected to `/login` after login | Wrong credentials or cookies not persisting | Verify creds from source; use `ctx.newPage()` — cookies are per-context |
 | Screenshot is blank/white | Page hasn't hydrated | `waitForTimeout(2000)` or wait for specific element |
 | `networkidle` never resolves | SSE/WebSocket keeping connection open | Switch to `domcontentloaded` + element waits |
@@ -612,4 +612,4 @@ If the script fails, don't retry the same thing. Diagnose first:
 - Real User-Agent strings (not the default headless UA)
 - Locale/timezone matching (consistent fingerprint)
 
-...it passes as a real browser. Verified working against SEC.gov, GlobeNewsWire, FRED, and Federal Reserve sites.
+...it passes as a real browser. Verified working against government sites, financial data providers, and news services with aggressive bot detection.
