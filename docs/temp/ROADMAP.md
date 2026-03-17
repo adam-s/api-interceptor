@@ -88,99 +88,33 @@ API discovery requires live browsers, real navigation, and curl verification —
 
 ---
 
-## Code: What Needs to Change
+## Architecture (Completed)
 
-### The Problem
+The framework was refactored from a Robinhood-coupled monolith to a generic domain plugin system:
 
-The interceptor is tightly coupled to Robinhood. Adding a second domain today requires copying ~1,500 lines of code and modifying hardcoded URLs, header names, profile names, and selectors throughout.
+- `packages/browser/src/shared/` -- Generic base classes (interceptor, session manager, config)
+- `packages/browser/src/handler/` -- Domain loader, API proxy, WebSocket handler
+- `domains/<name>/` -- Each domain plugin (~200 LOC, config + routes)
+- Adding a new domain: scaffold with `scaffold-domain.sh`, implement routes, register in `register-domains.ts`
 
-### The Three Coupling Hotspots
-
-| File | Problem |
-|------|---------|
-| `apps/api/src/browser.ts` | Hardcodes `'robinhood-trading'` profile, `RobinhoodInterceptor`, `RobinhoodApiClient.verify()`, `RobinhoodSessionManager` |
-| `packages/browser/src/robinhood/interceptor.ts` | Hardcodes `api.robinhood.com` URL patterns and `REQUIRED_HEADER_NAMES` |
-| `packages/browser/src/robinhood/auth.ts` | Hardcodes `https://robinhood.com/login`, profile name, and `[data-testid="account-number"]` selector |
-
-Everything else (`mcp/server.ts`, traffic buffer, session manager pattern) is already generic or close to it.
-
-### Target Architecture
-
-```text
-packages/browser/src/shared/          ← NEW: generic base classes
-  config.ts                           ← InterceptorConfig interface
-  interceptor.ts                      ← GenericInterceptor (abstract)
-  auth.ts                             ← GenericAuthService (abstract)
-  session-manager.ts                  ← GenericSessionManager (concrete, profile-aware)
-  api-client.ts                       ← GenericApiClient (abstract)
-  schema-generator.ts                 ← Infer Zod schemas from captured traffic
-  codegen.ts                          ← Generate TypeScript types + client skeleton
-
-packages/browser/src/robinhood/       ← Refactored to extend shared/
-  config.ts                           ← NEW: Robinhood-specific InterceptorConfig
-  interceptor.ts                      ← Extends GenericInterceptor
-  auth.ts                             ← Extends GenericAuthService
-  (api-client.ts, types.ts unchanged) ← Domain-specific, kept as-is
-
-domains/<name>/                       ← Each domain plugin (200 LOC, config + routes)
-  config.ts
-  interceptor.ts
-  routes.ts
-  index.ts
-```
-
-Adding a new domain after refactoring: create one `config.ts` (30 lines), run schema generator on captured traffic, review generated types. ~30 minutes instead of 8 hours.
-
-### Phase Roadmap
-
-1. **Extract shared base classes** — `GenericInterceptor`, `GenericAuthService`, `GenericSessionManager`, `InterceptorConfig`
-2. **Refactor Robinhood** to extend shared (no behavior change, just inheritance)
-3. **Refactor `browser.ts`** — replace hardcoded Robinhood logic with domain registry (`DOMAIN_CONFIGS` map)
-4. **Generic traffic capture** — `domains/generic/` with no domain assumptions
-5. **Schema generation** — analyze captured traffic → infer Zod schemas → generate `types.ts` + `api-client.ts`
-6. **Proof of concept** — add a second real domain (LinkedIn or similar) using the generic system
+All 8 prompts have been solved using this architecture.
 
 ---
 
-## Skills: What Needs to Change
+## Skills Status
 
-### Anthropic Best Practices to Apply
+Skills teach HOW to discover/build/verify. Domain-specific hints live in `DEVELOPER_PROMPTS.md`.
 
-- **Progressive disclosure**: SKILL.md is the overview (under 500 lines). Move detailed reference to `reference/`, templates to `templates/`, helper scripts to `scripts/`.
-- **Pushy descriptions**: The `description` frontmatter determines when Claude triggers the skill. Be explicit. Bad: "API discovery tool." Good: "Discover any website's API... Use when the user mentions a website name and wants to interact with it programmatically."
-- **Imperative form**: "Create the file" not "You should create the file."
-- **Supporting files**: Templates Claude fills in, example outputs, scripts Claude runs directly for deterministic steps.
-- **`$ARGUMENTS` and `${CLAUDE_SKILL_DIR}`**: Use substitutions so skills are portable.
+Current skill sizes after refactoring:
 
-### Structural Changes
-
-Current skills are flat. Skills should be hierarchical:
-
-```text
-api-discovery/
-  SKILL.md              ← overview + quick start (≤300 lines)
-  reference/
-    architecture.md     ← detailed architecture (loaded on demand)
-  templates/
-    domain-package.json
-    domain-config.ts
-    domain-routes.ts
-    domain-index.ts
-  scripts/
-    scaffold-domain.sh  ← deterministic scaffolding, Claude runs this
-
-visual-dev/
-  SKILL.md              ← overview + screenshot loop
-  reference/
-    components.md       ← shadcn/ui component reference (moved out of SKILL.md)
-
-plan/
-  SKILL.md              ← NEW: planning phase guide (explore → design → plan → approve)
-```
-
-### Specific Gaps Observed
-
-See "Observed Failures Log" below — each iteration adds to this list.
+- `api-discovery`: ~766 lines (generalized patterns, no domain-specific lookups)
+- `dashboard-builder`: ~529 lines (UI patterns, component guidance)
+- `visual-dev`: ~615 lines (screenshot loop, state enumeration, dark mode)
+- `debug-logs`: ~128 lines (targeted logging workflow)
+- `systematic-testing`: ~144 lines (bottom-up layer validation)
+- `ci-check`: ~60 lines
+- `ec2-deploy`: ~262 lines
+- `plan`: ~59 lines
 
 ---
 
