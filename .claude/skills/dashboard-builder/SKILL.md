@@ -217,13 +217,15 @@ const rows = Array.from(byKey.values());
 
 - Use the most stable fields: venue+date for events, company+title+city for jobs, DOI for papers
 - Normalize aggressively before comparing: lowercase, strip punctuation, parse dates to ISO
-- Never use free-text titles as the sole key — they differ too much across sources
-- Single-source entities still appear — just with one badge
+- Normalize categorical labels across sources: "Section 101" = "Sec 101" = "101" -- strip common prefixes and normalize case before comparing
+- Never use free-text titles as the sole key -- they differ too much across sources
+- Single-source entities still appear -- just with one badge
 
 **Filter before merging:**
 
-- Validate that each result actually belongs to the search query (e.g., artist name in performer name)
-- Skip tribute acts, regional mismatches, and category noise before building the merge map
+- Validate that each result actually belongs to the search query before adding to the merge map
+- Use word-boundary regex or `startsWith` -- not `includes` -- to avoid false matches (e.g., "tribute" acts, unrelated recommendations)
+- Skip results with disqualifying keywords ("tribute", "experience", "symphony") that indicate unrelated content
 
 ## Step 6: Verify with Visual Dev
 
