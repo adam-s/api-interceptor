@@ -770,9 +770,36 @@ export class RemoteBrowserService {
 	/**
 	 * Replace the frame callback (used when a new WS client reuses an existing browser session).
 	 * Without this, the old (closed) WS callback keeps getting called and the new client gets nothing.
+	 *
+	 * Also nudges the page to trigger a screencast frame — without this,
+	 * a new WS client on a static page would see 0 frames because
+	 * CDP only fires screencastFrame on visual changes.
 	 */
 	setFrameCallback(callback: FrameCallback): void {
 		this.frameCallback = callback;
+		// Force a visual change so CDP emits a fresh screencast frame
+		void this.nudgeScreencast();
+	}
+
+	/**
+	 * Trigger a visual change to force CDP to emit a screencast frame.
+	 * Navigates to a real page if on about:blank, otherwise evaluates a
+	 * no-op scroll to trigger a repaint.
+	 */
+	private async nudgeScreencast(): Promise<void> {
+		if (!this.page) return;
+		try {
+			const currentUrl = this.page.url();
+			if (!currentUrl || currentUrl === 'about:blank' || currentUrl.startsWith('data:')) {
+				// Navigate to a real page so there's something to render
+				await this.page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 });
+			} else {
+				// Force a repaint by scrolling
+				await this.page.evaluate(() => { window.scrollBy(0, 1); window.scrollBy(0, -1); });
+			}
+		} catch {
+			// Best-effort — don't crash if nudge fails
+		}
 	}
 
 	/**
