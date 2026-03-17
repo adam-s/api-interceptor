@@ -471,6 +471,19 @@ export class RemoteBrowserService {
 					return originalQuery.call(this, parameters);
 				};
 			}
+
+			// === CDP screenX/screenY patch — Cloudflare Turnstile bypass ===
+			// When CDP dispatches Input.dispatchMouseEvent, MouseEvent.screenX/screenY
+			// equal the x/y coordinates (relative to iframe, small values like 30,15).
+			// Real clicks have screen-relative coordinates (hundreds/thousands).
+			// Cloudflare Turnstile checks this in cross-origin iframes to detect bots.
+			// Fix: override screenX/screenY on MouseEvent prototype with realistic values.
+			const _fakeScreenX = 800 + Math.floor(Math.random() * 400);
+			const _fakeScreenY = 300 + Math.floor(Math.random() * 300);
+			Object.defineProperty(MouseEvent.prototype, 'screenX', { get() { return this.clientX + _fakeScreenX; } });
+			Object.defineProperty(MouseEvent.prototype, 'screenY', { get() { return this.clientY + _fakeScreenY; } });
+			Object.defineProperty(PointerEvent.prototype, 'screenX', { get() { return this.clientX + _fakeScreenX; } });
+			Object.defineProperty(PointerEvent.prototype, 'screenY', { get() { return this.clientY + _fakeScreenY; } });
 		`;
 
 		// Configure proxy based on proxyType setting
