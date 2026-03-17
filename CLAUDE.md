@@ -142,9 +142,10 @@ GitHub Actions runs on push to `main` and PRs:
 ## Workflow Rules
 
 - **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work, OR (c) in autonomous iteration mode (see below)
-- **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones
+- **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones — **EXCEPTION: skip `EnterPlanMode` in Autonomous Iteration Mode** (plan internally, proceed without waiting for approval)
 - **NEVER move on without verifying:** each completed step must be proven — curl returns real data, screenshot shows real content
 - **ALWAYS update CLAUDE.md before switching branches** — the "Current Iteration State" block below must reflect where you are before every `git checkout`
+- **SKILLS AND DOCS MUST BE EDITED ON BASE** — any change to CLAUDE.md, DEVELOPER_PROMPTS.md, ROADMAP.md, or `.claude/skills/` made on a test branch is LOST when you checkout base or another branch. Always: (1) edit skills/docs on base, (2) commit, (3) then checkout the test branch. Never edit these files on a test branch unless you immediately cherry-pick or re-apply them to base before switching.
 - **USE THE DEBUG SKILL for runtime bugs:** the moment a bug requires understanding runtime behavior (0 frames, wrong values, callbacks not firing, wrong branch taken), invoke `.claude/skills/debug-logs/SKILL.md` — add 2-4 targeted logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging. Remove all debug logs after the fix is confirmed.
 - **NEVER quit half-way:** iterate until the prompt is fully solved and CI is green. Every gap discovered goes in ROADMAP.md. Every base fix gets verified by a new test branch. The loop never ends — it only improves.
 
@@ -158,6 +159,7 @@ The user has granted full autonomous operation. You may:
 - Create and switch between test branches without asking
 - Make architectural and implementation decisions without asking
 - Keep iterating until the prompt is fully solved (all phases verified)
+- **Skip `EnterPlanMode`** — plan internally, write code immediately without waiting for approval
 
 **You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
 
@@ -211,7 +213,11 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 5 (next — Social Media Cross-Poster)
+Prompt:        Prompt 5 (next — Academic Research Aggregator: PubMed + Semantic Scholar + ArXiv)
+
+NOTE: Prompt 5 (Social Media Cross-Poster) was DELETED — Reddit (now Prompt 7) covers social media.
+      Prompts renumbered: old 6→5, old 7→6, old 8→7, old 9→8.
+      test/social-v1 branch was created but has no domain commits — abandon it.
 
 Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1:
   ✅ Dice domain plugin — direct JSON API (job-search-api.dice.com), browserRequired: false
@@ -228,6 +234,9 @@ Base fixes applied from Prompt 4 iteration:
   ✅ dashboard-builder skill: Cross-Source Entity Deduplication section (compound key, merge map)
   ✅ autoStartHeadlessBrowser(): headless browser auto-starts at server boot — eliminates 503 "Browser not connected"
   ✅ visual-dev skill: "Getting Unstuck" row for Browser not connected / 503 symptom
+  ✅ browser page: fixed 0-frames reuse path bug (setFrameCallback on reconnect)
+  ✅ browser page: mouseDown/mouseUp support for Cloudflare Turnstile "Press & Hold"
+  ✅ CLAUDE.md: EnterPlanMode skipped in Autonomous Iteration Mode
 
 Framework gaps discovered (Prompt 4):
   - LinkedIn and Glassdoor require persistent authenticated session (no SMS/OAuth bridge)
@@ -240,7 +249,10 @@ Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
 Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
 Prompt 1 (StubHub) — SOLVED
 
-Next iteration: Run Prompt 5 (from docs/temp/DEVELOPER_PROMPTS.md)
+Next iteration: Run Prompt 5 (Academic Research Aggregator) from docs/temp/DEVELOPER_PROMPTS.md
+  Expected new gap: api-discovery skill has no guidance for "public API exists — skip browser interception"
+  ArXiv and Semantic Scholar both have documented public REST APIs.
+  Branch: test/academic-v1
 ```
 
 ## Conventions

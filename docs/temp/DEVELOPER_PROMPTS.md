@@ -208,21 +208,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
-## Prompt 5: Social Media Cross-Poster & Analytics
-
-> Create domains for Twitter/X, LinkedIn, Bluesky, and Mastodon. Log into my accounts on each platform. Build a dashboard where I write a post once and publish it to all four platforms simultaneously. Then aggregate engagement metrics — likes, reposts, impressions — into a single view so I can see which platform performs best for each post.
-
-**What this tests:**
-
-- POST operations through the API proxy (publishing content)
-- Authenticated write access to multiple platforms
-- Polling for metrics updates over time
-- Data aggregation and comparison charts
-- Rich text / media handling across different API formats
-
----
-
-## Prompt 6: Academic Research Aggregator
+## Prompt 5: Academic Research Aggregator
 
 > Create domains for PubMed, Semantic Scholar, and ArXiv. Some of these may have public REST APIs — prefer using those directly over browser interception when available. Search for a research topic, collect papers with citations, abstracts, and authors. Deduplicate papers that appear in multiple databases. Build a literature review dashboard that shows citation networks and identifies the most influential papers in a field.
 
@@ -236,7 +222,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
-## Prompt 7: Government & Public Records Monitor
+## Prompt 6: Government & Public Records Monitor
 
 > Create domains for SEC EDGAR, my state's business registry, county property records, and the federal court docket system (PACER). Search by company name, aggregate all filings, registrations, and court cases. Build a due diligence dashboard that shows a timeline of all activity and alerts me when new filings appear.
 
@@ -251,7 +237,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
-## Prompt 8: Reddit Mobile Client
+## Prompt 7: Reddit Mobile Client
 
 > Create a `reddit` domain plugin. Reddit has a well-documented JSON API — appending `.json` to any Reddit URL returns structured data (e.g., `https://www.reddit.com/r/programming.json`). Use CDP traffic capture to discover the internal API endpoints that the new Reddit UI (`sh.reddit.com` / `www.reddit.com`) actually hits — these are richer than the public `.json` endpoints and include vote counts, awards, user flair, and nested comment trees. Fall back to the `.json` suffix pattern for any gaps.
 >
@@ -302,7 +288,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
-## Prompt 9: YouTube Without YouTube
+## Prompt 8: YouTube Without YouTube
 
 > Create a `youtube` domain plugin backed by both browser API interception and the Python bridge running `yt-dlp`. The goal: a clean, fast YouTube experience — search, watch, and save videos — without ads, tracking, or UI bloat.
 >
