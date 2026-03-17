@@ -2,6 +2,7 @@ import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
 import {
+	autoStartHeadlessBrowser,
 	clearTrafficBuffer,
 	getActiveBrowser,
 	getBrowserHealth,
@@ -229,4 +230,13 @@ console.log(formatStartupBanner(config));
 const port = parseInt(process.env.PORT ?? '3001', 10);
 server.listen(port, () => {
 	console.log(`Server listening on http://localhost:${port}`);
+	// Auto-start a headless browser so domain proxy routes (extractFromPage, browserFetch)
+	// work immediately without requiring manual connection via the /browser dashboard.
+	// The browser is shared: a subsequent WS connection reuses it (same profile) or
+	// replaces it (different profile). Set BROWSER_AUTO_START=false to disable.
+	if (process.env.BROWSER_AUTO_START !== 'false') {
+		autoStartHeadlessBrowser().catch((err) =>
+			console.error('[browser] Auto-start failed:', err),
+		);
+	}
 });

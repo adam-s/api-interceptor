@@ -51,6 +51,88 @@ export function getActivePlugin(): DomainPlugin | undefined {
 	return activePlugin;
 }
 
+/**
+ * Auto-start a headless browser without a WebSocket client.
+ *
+ * Called at API server startup so domain proxy routes (extractFromPage, browserFetch)
+ * work immediately — no manual browser connection via the dashboard required.
+ *
+ * The browser runs headlessly and shares the same singleton as the WS-connected browser.
+ * A subsequent WS connection from the /browser dashboard will reuse it (same profile)
+ * or replace it (different profile).
+ *
+ * Idempotent: safe to call multiple times; no-ops if browser is already ready.
+ *
+ * @param profile - Optional persistent profile name (uses temp dir if omitted)
+ */
+export async function autoStartHeadlessBrowser(profile?: string): Promise<void> {
+	if (activeBrowser && browserReady) {
+		browserLogger.lifecycle('auto_start_skipped', { reason: 'browser already running' });
+		return;
+	}
+
+	const lifecycleManager = BrowserLifecycleManager.getInstance();
+	try {
+		await lifecycleManager.acquireLock();
+	} catch (lockErr) {
+		browserLogger.error(
+			'auto_start_lock_timeout',
+			lockErr instanceof Error ? lockErr : new Error(String(lockErr)),
+			{},
+		);
+		return;
+	}
+
+	try {
+		let userDataDir: string | undefined;
+		if (profile) {
+			if (!profileExists(profile)) createProfile(profile);
+			const profilePath = getProfilePath(profile);
+			if (profilePath) userDataDir = profilePath;
+		}
+
+		activeBrowser = new RemoteBrowserService({
+			fps: 1,
+			quality: 30,
+			viewportWidth: VIEWPORT_WIDTH,
+			viewportHeight: VIEWPORT_HEIGHT,
+			headless: true, // always headless — no WS client to stream to
+			userDataDir,
+		});
+
+		await activeBrowser.start(
+			() => {
+				// No-op frame callback — no WebSocket client to stream frames to.
+				// Frame streaming starts automatically when a WS client connects.
+			},
+			{
+				onError: (err) => browserLogger.error('auto_browser_error', err, {}),
+				onCrash: (reason) => {
+					browserLogger.error('auto_browser_crash', new Error(reason), {});
+					browserReady = false;
+					lifecycleManager.unregisterBrowser();
+					activeBrowser = null;
+				},
+			},
+		);
+
+		browserReady = true;
+		currentProfile = profile ?? null;
+		lifecycleManager.registerBrowser(activeBrowser);
+		browserLogger.lifecycle('auto_started', { profile: profile ?? 'headless-temp' });
+		console.log('[browser] Auto-started headless browser — proxy routes ready');
+	} catch (err) {
+		browserLogger.error(
+			'auto_start_failed',
+			err instanceof Error ? err : new Error(String(err)),
+			{},
+		);
+		activeBrowser = null;
+	} finally {
+		lifecycleManager.releaseLock();
+	}
+}
+
 // --- Traffic Capture Buffer ---
 
 interface TrafficEntry {
