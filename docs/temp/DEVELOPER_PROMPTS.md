@@ -24,7 +24,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - TM geolocks to regional domains (`.es`, `.de`, `.co.uk`) based on browser IP. Ensure event URLs use the correct domain.
 - TM Discovery API (`app.ticketmaster.com/discovery/v2`) is free but requires email-verified registration at `developer.ticketmaster.com`. Without `TM_API_KEY` env var, the domain plugin should fall back to browser SSR extraction for search. Use the graceful degradation pattern: check env var, try API, fall back to browser.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - Creating 2 domain plugins from scratch (1 SSR Type B, 1 hybrid Type B/B2)
 - Multi-step API discovery (search → event detail → ticket listings)
@@ -57,7 +57,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - Node.js `fetch()` gets 429 due to TLS fingerprinting (JA3/JA4). Use `browserFetch()` instead of direct `fetch()` for any Yahoo Finance data endpoints.
 - RSS feeds at `https://feeds.finance.yahoo.com/rss/2.0/headline?s={TICKER}` are `browserRequired: false` -- plain HTTP, no auth needed.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - Browserless domain routes -- direct `fetch()` in route handlers without Patchright navigation
 - Server-side scheduled polling -- background loop that exposes the framework's lack of job/timer infrastructure
@@ -86,7 +86,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - Zillow exposes a JSON API: `PUT https://www.zillow.com/async-create-search-page-state`. Call via `browserFetch(..., { navigateTo: 'https://www.zillow.com' })` so cookies are present.
 - Both Airbnb and VRBO are Next.js apps -- check `window.__NEXT_DATA__` on detail pages for structured listing data.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - API catalog as a first-class deliverable -- discovery before implementation, typed schemas from real traffic
 - GraphQL proxy -- Airbnb and VRBO POST GraphQL with named operations; first time the framework must forward and parse a GraphQL body
@@ -105,7 +105,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 >
 > Dashboard at `/jobs` — show salary comparison across sources when a job is cross-listed. Let me star favorites and track application status (saved, applied, interviewing, offered, rejected). Detail view should show the full posting with links to each source.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - Search with location + keyword parameters
 - Entity deduplication across sources (same job, different sites)
@@ -129,9 +129,9 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - All three are `browserRequired: false` -- no browser interception needed.
 - Since these are independent HTTP calls to different servers (not sharing a browser), they can be fetched in parallel with `Promise.all` -- unlike browser-dependent domain routes which must be sequential.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
-- Hybrid approach: direct API calls (ArXiv, Semantic Scholar have public APIs) vs browser interception (PubMed may need it)
+- Public API approach: all three databases (ArXiv, Semantic Scholar, PubMed) have public REST APIs — no browser needed
 - Domain plugins that use direct fetch instead of browserFetch when possible
 - Citation graph traversal (follow references)
 - Entity resolution (same paper across databases)
@@ -151,7 +151,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - PACER (federal court dockets) requires paid auth and CAPTCHA. Use CourtListener (`courtlistener.com/api/rest/v4`) as a free open-source mirror instead.
 - State business registries are typically pure SSR (Type B) -- no client-side APIs, need DOM extraction.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - Server-side rendered sites with no client-side API (worst case for interception)
 - Session-based auth with CAPTCHAs (PACER)
@@ -176,7 +176,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - The internal Reddit API uses GraphQL at `gql.reddit.com` and OAuth endpoints at `oauth.reddit.com`. Look for `Authorization: Bearer ...` and `x-reddit-*` headers in CDP traffic.
 - The `.json` suffix pattern is simpler and sufficient for most read operations. The internal GraphQL API provides richer data (awards, flair, nested comments) for write operations and authenticated features.
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - GraphQL API discovery -- Reddit's internal GQL endpoint with operation names and variables
 - POST mutations through browser proxy -- voting, saving, commenting, subscribing (first write-heavy prompt)
@@ -206,7 +206,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - System Python on macOS is 3.9 -- add `from __future__ import annotations` at the top of worker.py.
 - `PythonBridge` path from domain plugins: `resolve(import.meta.dirname, '../../../services/python/worker.py')` (3 levels up).
 
-**What this tests:**
+**What this tests** (framework capabilities exercised by this prompt — not additional requirements. Only implement what the prompt itself asks for)**:**
 
 - YouTube's internal API (`youtubei`) -- POST-based with nested context objects, continuation token pagination
 - Python bridge for CLI tool orchestration -- shelling out to `yt-dlp`, parsing stdout progress, managing background downloads
@@ -234,10 +234,4 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Success Criteria
 
-A prompt is "solved" when:
-
-- [ ] All domain plugins are created and registered
-- [ ] API routes are discovered and proxied through the browser
-- [ ] Dashboard UI is functional (search, display, interact)
-- [ ] Data from multiple sources is composed into a unified view
-- [ ] The app works end-to-end without manual intervention after the initial prompt
+A prompt is solved when it passes the dashboard-builder Definition of Done — including the prompt compliance check. See `.claude/skills/dashboard-builder/SKILL.md`.

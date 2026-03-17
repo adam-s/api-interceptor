@@ -44,6 +44,8 @@ Monorepo for API interception and typed client generation using Patchright + Web
 
 ## Quick Commands
 
+Default ports: API on 3001, Web on 3000. If ports differ, check with `lsof -iTCP -sTCP:LISTEN -P`.
+
 ```bash
 # Development
 pnpm dev                              # Start all services
@@ -165,11 +167,11 @@ GitHub Actions runs on push to `main` and PRs:
 ## Workflow Rules
 
 - **Verify every step:** curl returns real data, screenshot shows real content — never move on without proof
-- **Debug skill for runtime bugs:** add 2-4 targeted `DEBUG()` logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging.
+- **Debug skill for runtime bugs:** invoke `.claude/skills/debug-logs/SKILL.md` — don't guess, observe.
 - **Never quit half-way:** iterate until the prompt is fully solved and CI is green
 - **Commit base clean before cutting branches:** always commit `base` to a clean, passing state BEFORE creating test branches — the branch point is permanent and cannot be retroactively fixed without rebase
 - **Never `git add -A`:** stage specific files by name. `git add -A` catches `data/browser-profiles/` cache, `.env` files, and other local artifacts. Prefer dependency injection over hardcoded imports — framework code in `packages/` must be clean of domain-specific code.
-- **Document mistakes immediately:** when something goes wrong, add a one-line note to `base-fixes-needed.md` (or the relevant skill's gotchas) describing what happened and how to avoid it. Don't wait until the end of the iteration.
+- **Document mistakes immediately:** when something goes wrong, append a one-line note to `base-fixes-needed.md` describing what happened and how to avoid it. Don't wait until the end of the iteration.
 - **Review skills after using them:** after completing work guided by a skill, review what went wrong and add gotchas/lessons to the skill's SKILL.md on the next base pass. Skills improve every iteration.
 - **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
 
@@ -193,7 +195,7 @@ The user has granted full autonomous operation. You may:
 - Create and switch between test branches without asking
 - Make architectural and implementation decisions without asking
 - Keep iterating until the prompt is fully solved (all phases verified)
-- **Skip `EnterPlanMode`** — plan internally, write code immediately without waiting for approval
+- **Skip `EnterPlanMode`** — don't wait for human approval to start coding. This does NOT mean skip self-verification gates in the skills. Those gates are mandatory checkpoints you enforce on yourself.
 
 **You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
 
@@ -206,8 +208,13 @@ FOR each prompt:
   3. Wire interactions → click each button with Patchright → verify the response → fix if broken
   4. Full QA pass → screenshot every state (empty, loading, populated, error, detail, mobile 375px)
      → walk every user journey end-to-end → fix everything → re-screenshot → zero issues = done
-  5. Commit only after step 4 passes with zero issues
+  5. Prompt Compliance Check → re-read the original prompt. List every feature, view, and interaction
+     it mentions. Verify each one is implemented with proof (curl output, screenshot, Patchright click).
+     Any missing requirement = not done. Go back to the relevant step for each gap.
+  6. Commit only after step 5 passes with zero issues
 ```
+
+**The prompt is fully solved when:** (1) every feature mentioned in the prompt is implemented, (2) every verification gate passes, and (3) the Definition of Done checklist passes.
 
 ### The Rule That Makes This Work
 
@@ -218,7 +225,7 @@ FOR each prompt:
 - You cannot commit until you have screenshots of every state showing zero visual/functional issues
 - You cannot call a button "done" until you have Patchright output showing you clicked it and it responded correctly
 
-**If something is wrong — use debug-logs skill immediately.** Add 2-4 targeted `DEBUG()` calls, reproduce, read `/tmp/interceptor-debug/debug-*.log`, fix, remove logs. Do NOT read code for 10 minutes trying to guess. Observe the runtime — it tells you exactly what's wrong.
+**If something is wrong — use debug-logs skill immediately.** Invoke `.claude/skills/debug-logs/SKILL.md` — don't guess, observe. The runtime tells you exactly what's wrong.
 
 **If something looks wrong — use visual-dev skill immediately.** Screenshot it, read the screenshot, describe the problem in one sentence, fix it, re-screenshot. Repeat until the screenshot shows zero issues.
 
@@ -274,6 +281,10 @@ SKILLS CONVERGED: All 8 prompts across every archetype produced zero new
 base fixes. The skills (api-discovery, dashboard-builder, visual-dev,
 debug-logs) are complete and self-sufficient for guiding Claude Code
 through building any domain plugin + dashboard from a natural language prompt.
+
+NOTE: Skills converged for the 8 tested prompts. New prompt archetypes
+or edge cases may surface gaps. Always log potential improvements to
+`base-fixes-needed.md`.
 ```
 
 ## Conventions

@@ -7,11 +7,11 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
-**Development principle:** Use debug-logs and visual-dev skills at EVERY step — not just at the end. Build a component → screenshot it → see that it's wrong → fix it → screenshot again. Wire up a fetch → add DEBUG() to the handler → see what's actually returned → fix the data flow. This is how you go from guessing to knowing. The build loop IS the screenshot + debug-log loop.
+**Development principle:** Use debug-logs and visual-dev skills at EVERY step — not just at the end. Build a component → screenshot it → see that it's wrong → fix it → screenshot again. Wire up a fetch → add DEBUG() to the handler → see what's actually returned → fix the data flow. This is how you go from guessing to knowing. The build loop IS the screenshot + debug-log loop. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
 
 ## Critical: Single Browser Singleton
 
-One shared browser instance. **Never call domain APIs in parallel** — always sequential with `.catch()` per source. `Promise.allSettled` will break: both handlers navigate the same page simultaneously.
+One shared browser instance. For browser-dependent routes, **NEVER** use `Promise.all` or `Promise.allSettled` — call sequentially because both navigate the same browser. For `browserRequired: false` routes (independent HTTP calls), `Promise.allSettled` is fine.
 
 ```typescript
 const sourceA = await fetchA(q).catch(() => null);  // sequential
@@ -139,14 +139,15 @@ State: `page` (0-indexed), `PAGE_SIZE = 25`, `totalPages = Math.ceil(total / PAG
 
 | State | What to show |
 |-------|-------------|
-| Idle | "Search above to get started" |
+| Idle | Icon in rounded container (`w-16 h-16 rounded-2xl bg-muted/50`) + heading (`text-base font-medium`) + description (`text-sm text-muted-foreground text-center`) + suggestion chips (`rounded-full bg-muted`) |
 | Loading | `Skeleton` matching real content shape |
-| Empty | "No results for '...'" in a Card |
+| Empty | Search icon (`w-10 h-10 mx-auto text-muted-foreground/40`) + message + sub-message with suggestions ("Try different keywords or check spelling") |
 | Populated | Real content with typography hierarchy |
 | Detail loading | `Skeleton` rows inside Sheet |
-| Detail populated | Full detail with visual hierarchy |
+| Detail populated | Full detail with visual hierarchy. External links as outline buttons with external-link icon: `<Button variant="outline" size="sm" className="gap-1.5" asChild><a href={url} target="_blank">...</a></Button>` |
 | Partial offline | `Alert` naming the failing source |
 | Full offline | `Alert` per source with recovery instruction |
+| Error | `Card` with `border-destructive/50` and user-facing error message. Silent `catch {}` blocks must at minimum set an error state. |
 
 ### Component choices
 
@@ -171,6 +172,16 @@ State: `page` (0-indexed), `PAGE_SIZE = 25`, `totalPages = Math.ceil(total / PAG
 ### Dark mode
 
 Semantic tokens only: `bg-background`, `bg-muted`, `text-foreground`, `text-muted-foreground`, `hover:bg-muted`. Accent: `bg-blue-950/30 border-blue-500/20` (not `bg-blue-50`).
+
+### UX Patterns (required on every page)
+
+| Pattern | Implementation |
+|---------|---------------|
+| Search bar icon | Search magnifying glass icon (`absolute left-3, w-4 h-4`) with `pl-9` on the input for instant visual recognition |
+| Back button arrow | Every "Back" button needs a left arrow icon (`ArrowLeft w-4 h-4`) prepended for navigation affordance |
+| Responsive padding | All content wrappers: `p-4 sm:p-6` (not just `p-6`). Mobile needs tighter padding. |
+| Source count badges | When showing counts from multiple sources, use colored `Badge` components instead of plain text. Hide sources with 0 results. |
+| Mobile action buttons | Buttons with text labels that don't fit on mobile should collapse to icon-only (`size="icon"`) with `className="sm:hidden"` / `className="hidden sm:flex"` |
 
 ## In-Process CRUD State
 
@@ -260,7 +271,7 @@ All endpoints: `http://localhost:3001/api/<domain>/<path>`. Browser must be conn
 
 ## Guiding Principles
 
-These override everything above. If a principle conflicts with a pattern, the principle wins.
+These principles override the implementation patterns in this skill file. They do not override CLAUDE.md workflow rules or verification gates.
 
 1. **An untested button is a broken button.** Walk the full user journey to reach it — don't test in isolation. `search → click result → scroll → click download → verify`
 2. **Every view of the same entity is the same product.** If the watch page has rich metadata, the downloads page playing the same video must too.
@@ -285,3 +296,4 @@ These override everything above. If a principle conflicts with a pattern, the pr
 - [ ] Zero console errors on load and after each interaction
 - [ ] Zero-setup first visit shows useful content or clear actionable guidance
 - [ ] Padding, affordance, Enter key, error messages all pass the 13 principles above
+- [ ] Re-read the original prompt. Every named feature, view, and interaction is implemented.

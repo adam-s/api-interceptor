@@ -9,7 +9,7 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions.
 
-**Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage.
+**Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
 
 ## Quick Check: Does the Domain Plugin Already Exist?
 
@@ -20,6 +20,8 @@ ls domains/ | grep <domain-name>
 If it exists, read `domains/<name>/src/routes.ts` and skip to "Use Existing Domain" at the bottom.
 
 ## Phase 0: Check for a Public API
+
+Before any WebSearch, check `docs/temp/DEVELOPER_PROMPTS.md` for a matching prompt with Discovery hints. These hints contain hard-won knowledge from previous iterations — reading them first can save hours of discovery work.
 
 Before launching a browser, check if the target site has a documented public REST API.
 
@@ -86,7 +88,7 @@ If no public API exists and no CLI tool covers the site, proceed to Phase 1.
 4. Check traffic: `curl -s http://localhost:3001/browser/traffic | jq '[.entries[] | {method, url: .url[:120], status}]'`
 5. **If traffic is empty or confusing, add DEBUG() calls** to `packages/browser/src/handler/index.ts` or `service.ts` to trace what CDP is capturing. Don't guess why traffic is missing — observe it.
 
-**Use CDP for discovery, not `page.route()`.** CDP `Network.enable` catches ALL network requests; `page.route()` only intercepts requests matching its glob patterns and misses requests to unexpected domains (tracking pixels, subdomain APIs, third-party analytics). Narrow to `page.route()` later for proxy interception once you know the endpoints.
+**Use CDP for discovery, not `page.route()`.** CDP `Network.enable` catches ALL network requests; `page.route()` only intercepts requests matching its glob patterns and misses requests to unexpected domains (tracking pixels, subdomain APIs, third-party analytics). Narrow to `page.route()` later for proxy interception once you know the endpoints. (Note: `page.route()` is appropriate for test mocking in visual-dev scripts — just not for API discovery.)
 
 ## Phase 2: Classify the Data Source
 
@@ -193,6 +195,10 @@ If the response is empty, wrong, or an error:
 5. Remove the DEBUG() calls, re-curl, confirm real data
 
 **Do NOT proceed to the dashboard-builder skill until EVERY route returns real data from curl.** The dashboard displays whatever the API returns. If the API returns garbage, the dashboard displays garbage, and you'll waste time debugging the UI when the bug is in the API.
+
+### Prompt Compliance Check (between Phase 4 and Phase 5)
+
+Re-read the original prompt. List every data requirement. Verify you have a route for each one. If any are missing, go back to Phase 1 for those specific needs.
 
 ## Phase 5: Create Domain Plugin
 

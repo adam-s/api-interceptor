@@ -5,7 +5,7 @@ description: Visual development with Patchright screenshots. Use when building, 
 
 # Visual Development Loop
 
-**This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the prompt iteration is considered complete. See CLAUDE.md "Validation Gate" section. Skipping this step is how broken buttons, missing padding, and unusable mobile layouts ship.
+**This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the prompt iteration is considered complete. See CLAUDE.md "The Rule That Makes This Work" section. Skipping this step is how broken buttons, missing padding, and unusable mobile layouts ship.
 
 Use Patchright (anti-detection Playwright fork) as a development tool to see the UI, verify interactions, and improve visual quality through an iterative screenshot loop.
 
@@ -64,7 +64,7 @@ Verify this path is gitignored. If not, use another gitignored temp directory.
 
 ## Phase 1: Understand the Application
 
-**Do this before writing any Patchright script.** Read the source code to build a mental model of the app. Screenshots without understanding lead to surface-level fixes that miss structural problems.
+**Do this before writing any Patchright script.** Read the source code to build a mental model of the app. Screenshots without understanding lead to surface-level fixes that miss structural problems. This code-reading phase is NOT subject to "Skip EnterPlanMode." Understanding what the page should display is required before you can judge a screenshot.
 
 ### Start from the URL, not the file tree
 
@@ -110,6 +110,8 @@ These expectations become your verification criteria. When a screenshot doesn't 
 **Before taking any screenshots**, list every visual state the page can be in. This is the most important step. If you skip it, you'll verify the happy path and ship broken empty states, error states, and edge cases.
 
 ### How to enumerate
+
+Start with the 8 required states from the dashboard-builder skill (Idle, Loading, Empty, Populated, Detail loading, Detail populated, Partial offline, Full offline). Then add domain-specific states unique to this page.
 
 Think about the page as a state machine. For each data source the page depends on, consider: what if it's empty? Loading? Errored? Populated with one item? Many items? What if the values are extreme (negative P&L, very long text, zero trades)?
 
@@ -579,6 +581,8 @@ Before marking a screenshot pass as "done", check against the common bugs list: 
 ---
 
 ## Phase 6: Cleanup
+
+Run cleanup only at the very end, after all states pass. Do NOT delete screenshots between component iterations — you may need earlier screenshots for comparison.
 
 Delete the entire directory — this removes both the screenshots **and any scripts** (e.g., `check.ts`, `sheet.ts`) you created there during this session.
 

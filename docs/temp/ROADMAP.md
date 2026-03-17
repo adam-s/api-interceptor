@@ -63,7 +63,7 @@ These are the non-obvious discoveries that shaped the skills. Each one was a rea
 
 ## Status
 
-All 8 developer prompts solved. Skills converged — Pass 2 produced zero new base fixes across all 8 prompts. The framework supports four data access paradigms:
+All 8 developer prompts solved. Skills converged — Pass 2 produced zero new base fixes across all 8 prompts. Skills converged for the 8 tested prompts. New prompt archetypes or edge cases may surface gaps. Always log potential improvements to `base-fixes-needed.md`. The framework supports four data access paradigms:
 
 1. **Browser interception** — CDP traffic capture + `browserFetch()` proxy (StubHub, Yahoo Finance, Airbnb)
 2. **Public REST APIs** — direct `fetch()` with `browserRequired: false` (ArXiv, SEC EDGAR, CourtListener)
