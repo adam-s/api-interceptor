@@ -466,6 +466,34 @@ for (const item of sourceAResults) {
 
 **When to show cross-listed callout**: if the same entity appears on 2+ sources with different prices/salaries, show `"Source B lists $X higher"` next to the cheaper source. Normalize: `format(diff)` → `"$12K"` or `"$15/hr"`.
 
+**Cross-listed card badge**: show `"N sites"` badge on cards with `crossListed: true`. In the detail Sheet, show a "Salary by Source" or "Price by Source" comparison section with source badges and values side by side.
+
+### Status tracking in detail Sheet
+
+When a detail view needs per-item status tracking (application status, watchlist state, review status):
+
+```tsx
+{/* Status buttons in Sheet — one row of options */}
+<div>
+  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Application Status</p>
+  <div className="flex flex-wrap gap-2">
+    {STATUSES.map(s => (
+      <Button
+        key={s.value}
+        variant={currentStatus === s.value ? 'default' : 'outline'}
+        size="sm"
+        className="text-xs h-7"
+        onClick={() => updateStatus(itemKey, s.value)}
+      >
+        {s.label}
+      </Button>
+    ))}
+  </div>
+</div>
+```
+
+Use optimistic updates -- change React state immediately, fire the API call in background. The status buttons should be the last section in the Sheet, below the entity details.
+
 ## Cross-Source Timeline View
 
 When combining chronological events from multiple sources, build a unified timeline sorted by date. This is the natural view for activity monitoring, audit trails, and multi-source research.
