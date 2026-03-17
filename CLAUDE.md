@@ -27,6 +27,8 @@ Every skill improvement, utility fix, documentation update, architectural insigh
 
 **The consequence:** A skill or utility fix made on a test branch and NOT applied to `base` is permanently lost the moment you checkout `base` or another branch. This is the most common failure mode. Always apply fixes to `base` first, then branch.
 
+**Skills must be domain-agnostic.** Skills teach HOW (generalized patterns); prompts in `docs/temp/DEVELOPER_PROMPTS.md` teach WHAT (domain-specific details). If a skill names a specific website, API, or domain, extract that detail into the relevant prompt's "Discovery hints" section and replace with a one-line generalized statement.
+
 ---
 
 Monorepo for API interception and typed client generation using Patchright + WebSocket streaming.
@@ -162,10 +164,14 @@ GitHub Actions runs on push to `main` and PRs:
 
 ## Workflow Rules
 
-- **Verify every step:** curl returns real data, screenshot shows real content -- never move on without proof
+- **Verify every step:** curl returns real data, screenshot shows real content — never move on without proof
 - **Debug skill for runtime bugs:** add 2-4 targeted `DEBUG()` logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging.
 - **Never quit half-way:** iterate until the prompt is fully solved and CI is green
-- **Commit before branch switch:** always commit before `git checkout` to avoid losing work
+- **Commit base clean before cutting branches:** always commit `base` to a clean, passing state BEFORE creating test branches — the branch point is permanent and cannot be retroactively fixed without rebase
+- **Never `git add -A`:** stage specific files by name. `git add -A` catches `data/browser-profiles/` cache, `.env` files, and other local artifacts. Prefer dependency injection over hardcoded imports — framework code in `packages/` must be clean of domain-specific code.
+- **Document mistakes immediately:** when something goes wrong, add a one-line note to `base-fixes-needed.md` (or the relevant skill's gotchas) describing what happened and how to avoid it. Don't wait until the end of the iteration.
+- **Review skills after using them:** after completing work guided by a skill, review what went wrong and add gotchas/lessons to the skill's SKILL.md on the next base pass. Skills improve every iteration.
+- **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
 
 ### Notes File Rule (Test -> Base)
 

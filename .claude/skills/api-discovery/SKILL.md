@@ -81,6 +81,8 @@ If no public API exists and no CLI tool covers the site, proceed to Phase 1.
 3. Screenshot: `await page.screenshot({ path: 'test-results/dev-screenshots/discovery.png' })` — identify visible data (prices, names, dates, listings)
 4. Check traffic: `curl -s http://localhost:3001/browser/traffic | jq '[.entries[] | {method, url: .url[:120], status}]'`
 
+**Use CDP for discovery, not `page.route()`.** CDP `Network.enable` catches ALL network requests; `page.route()` only intercepts requests matching its glob patterns and misses requests to unexpected domains (tracking pixels, subdomain APIs, third-party analytics). Narrow to `page.route()` later for proxy interception once you know the endpoints.
+
 ## Phase 2: Classify the Data Source
 
 Compare what you SEE on the page vs what CDP CAPTURED.
@@ -90,7 +92,9 @@ Compare what you SEE on the page vs what CDP CAPTURED.
 | **A: JSON API** | Traffic contains the visible data | Proxy routes for XHR/Fetch endpoints |
 | **B: SSR** | Traffic empty; data is in initial HTML | Extract from DOM via `page.evaluate()` |
 | **C: Hybrid** | Page 1 SSR; pagination triggers API calls | SSR for page 1, `browserFetch` for page 2+ |
-| **D: Bot-Protected** | `captcha-delivery.com` or `datadome` in body HTML | Return `{ blocked: true }` from all routes |
+| **D: Bot-Protected** | `captcha-delivery.com` or `datadome` in body HTML | Return structured 403 (see below) |
+
+**Type D CAPTCHA gate protocol:** Return `{ blocked: true, captchaRequired: true, browserUrl: '/browser?profile=<domain>&capture=<domain>', message: 'Pass the challenge at /browser to unlock this source' }` with HTTP 403. Dashboard detects `captchaRequired` and shows an alert with a link to `/browser` where the user can pass the challenge manually. Profile cookies persist after the challenge — subsequent requests from that profile succeed.
 
 **Confirm SSR:** Search the initial HTML for data patterns — if prices/items are in the HTML, it's SSR.
 
@@ -156,6 +160,9 @@ await browser.browserFetch('https://api.example.com/data', { navigateTo: 'https:
 | Same-origin | `browserFetch(url)` directly |
 | CORS subdomain | `browserFetch(url, { navigateTo: 'https://main-site.com' })` |
 | No CORS | Type B2 traffic capture |
+| SPA-internal (same origin) | Don't navigate — use `evaluate(fetch(...))` on the current page |
+
+**SPA context gotcha:** Some same-origin endpoints only work when called from within the SPA's page context (they depend on cookies, CSRF tokens, or referrer headers set by the SPA's JS). If `browserFetch` navigates to the bare origin first, it destroys the SPA context and these endpoints fail. Fix: check if the browser is already on the correct origin and skip navigation, or use `evaluate(() => fetch('/api/...'))` directly.
 
 ### Type C: Hybrid (SSR + pagination API)
 

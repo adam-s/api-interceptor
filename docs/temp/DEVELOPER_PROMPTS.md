@@ -8,18 +8,11 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 1: Event Ticket Price Comparison
 
-> Create domain plugins for StubHub and Ticketmaster. Discover the search API for each site so I can search by artist name. Then discover the event detail and ticket listing APIs to get available tickets with sections, rows, and prices.
+> I want to compare ticket prices across StubHub and Ticketmaster. Build domain plugins for both sites — figure out how they serve their search results, event details, and ticket listings.
 >
-> Build a polished dashboard page at /tickets where I type an artist name into a search box. It should:
+> Build me a dashboard at `/tickets` where I search by artist name and see events from both platforms merged together. Same venue + same date = same event, show both badges. When I click an event, show me a side-by-side comparison of available seats and prices — I want to see which platform is cheaper for each section.
 >
-> 1. Search both sites sequentially (one shared browser — never parallel). For each platform, validate that results are for the actual artist: performer/event names must contain the search query. Skip tribute bands (e.g., "Bad Bunny Tribute Experience"), theater productions, and comedy shows. If a result name doesn't closely match the artist query, discard it.
-> 2. Merge events across platforms by matching normalized venue name + date. Normalize: lowercase, strip all non-alphanumeric characters, parse dates to YYYY-MM-DD. Same venue + same date = same event → one merged row with both marketplace badges. TM-only or SH-only events still show with a single badge.
-> 3. When I click an event, fetch ticket listings from both marketplaces sequentially and show a seat-level comparison grid
-> 4. Rows = sections (normalize names: "Section 101" = "Sec 101" = "101"), columns = StubHub | Ticketmaster
-> 5. Each cell shows min price and listing count; highlight the cheapest price per section row in green
-> 6. Handle errors gracefully — if a site's browser isn't connected, show that clearly without breaking the other site
->
-> **Test with a major US-touring artist** like "Kendrick Lamar" or "Morgan Wallen" — someone with real upcoming US arena/stadium shows so both TM (US domain only) and StubHub return actual concerts. Avoid artists whose tours are exclusively outside the US (e.g. Bad Bunny, Taylor Swift at time of writing); TM returns US results only and will surface tribute events instead.
+> If only one platform has an event, still show it. If a platform's browser isn't connected, show that cleanly without breaking the other one.
 
 **Discovery hints for this prompt:**
 
@@ -43,53 +36,15 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 2: Yahoo Finance Market Intelligence
 
-> Create a `yahoo-finance` domain plugin. The app has three data layers:
+> Build me a market dashboard using Yahoo Finance. I want three things:
 >
-> **1. News with sentiment — polled every 60 seconds**
-> Fetch headlines for a watchlist of stock symbols using Yahoo Finance's per-ticker
-> RSS feeds (no browser needed — plain HTTP):
-> `https://feeds.finance.yahoo.com/rss/2.0/headline?s={TICKER}&region=US&lang=en-US`
+> **News with sentiment** — poll Yahoo Finance RSS feeds for a watchlist (AAPL, TSLA, NVDA, MSFT, SPY, BTC-USD) every 60 seconds. Run each headline through the Python bridge for sentiment analysis (bull/flat/bear). Push updates to connected dashboard clients over WebSocket so it's live.
 >
-> Build a server-side background poller that runs every 60 seconds, fetches RSS for
-> each symbol in the watchlist (AAPL, TSLA, NVDA, MSFT, SPY), and passes new articles
-> through the Python bridge for sentiment classification. Extend `services/python/worker.py`
-> with a `batch_sentiment` method using VADER (`pip install vaderSentiment`). Map compound
-> score to: bull (>0.05), flat (-0.05–0.05), bear (<-0.05). After each poll cycle,
-> broadcast the updated article list to all connected dashboard clients via the existing
-> WebSocket infrastructure. Cache each symbol's RSS response for 5 minutes to respect
-> rate limits.
+> **Quote + chart data** — discover Yahoo Finance's internal API endpoints by navigating the site and watching CDP traffic. I want current price, change %, volume, market cap, and intraday chart data for any symbol.
 >
-> Route: `GET /api/yahoo-finance/news?symbols=TSLA,AAPL` →
-> `[{ symbol, title, summary, url, publishedAt, sentiment: "bull"|"flat"|"bear", score }]`
+> **Dashboard at `/market`** — watchlist sidebar on the left, click a symbol to see its quote card with a sparkline chart and its news feed with sentiment badges. Bottom panel shows all news across all symbols chronologically. Should feel live — updates appear without refreshing.
 >
-> **2. Quote + chart data — discovered via CDP**
-> Navigate to `https://finance.yahoo.com/quote/TSLA` and watch CDP traffic to find the
-> internal REST endpoints (likely on `query1.finance.yahoo.com` or
-> `query2.finance.yahoo.com`). Discover endpoints for: current price, % change, volume,
-> market cap, 52-week high/low, P/E ratio, and intraday chart data (5-min intervals).
->
-> Routes (proxy through browser with inherited session headers):
-> - `GET /api/yahoo-finance/quote/:symbol` → price, change, key stats
-> - `GET /api/yahoo-finance/chart/:symbol?interval=5m&range=1d` → OHLC array
->
-> **3. Dashboard at `/market`**
-> - Left sidebar: watchlist (AAPL, TSLA, NVDA, MSFT, SPY, BTC-USD) — click to focus
-> - Main panel when a symbol is focused:
->   - Quote card: price (large), change % (green/red), volume, market cap, P/E, 52w range
->   - Mini sparkline using **visx** (`@visx/sparkline` or `@visx/shape` + `@visx/scale`) — last 7 data points from chart endpoint
->   - News feed: article cards for this symbol, each with bull/flat/bear badge
-> - Bottom panel: "All News" — articles from all watchlist symbols merged chronologically, each card showing its symbol badge and sentiment badge
-> - Live updates: the dashboard subscribes to the server's WebSocket and re-renders when new articles arrive from the 60-second poll cycle (no manual refresh needed)
->
-> Show a "last updated" timestamp and a subtle pulse indicator when a new poll cycle completes. If Yahoo rate-limits a request, show the cached value with a faint "stale" tag rather than an error.
->
-> **Stretch goal — faster price refresh via SSE**
-> Add a server-sent event endpoint that polls `GET /api/yahoo-finance/quote/:symbol`
-> on the server every 5 seconds and streams each result as an SSE event:
-> `GET /api/yahoo-finance/stream?symbols=TSLA,AAPL`
-> Each event: `{ symbol, price, changePercent, volume, timestamp }`
-> Wire the quote card to this SSE stream so prices update without a full page refresh.
-> This tests a new server push pattern (SSE) without requiring binary protocol decoding.
+> If Yahoo rate-limits something, show the cached value with a "stale" indicator rather than an error.
 
 **Discovery hints for this prompt:**
 
@@ -117,90 +72,11 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 3: Vacation Rental Intelligence
 
-> Create domain plugins for **Airbnb**, **VRBO**, and **Zillow**. This prompt is
-> **discovery-first**: the primary deliverable is a typed API catalog, not the UI.
+> Build me a vacation rental comparison tool. Create domain plugins for Airbnb, VRBO, and Zillow. Figure out how each site serves its search results and listing details — discover the APIs first, then build the routes.
 >
-> **Phase 1: API Catalog (the real deliverable)**
+> I want to search for a location and dates and see listings from all three platforms side by side. Use the Python bridge to score each listing by value (rating per dollar) and detect cross-listings — same property on multiple platforms matched by coordinates. Show me which platform is cheaper when a property is cross-listed.
 >
-> For each site, navigate the search page for "Austin, TX", browse 2–3 listing detail
-> pages, and capture every fetch()/XHR JSON call via CDP. Prefer `browserFetch()` over
-> DOM extraction wherever a clean JSON response exists.
->
-> For each discovered endpoint, produce:
->
-> - The full URL pattern (with path params as `:id` placeholders)
-> - HTTP method and operation name (for GraphQL)
-> - Required headers (especially `X-Airbnb-API-Key` for Airbnb — extract from CDP traffic)
-> - Request shape as a TypeScript interface or inline comment
-> - Response shape as a Zod schema (use `.passthrough()` on deeply nested objects)
-> - A one-line description of what the endpoint returns
->
-> Document everything in a comment block at the top of each domain's `routes.ts`.
-> Aim for at minimum: 1 search endpoint + 1 listing detail endpoint + 1 pricing/
-> availability endpoint per site.
->
-> **Phase 2: Routes**
->
-> Implement the discovered endpoints as domain routes. Normalize all three domains to
-> a shared listing schema:
->
-> ```typescript
-> interface Listing {
->   id: string;
->   source: 'airbnb' | 'vrbo' | 'zillow';
->   name: string;
->   lat: number;
->   lng: number;
->   nightlyRate: number;      // base nightly rate (no fees)
->   totalPrice?: number;      // total for the requested dates inc. fees
->   cleaningFee?: number;
->   rating?: number;
->   reviewCount?: number;
->   roomType?: string;
->   imageUrl?: string;
->   listingUrl: string;
-> }
-> ```
->
-> Routes:
->
-> - `GET /api/airbnb/search?location=Austin,TX&checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&guests=2`
-> - `GET /api/airbnb/listing/:id`
-> - `GET /api/vrbo/search?location=Austin,TX&checkin=YYYY-MM-DD&checkout=YYYY-MM-DD&guests=2`
-> - `GET /api/vrbo/listing/:id`
-> - `GET /api/zillow/rentals?location=Austin,TX` → long-term comps (monthly rent, zpid, address)
-> - `GET /api/zillow/property/:zpid`
->
-> **Phase 3: Python bridge — Weekend Getaway Scorer**
->
-> Add a `score_getaways` method to `services/python/worker.py`. Given a merged list of
-> Airbnb + VRBO listings for a search, compute per listing:
->
-> - `value_score`: `rating / (totalPrice / nights)` — higher rating per dollar = better value
-> - `cross_listed`: `true` if a listing at the same lat/lng (within 80m) exists on both platforms
-> - `cheaper_platform`: if cross-listed, which platform is cheaper and by how much
->
-> Returns the listings sorted by `value_score` descending, with `cross_listed` and
-> `cheaper_platform` fields appended.
->
-> Route: `POST /api/rentals/score` with body `{ listings: Listing[], nights: number }`
->
-> **Phase 4: Dashboard at `/rentals`**
->
-> - Location + date range + guests search bar (default: Austin, TX / next weekend / 2 guests)
-> - After search (sequential — never parallel), show a card grid sorted by value score
-> - Each card: photo, name, nightly rate, total price, rating stars, source badge (Airbnb/VRBO)
-> - If cross-listed: show both source badges + "Save $X on [platform]" callout in green
-> - Right panel: Zillow long-term comps for the same area (monthly price, beds/baths)
-> - Empty / loading / error states for all panels
->
-> **Stretch goal: 10-minute mail account creation**
->
-> Use the registered `minuteinbox` domain to generate a disposable email address.
-> Attempt to create an Airbnb guest account with it. Document whether phone verification
-> blocks completion. If an account is created, check CDP traffic for any new auth-gated
-> endpoints and add them as additional routes. Expected outcome: blocked at phone step —
-> record this as a gap (no SMS bridge in the framework).
+> Dashboard at `/rentals` — search bar with location, dates, and guests. Card grid sorted by value score with source badges. Cross-listed properties should call out the savings. Sidebar with Zillow long-term rental comps for the same area so I can compare short-term vs long-term economics.
 
 **Discovery hints for this prompt:**
 
@@ -225,7 +101,9 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 4: Job Search Aggregator
 
-> Create domains for LinkedIn, Indeed, Glassdoor, and Dice. Search for "senior React developer in Austin", get job postings with salary, company, and requirements from each site. Build a dashboard that deduplicates the same job posted on multiple sites and compares salary ranges. Let me save favorites and track application status.
+> Build me a job search aggregator. Create domain plugins for LinkedIn, Indeed, Glassdoor, and Dice. I want to search by job title and location and see results from all four sites deduplicated — same job posted on multiple sites should merge into one card with badges for each source.
+>
+> Dashboard at `/jobs` — show salary comparison across sources when a job is cross-listed. Let me star favorites and track application status (saved, applied, interviewing, offered, rejected). Detail view should show the full posting with links to each source.
 
 **What this tests:**
 
@@ -239,7 +117,9 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 5: Academic Research Aggregator
 
-> Create domains for PubMed, Semantic Scholar, and ArXiv. Some of these may have public REST APIs — prefer using those directly over browser interception when available. Search for a research topic, collect papers with citations, abstracts, and authors. Deduplicate papers that appear in multiple databases. Build a literature review dashboard that shows citation networks and identifies the most influential papers in a field.
+> Build me an academic paper search tool. Create domain plugins for PubMed, Semantic Scholar, and ArXiv — check if they have public APIs first before trying browser interception.
+>
+> I want to search a research topic and see papers from all three databases deduplicated by DOI. Dashboard at `/research` — show citation counts, abstracts, authors, and source badges. Sort by most cited. I want to see which papers are the most influential in a field.
 
 **Discovery hints for this prompt:**
 
@@ -261,7 +141,9 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 6: Government & Public Records Monitor
 
-> Create domains for SEC EDGAR, my state's business registry, county property records, and the federal court docket system (PACER). Search by company name, aggregate all filings, registrations, and court cases. Build a due diligence dashboard that shows a timeline of all activity and alerts me when new filings appear.
+> Build me a due diligence tool. Create domain plugins for SEC EDGAR and the federal court system. I want to search by company name and see all their filings, registrations, and court cases in one place.
+>
+> Dashboard at `/records` — chronological timeline of all activity across sources, color-coded by source type. I want to be able to quickly scan a company's legal and regulatory history.
 
 **Discovery hints for this prompt:**
 
@@ -282,41 +164,11 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 7: Reddit Mobile Client
 
-> Create a `reddit` domain plugin. Reddit has a well-documented JSON API — appending `.json` to any Reddit URL returns structured data (e.g., `https://www.reddit.com/r/programming.json`). Use CDP traffic capture to discover the internal API endpoints that the new Reddit UI (`sh.reddit.com` / `www.reddit.com`) actually hits — these are richer than the public `.json` endpoints and include vote counts, awards, user flair, and nested comment trees. Fall back to the `.json` suffix pattern for any gaps.
+> Build me a Reddit client that feels like a native mobile app. Create a `reddit` domain plugin — Reddit has a `.json` suffix API (append `.json` to any URL for structured data). Discover if there's a richer internal API too.
 >
-> **Phase 1: API Discovery**
+> Dashboard at `/reddit` — mobile-first design, dark mode by default using Reddit's color palette. Feed view with posts (subreddit, title, thumbnail, score, comments, time ago), sort by Hot/New/Top. Click a post to see the full content with nested comment threads that I can collapse and expand. Search, and bottom navigation bar like the Reddit app.
 >
-> Navigate to reddit.com, log in, and browse: the front page, a subreddit (`/r/programming`), a post with comments, user profile, search results, and the inbox. Capture all `gql.reddit.com` and `oauth.reddit.com` traffic via CDP. Document every endpoint with URL pattern, method, required headers (especially `Authorization: Bearer ...` and any `x-reddit-*` headers), request/response shapes as Zod schemas. Reddit's internal API is GraphQL-heavy — identify the operation names and variables for: feed posts, subreddit listings, post detail + comments, search, user profile, and vote/save/subscribe mutations.
->
-> **Phase 2: Routes**
->
-> Expose these as REST-style proxy routes:
->
-> - `GET /api/reddit/feed?sort=hot|new|top&after=cursor` → home feed posts (paginated)
-> - `GET /api/reddit/r/:subreddit?sort=hot|new|top&after=cursor` → subreddit feed
-> - `GET /api/reddit/post/:id` → post detail + full comment tree (nested)
-> - `GET /api/reddit/search?q=query&type=posts|subreddits|users` → search
-> - `GET /api/reddit/user/:username` → profile + recent posts/comments
-> - `GET /api/reddit/inbox` → messages and notifications
-> - `POST /api/reddit/vote` → `{ id, direction: 1|0|-1 }` upvote/downvote/unvote
-> - `POST /api/reddit/save` → `{ id }` save/unsave a post
-> - `POST /api/reddit/subscribe` → `{ subreddit, action: "sub"|"unsub" }`
-> - `POST /api/reddit/comment` → `{ parentId, text }` post a comment
->
-> **Phase 3: Mobile-First Dashboard at `/reddit`**
->
-> Build a mobile-responsive Reddit client designed to feel like a native app. This must work well on phone screens (test at 390×844 iPhone viewport) while remaining usable on desktop.
->
-> - **Feed view (default):** Infinite-scroll card feed. Each card shows: subreddit pill, post title, thumbnail/preview image (if media post), upvote count, comment count, time ago, author. Tap a card to open post detail. Top bar has feed type selector (Hot / New / Top) and a search icon.
-> - **Post detail view:** Full post content (text, image, link preview, or embedded video). Below: nested comment tree with indent lines (like the Reddit app), collapse/expand on tap, upvote/downvote buttons on each comment. Swipe right or back button to return to feed. Reply button that opens a comment composer.
-> - **Subreddit view:** Subreddit header (icon, name, subscriber count, description), then its post feed. Subscribe/unsubscribe button in header.
-> - **Search:** Full-screen search with tabs for Posts / Subreddits / Users. Results update as you type (debounced 300ms).
-> - **Bottom navigation bar:** Feed | Search | Inbox | Profile (4 tabs, like the Reddit mobile app)
-> - **Interactions:** Tap upvote/downvote arrows on posts and comments (optimistic UI — update count immediately, reconcile on response). Long-press a post to save it. Pull-to-refresh on feeds.
-> - **Media handling:** Image posts show inline. Video posts (v.redd.it) show with a play button — use the browser-proxied video URL. Gallery posts show a horizontal swipe carousel.
-> - **Dark mode by default** with a toggle in profile tab. Use Reddit's color palette: `#FF4500` orange for upvotes, `#7193FF` blue for downvotes, `#1A1A1B` dark background.
->
-> The entire app should use **CSS-only responsive layout** (no separate mobile/desktop builds). Use `tailwindcss` with mobile-first breakpoints. Touch targets must be at least 44×44px. Animate transitions between views (slide left/right).
+> Voting, saving, and subscribing should use optimistic UI — update immediately, sync in background. The whole thing should feel fast and native on a phone while still working well on desktop.
 
 **Discovery hints for this prompt:**
 
@@ -339,61 +191,11 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ## Prompt 8: YouTube Without YouTube
 
-> Create a `youtube` domain plugin backed by both browser API interception and the Python bridge running `yt-dlp`. The goal: a clean, fast YouTube experience — search, watch, and save videos — without ads, tracking, or UI bloat.
+> Build me a clean YouTube experience — search, watch, and download videos without ads or tracking. Create a `youtube` domain plugin using yt-dlp through the Python bridge since YouTube aggressively blocks browser automation.
 >
-> **Phase 1: API Discovery**
+> I want to search videos, watch them, and download them in different qualities (1080p/720p/480p) with a progress bar. Downloads should happen in the background and I should be able to play saved videos from a downloads library.
 >
-> Navigate to `youtube.com`, log in, and browse: the home feed, search results, a video watch page, a channel page, and the subscriptions feed. Capture all traffic to `youtubei.googleapis.com` via CDP. YouTube's internal API uses POST requests to `/youtubei/v1/{endpoint}` with a JSON body containing a `context` object (client name, version, API key). Document the key endpoints:
->
-> - `/youtubei/v1/search` — search query + continuation token for pagination
-> - `/youtubei/v1/browse` — home feed, subscriptions, channel pages (driven by `browseId`)
-> - `/youtubei/v1/player` — video metadata, streaming URLs, adaptive formats
-> - `/youtubei/v1/next` — related videos, comments, description
->
-> Extract the `INNERTUBE_API_KEY`, `INNERTUBE_CONTEXT`, and any `SAPISIDHASH` / session headers from CDP traffic. Document the full request shape for each endpoint as Zod schemas.
->
-> **Phase 2: Python Bridge — yt-dlp Integration**
->
-> Extend `services/python/worker.py` with methods that shell out to `yt-dlp` (install via `pip install yt-dlp`):
->
-> - `get_video_info(params)` — `yt-dlp --dump-json {url}` → returns full metadata: title, description, duration, upload date, view count, channel, thumbnail URL, and all available format streams (resolution, codec, filesize)
-> - `download_video(params)` — `yt-dlp -f "bestvideo[height<=1080]+bestaudio/best[height<=1080]" -o "{output_dir}/{id}.%(ext)s" --merge-output-format mp4 {url}` → downloads to a server-side directory (`./downloads/youtube/`), returns the file path and progress updates via stdout line parsing
-> - `get_download_progress(params)` — check if a download is in progress, return percentage and ETA (parse yt-dlp stdout `[download] XX.X% of ~XXMiB at XXMiB/s ETA XX:XX`)
-> - `list_downloads(params)` — list all downloaded videos in `./downloads/youtube/` with file size, duration, and thumbnail
->
-> Add a static file serving route: `GET /api/youtube/downloads/:filename` → serves the MP4 file from the downloads directory with proper `Content-Type` and `Content-Range` headers for seeking.
->
-> Routes:
->
-> - `GET /api/youtube/search?q=query&continuation=token` → search results
-> - `GET /api/youtube/feed?type=home|subscriptions|trending` → feed pages
-> - `GET /api/youtube/video/:id` → video metadata + streaming URLs (from browser API)
-> - `GET /api/youtube/video/:id/comments?continuation=token` → comment thread
-> - `GET /api/youtube/channel/:id` → channel info + recent uploads
-> - `POST /api/youtube/download` → `{ videoId, quality?: "1080p"|"720p"|"480p" }` → starts yt-dlp download, returns job ID
-> - `GET /api/youtube/download/:jobId` → download progress (percentage, ETA, status)
-> - `GET /api/youtube/downloads` → list all saved videos
-> - `GET /api/youtube/downloads/:filename` → stream the saved MP4 file
->
-> **Phase 3: Dashboard at `/youtube`**
->
-> Build a clean, fast video interface. No ads, no recommendations sidebar, no autoplay nagging.
->
-> - **Home / Search:** Top search bar (full width). Below: video grid (responsive — 1 col mobile, 2 col tablet, 3-4 col desktop). Each card: thumbnail with duration overlay, title (2 lines max), channel name, view count, upload date. Click to watch.
-> - **Video player page:** Video fills the top of the viewport. Use a `<video>` element pointed at the proxied streaming URL from the `/video/:id` route (or the direct stream URL via browserFetch). Below the player:
->   - Title, view count, upload date
->   - Channel name + subscriber count + subscribe button
->   - Expandable description
->   - **Download button** — click opens a quality picker (1080p / 720p / 480p), starts download via `POST /api/youtube/download`. Show a progress bar that polls `/download/:jobId` every 2 seconds. When complete, the button changes to "Play saved copy" which loads from `/api/youtube/downloads/:filename`.
->   - Comments section (lazy-loaded on scroll, paginated via continuation tokens)
-> - **Downloads library (`/youtube/downloads`):** Grid of all saved videos. Each card shows thumbnail, title, file size, duration. Click to play from local file (no network needed after download). Delete button to remove files.
-> - **Channel page:** Channel banner, avatar, subscriber count, description. Tabs: Videos | Shorts | About. Video grid for uploads.
-> - **Keyboard shortcuts:** `Space` play/pause, `F` fullscreen, `←/→` seek 5s, `↑/↓` volume, `M` mute.
-> - **Mobile responsive:** On small screens, video player goes full-width, grid collapses to single column, bottom nav appears (Home | Search | Downloads).
->
-> **Stretch goal: Watch history + Resume playback**
->
-> Store watch history in browser localStorage: `{ videoId, title, thumbnail, channel, watchedAt, progress }`. Show a "Continue watching" row on the home page with a progress bar overlay on thumbnails. When opening a previously watched video, seek to the saved position.
+> Dashboard at `/youtube` — responsive video grid with thumbnails and duration overlays. Click to watch with the video player at the top. Download button with quality picker. Downloads library where I can play or save my downloaded videos. Keyboard shortcuts for the player (space, fullscreen, seek, volume). Should feel fast and clean on both desktop and mobile.
 
 **Discovery hints for this prompt:**
 
