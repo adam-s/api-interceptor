@@ -237,11 +237,16 @@ Phase B re-runs completed:
   P1 StubHub/Ticketmaster (DONE) — test/rerun-p1-v1
     - TM domain: hybrid routes (Discovery API + browser SSR fallback)
     - /tickets dashboard: search, event merge, seat comparison grid
-    - All 8 visual states verified via Patchright screenshots
-    - Learnings applied: API key degradation, auth-check-first, component preinstall
+    - Learnings: API key degradation, auth-check-first, component preinstall
 
-Phase B remaining: P2 Yahoo Finance, P3 Rental, P4 Jobs, P5 Academic,
-  P6 Gov Records, P7 Reddit, P8 YouTube
+  P2 Yahoo Finance (DONE) — test/rerun-p2-v1
+    - YF domain: 3 routes (RSS news, quote, chart via browserFetch)
+    - Python bridge batch_sentiment with VADER (14 bull, 3 bear, 3 flat on TSLA)
+    - /market dashboard: watchlist, quote card, sparkline, news with sentiment
+    - Learnings: shared dep in scaffold, lazy Python imports, SVG sparkline
+
+Phase B remaining: P3 Rental, P4 Jobs, P5 Academic, P6 Gov Records,
+  P7 Reddit, P8 YouTube
 ```
 
 ## Conventions
