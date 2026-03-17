@@ -288,6 +288,120 @@ function wsSendJson(ws: WebSocket, obj: unknown): void {
 	wsSend(ws, JSON.stringify(obj));
 }
 
+// --- WebSocket Message Dispatch ---
+
+/**
+ * Handle a parsed WebSocket message by dispatching to the active browser.
+ * Shared between the fresh-browser and reuse-browser code paths.
+ */
+async function handleWsMessage(
+	message: Record<string, unknown>,
+	ws: WebSocket,
+): Promise<void> {
+	if (!activeBrowser || !browserReady) return;
+
+	switch (message.type) {
+		case 'navigate':
+			if (message.url) await activeBrowser.navigate(message.url as string);
+			break;
+		case 'mousemove':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.mouseMove(message.x, message.y);
+			break;
+		case 'click':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.click(
+					message.x,
+					message.y,
+					(message.button as 'left' | 'right' | 'middle') || 'left',
+				);
+			break;
+		case 'mousedown':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.mouseDown(
+					message.x,
+					message.y,
+					(message.button as 'left' | 'right' | 'middle') || 'left',
+				);
+			break;
+		case 'mouseup':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.mouseUp(
+					message.x,
+					message.y,
+					(message.button as 'left' | 'right' | 'middle') || 'left',
+				);
+			break;
+		case 'dblclick':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.doubleClick(message.x, message.y);
+			break;
+		case 'type':
+			if (message.text) await activeBrowser.type(message.text as string);
+			break;
+		case 'key':
+			if (message.key) await activeBrowser.pressKey(message.key as string);
+			break;
+		case 'scroll':
+			if (typeof message.x === 'number' && typeof message.y === 'number')
+				await activeBrowser.scroll(
+					message.x,
+					message.y,
+					(message.deltaX as number) || 0,
+					(message.deltaY as number) || 0,
+				);
+			break;
+		case 'paste':
+			if (message.text) await activeBrowser.paste(message.text as string);
+			break;
+		case 'copy': {
+			const text = await activeBrowser.copy();
+			wsSendJson(ws, { type: 'clipboard', text });
+			break;
+		}
+		case 'back':
+			await activeBrowser.goBack();
+			break;
+		case 'forward':
+			await activeBrowser.goForward();
+			break;
+		case 'reload':
+			await activeBrowser.reload();
+			break;
+		case 'setFps':
+			if (typeof message.fps === 'number') {
+				activeBrowser.setFps(message.fps);
+				wsSendJson(ws, { type: 'fpsChanged', fps: activeBrowser.getFps() });
+			}
+			break;
+		case 'getFps':
+			wsSendJson(ws, { type: 'currentFps', fps: activeBrowser.getFps() });
+			break;
+		case 'warmup': {
+			const sites = typeof message.sites === 'number' ? message.sites : 3;
+			const delay = typeof message.delay === 'number' ? message.delay : 2000;
+			wsSendJson(ws, { type: 'warmup_started', sites });
+			await activeBrowser.warmup(sites, delay);
+			wsSendJson(ws, { type: 'warmup_complete' });
+			break;
+		}
+	}
+}
+
+/**
+ * Wire the standard WS message handler to parse JSON and dispatch.
+ */
+function wireWsMessageHandler(ws: WebSocket): void {
+	ws.on('message', async (data: Buffer) => {
+		try {
+			const message = JSON.parse(data.toString()) as Record<string, unknown>;
+			await handleWsMessage(message, ws);
+		} catch {
+			// Ignore parse/dispatch errors
+		}
+	});
+}
+
 // --- WebSocket Handler ---
 
 /**
@@ -373,46 +487,8 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 
 			lifecycleManager.releaseLock();
 
-			// Wire full message/close handlers for this WebSocket connection
-			ws.on('message', async (data: Buffer) => {
-				if (!activeBrowser || !browserReady) return;
-				try {
-					const message = JSON.parse(data.toString());
-					switch (message.type) {
-						case 'navigate':
-							if (message.url) await activeBrowser.navigate(message.url);
-							break;
-						case 'mousemove':
-							if (typeof message.x === 'number' && typeof message.y === 'number')
-								await activeBrowser.mouseMove(message.x, message.y);
-							break;
-						case 'click':
-							if (typeof message.x === 'number' && typeof message.y === 'number')
-								await activeBrowser.click(message.x, message.y, message.button || 'left');
-							break;
-						case 'mousedown':
-							if (typeof message.x === 'number' && typeof message.y === 'number')
-								await activeBrowser.mouseDown(message.x, message.y, message.button || 'left');
-							break;
-						case 'mouseup':
-							if (typeof message.x === 'number' && typeof message.y === 'number')
-								await activeBrowser.mouseUp(message.x, message.y, message.button || 'left');
-							break;
-						case 'scroll':
-							if (typeof message.x === 'number' && typeof message.y === 'number')
-								await activeBrowser.scroll(message.x, message.y, message.deltaX || 0, message.deltaY || 0);
-							break;
-						case 'key':
-							if (message.key) await activeBrowser.pressKey(message.key);
-							break;
-						case 'type':
-							if (message.text) await activeBrowser.type(message.text);
-							break;
-					}
-				} catch {
-					/* ignore */
-				}
-			});
+			// Wire message handler (shared with fresh-browser path)
+			wireWsMessageHandler(ws);
 
 			ws.on('close', () => {
 				browserLogger.connection('close', { profile: currentProfile || 'unknown', reused: true });
@@ -622,97 +698,7 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 	}
 
 	// --- onMessage handler ---
-
-	ws.on('message', async (data: Buffer) => {
-		if (!activeBrowser || !browserReady) return;
-
-		try {
-			const message = JSON.parse(data.toString());
-
-			switch (message.type) {
-				case 'navigate':
-					if (message.url) await activeBrowser.navigate(message.url);
-					break;
-				case 'mousemove':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.mouseMove(message.x, message.y);
-					}
-					break;
-				case 'click':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.click(message.x, message.y, message.button || 'left');
-					}
-					break;
-				case 'mousedown':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.mouseDown(message.x, message.y, message.button || 'left');
-					}
-					break;
-				case 'mouseup':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.mouseUp(message.x, message.y, message.button || 'left');
-					}
-					break;
-				case 'dblclick':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.doubleClick(message.x, message.y);
-					}
-					break;
-				case 'type':
-					if (message.text) await activeBrowser.type(message.text);
-					break;
-				case 'key':
-					if (message.key) await activeBrowser.pressKey(message.key);
-					break;
-				case 'scroll':
-					if (typeof message.x === 'number' && typeof message.y === 'number') {
-						await activeBrowser.scroll(
-							message.x,
-							message.y,
-							message.deltaX || 0,
-							message.deltaY || 0,
-						);
-					}
-					break;
-				case 'paste':
-					if (message.text) await activeBrowser.paste(message.text);
-					break;
-				case 'copy': {
-					const text = await activeBrowser.copy();
-					wsSendJson(ws, { type: 'clipboard', text });
-					break;
-				}
-				case 'back':
-					await activeBrowser.goBack();
-					break;
-				case 'forward':
-					await activeBrowser.goForward();
-					break;
-				case 'reload':
-					await activeBrowser.reload();
-					break;
-				case 'setFps':
-					if (typeof message.fps === 'number') {
-						activeBrowser.setFps(message.fps);
-						wsSendJson(ws, { type: 'fpsChanged', fps: activeBrowser.getFps() });
-					}
-					break;
-				case 'getFps':
-					wsSendJson(ws, { type: 'currentFps', fps: activeBrowser.getFps() });
-					break;
-				case 'warmup': {
-					const sites = typeof message.sites === 'number' ? message.sites : 3;
-					const delay = typeof message.delay === 'number' ? message.delay : 2000;
-					wsSendJson(ws, { type: 'warmup_started', sites });
-					await activeBrowser.warmup(sites, delay);
-					wsSendJson(ws, { type: 'warmup_complete' });
-					break;
-				}
-			}
-		} catch {
-			// Ignore message handling errors
-		}
-	});
+	wireWsMessageHandler(ws);
 
 	// --- onClose handler ---
 	// Browser stays alive when WebSocket disconnects — proxy continues to work.
