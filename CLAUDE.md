@@ -256,7 +256,31 @@ Phase B re-runs completed:
     - SEC User-Agent requirement, proper field extraction
     - /records dashboard: vertical timeline with colored dots per source
 
-Phase B remaining: P3 Rental, P4 Jobs, P7 Reddit, P8 YouTube
+  P3 Vacation Rentals (DONE) — test/rerun-p3-v1
+    - 4 domain plugins (airbnb, vrbo, zillow SSR extraction, rentals scoring)
+    - Python bridge score_getaways with haversine cross-listing detection
+    - /rentals dashboard: card grid, value scoring, Zillow sidebar comps
+    - Learnings: PythonBridge import path, responsive sidebar pattern
+
+  P4 Job Search (DONE) — test/rerun-p4-v1
+    - 5 domain plugins (dice JSON API, indeed/linkedin/glassdoor SSR, jobs CRUD)
+    - Cross-source deduplication by normalized company+title+location
+    - /jobs dashboard: salary comparison, favorites, application status tracking
+    - Learnings: status tracking Sheet pattern, cross-listed card badge
+
+  P7 Reddit (DONE) — test/rerun-p7-v1
+    - Reddit domain: 5 routes via .json suffix API (all browserRequired: false)
+    - Mobile-first dark UI with Reddit color palette (#FF4500/#1A1A1B)
+    - Nested comment trees, infinite scroll, bottom nav, subreddit navigation
+    - Learnings: .json suffix pattern, mobile-first brand colors, recursive tree
+
+  P8 YouTube (DONE) — test/rerun-p8-v1
+    - YouTube domain: 6 routes via yt-dlp Python bridge
+    - Background downloads with threading + progress tracking
+    - /youtube dashboard: video grid, watch page, download picker, downloads library
+    - Learnings: static file serving with range requests, path traversal prevention
+
+Phase B COMPLETE — all 8 prompts re-run against refactored skills
 ```
 
 ## Conventions
