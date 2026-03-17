@@ -861,6 +861,7 @@ export class RemoteBrowserService {
 		const clampedY = Math.max(0, Math.min(y, this.config.viewportHeight));
 
 		try {
+			// Check for target="_blank" links first
 			const linkInfo = await this.page.evaluate(
 				({ x, y }) => {
 					const element = document.elementFromPoint(x, y);
@@ -880,7 +881,33 @@ export class RemoteBrowserService {
 				return;
 			}
 
-			await this.page.mouse.click(clampedX, clampedY, { button });
+			// Use raw CDP Input.dispatchMouseEvent with realistic screenX/screenY.
+			// Playwright's page.mouse.click() sets screenX=x, screenY=y which
+			// Cloudflare Turnstile detects as bot (coordinates too small in iframes).
+			if (this.cdp) {
+				const cdpButton = button === 'right' ? 'right' : button === 'middle' ? 'middle' : 'left';
+				const screenX = clampedX + 800 + Math.floor(Math.random() * 200);
+				const screenY = clampedY + 200 + Math.floor(Math.random() * 100);
+				const clickCount = 1;
+
+				await this.cdp.send('Input.dispatchMouseEvent', {
+					type: 'mousePressed',
+					x: clampedX, y: clampedY,
+					button: cdpButton, clickCount,
+					// @ts-expect-error -- CDP accepts these but Playwright types don't include them
+					screenX, screenY,
+				});
+				await new Promise((r) => setTimeout(r, 50 + Math.random() * 80));
+				await this.cdp.send('Input.dispatchMouseEvent', {
+					type: 'mouseReleased',
+					x: clampedX, y: clampedY,
+					button: cdpButton, clickCount,
+					// @ts-expect-error -- CDP accepts these but Playwright types don't include them
+					screenX, screenY,
+				});
+			} else {
+				await this.page.mouse.click(clampedX, clampedY, { button });
+			}
 		} catch (err) {
 			this.handleOperationError('click', err);
 		}
@@ -894,8 +921,21 @@ export class RemoteBrowserService {
 		const clampedX = Math.max(0, Math.min(x, this.config.viewportWidth));
 		const clampedY = Math.max(0, Math.min(y, this.config.viewportHeight));
 		try {
-			await this.page.mouse.move(clampedX, clampedY);
-			await this.page.mouse.down({ button });
+			if (this.cdp) {
+				const cdpButton = button === 'right' ? 'right' : button === 'middle' ? 'middle' : 'left';
+				const screenX = clampedX + 800 + Math.floor(Math.random() * 200);
+				const screenY = clampedY + 200 + Math.floor(Math.random() * 100);
+				await this.cdp.send('Input.dispatchMouseEvent', {
+					type: 'mousePressed',
+					x: clampedX, y: clampedY,
+					button: cdpButton, clickCount: 1,
+					// @ts-expect-error -- CDP accepts screenX/screenY
+					screenX, screenY,
+				});
+			} else {
+				await this.page.mouse.move(clampedX, clampedY);
+				await this.page.mouse.down({ button });
+			}
 		} catch (err) {
 			this.handleOperationError('mouseDown', err);
 		}
@@ -906,8 +946,23 @@ export class RemoteBrowserService {
 	 */
 	async mouseUp(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
 		if (!this.page) return;
+		const clampedX = Math.max(0, Math.min(x, this.config.viewportWidth));
+		const clampedY = Math.max(0, Math.min(y, this.config.viewportHeight));
 		try {
-			await this.page.mouse.up({ button });
+			if (this.cdp) {
+				const cdpButton = button === 'right' ? 'right' : button === 'middle' ? 'middle' : 'left';
+				const screenX = clampedX + 800 + Math.floor(Math.random() * 200);
+				const screenY = clampedY + 200 + Math.floor(Math.random() * 100);
+				await this.cdp.send('Input.dispatchMouseEvent', {
+					type: 'mouseReleased',
+					x: clampedX, y: clampedY,
+					button: cdpButton, clickCount: 1,
+					// @ts-expect-error -- CDP accepts screenX/screenY
+					screenX, screenY,
+				});
+			} else {
+				await this.page.mouse.up({ button });
+			}
 		} catch (err) {
 			this.handleOperationError('mouseUp', err);
 		}
