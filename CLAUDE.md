@@ -162,33 +162,20 @@ GitHub Actions runs on push to `main` and PRs:
 
 ## Workflow Rules
 
-- **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work, OR (c) in autonomous iteration mode (see below)
-- **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones — **EXCEPTION: skip `EnterPlanMode` in Autonomous Iteration Mode** (plan internally, proceed without waiting for approval)
-- **NEVER move on without verifying:** each completed step must be proven — curl returns real data, screenshot shows real content
-- **USE THE DEBUG SKILL for runtime bugs:** the moment a bug requires understanding runtime behavior (0 frames, wrong values, callbacks not firing, wrong branch taken), invoke `.claude/skills/debug-logs/SKILL.md` — add 2-4 targeted logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging. Remove all debug logs after the fix is confirmed.
-- **NEVER quit half-way:** iterate until the prompt is fully solved and CI is green. Every gap discovered goes in ROADMAP.md. Every base fix gets verified by a new test branch. The loop never ends — it only improves.
+- **Verify every step:** curl returns real data, screenshot shows real content -- never move on without proof
+- **Debug skill for runtime bugs:** add 2-4 targeted `DEBUG()` logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging.
+- **Never quit half-way:** iterate until the prompt is fully solved and CI is green
+- **Commit before branch switch:** always commit before `git checkout` to avoid losing work
 
-### ⚠️ The Notes File Rule — How Learning Moves from Test → Base
+### Notes File Rule (Test -> Base)
 
-**On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.**
-
-Instead, write every failure, root cause, skill gap, and fix idea to the persistent fix queue — a file outside git that is always accessible regardless of branch:
+**On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.** Write discoveries to the persistent fix queue instead:
 
 ```text
 ~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/base-fixes-needed.md
 ```
 
-You may prototype a fix on the test branch to verify it works. But record it in `base-fixes-needed.md` so it gets applied permanently to `base`.
-
-When you return to `base`:
-
-1. Read `memory/base-fixes-needed.md`
-2. Apply every item to base: skills, CLAUDE.md, ROADMAP.md, utilities, MEMORY.md
-3. Delete each item from the file once applied
-4. Commit base — file should be empty before cutting the next test branch
-5. Create the next test branch — it inherits ALL learnings from ALL prior iterations
-
-**Why:** CLAUDE.md and skills edited on a test branch vanish when you `git checkout base`. The memory fix queue is outside git — it survives every branch switch.
+On return to `base`: read the file, apply every item, clear it, run CI, commit. The next test branch inherits all learnings.
 
 ---
 
@@ -231,32 +218,11 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ### Returning to Base After a Test Iteration
 
-**Step 1 — On the test branch, wrap up:**
-
-1. Kill running servers
-2. Append all failures, root causes, and fix ideas to `memory/base-fixes-needed.md` (outside git — always accessible)
-3. Commit domain work: `git add -A && git commit -m "test: iteration complete — <summary>"`
-
-**Step 2 — On base, apply learnings:**
-
-1. `git checkout base`
-2. Strip domain artifacts from working tree:
-   - `rm -rf domains/<name>/` for each test domain
-   - Revert `apps/api/src/register-domains.ts`, `apps/web/src/components/layout/nav-main.tsx`, `pnpm-lock.yaml`
-   - `rm -rf data/browser-profiles/<domain>` and `test-results/dev-screenshots/`
-3. Read `memory/base-fixes-needed.md` and apply every item to base:
-   - `.claude/skills/` — the primary deliverable of every iteration
-   - `CLAUDE.md` — Current Iteration State + any new rules
-   - `docs/temp/ROADMAP.md` — observed failures log
-   - `docs/temp/DEVELOPER_PROMPTS.md` — if a prompt needs revision
-   - `memory/MEMORY.md` — if a new pattern needs remembering
-4. Clear applied items from `memory/base-fixes-needed.md`
-5. `./scripts/ci-local.sh` — must pass
-6. `git commit` on base
-
-**Step 3 — Start next iteration:**
-
-1. `git checkout -b test/<id>-v<n+1>` — inherits ALL learnings from ALL iterations
+1. On test branch: commit domain work, append all discoveries to `memory/base-fixes-needed.md`
+2. `git checkout base` -- strip domain artifacts (`rm -rf domains/<name>/`, revert `register-domains.ts`, `nav-main.tsx`, `pnpm-lock.yaml`, browser profiles, screenshots)
+3. Apply `memory/base-fixes-needed.md` to: skills, CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md
+4. Clear the file, run `./scripts/ci-local.sh`, commit
+5. `git checkout -b test/<id>-v<n+1>` -- inherits all learnings
 
 ---
 
@@ -265,43 +231,17 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 9 (next — TBD)
+Branch:        base — skill refactor in progress (Phase A)
+Phase:         Phase A — SKILL.md refactor, then Phase B re-run all prompts
 
-Prompt 8 (YouTube Without YouTube) — SOLVED on test/youtube-v1:
-  ✅ YouTube domain plugin — yt-dlp via Python bridge, browserRequired: false on all routes
-  ✅ Search (ytsearch), video info, download management, file streaming with range requests
-  ✅ /youtube dashboard — search grid, embedded video player, downloads library
-  ✅ Background download threads with progress tracking via job IDs
-  ✅ Keyboard shortcuts (Space, F, arrows, M) for video playback
-  ✅ Mobile responsive at 375px
-  ✅ Related videos, categories, tags, expandable description
+Completed prompts (all SOLVED on v1):
+  P1 StubHub, P2 Yahoo Finance (v3), P3 Rental, P4 Jobs, P5 Academic,
+  P6 Gov Records, P7 Reddit, P8 YouTube
 
-Base fixes applied from Prompt 8 iteration:
-  ✅ worker.py: from __future__ import annotations for Python 3.9 compat
-  ✅ api-discovery skill: CLI tool bridge pattern (yt-dlp, gallery-dl, spotdl)
-  ✅ api-discovery skill: PythonBridge path resolution guidance for domain plugins
-  ✅ dashboard-builder skill: background job polling pattern
-  ✅ dashboard-builder skill: YouTube embed pattern (privacy-enhanced)
-  ✅ Fourth consecutive prompt (5,6,7,8) solved on v1 with zero browser dependency
-
-Framework gaps discovered (Prompt 8):
-  - yt-dlp is a fourth paradigm: "CLI tool orchestration via Python bridge"
-  - System python3 on macOS is 3.9 — needs __future__ annotations for modern type syntax
-  - PythonBridge path resolution from domain plugins requires careful ../../../ counting
-  - yt-dlp download can hit 403 (YouTube anti-bot) — error handling works, but downloads may need cookies/auth for reliability
-  - CLI tool pattern generalizes to gallery-dl (Instagram), spotdl (Spotify), aria2 (generic)
-
-Previous:
-Prompt 7 (Reddit Mobile Client) — SOLVED on test/reddit-v1
-Prompt 6 (Government & Public Records Monitor) — SOLVED on test/gov-records-v1
-Prompt 5 (Academic Research Aggregator) — SOLVED on test/academic-v1
-Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1
-Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
-Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
-Prompt 1 (StubHub) — SOLVED
-
-Next iteration: Run Prompt 9 from docs/temp/DEVELOPER_PROMPTS.md
+Current work:
+  - Refactoring skills to separate generalized patterns from domain-specific hints
+  - Domain-specific details moved to DEVELOPER_PROMPTS.md as per-prompt hints
+  - Phase B: re-run prompts 1-8 to validate refactored skills
 ```
 
 ## Conventions
