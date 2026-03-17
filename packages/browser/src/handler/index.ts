@@ -350,8 +350,14 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 		}
 
 		if (reusingBrowser) {
-			// Same profile already running — reuse browser, just navigate to new URL
+			// Same profile already running — reuse browser, just wire new frame callback + navigate
 			browserLogger.lifecycle('reusing_browser', { profile: currentProfile || 'unknown' });
+
+			// Update frame callback so this new WS client actually receives frames.
+			// Without this, the old (now-closed) callback keeps being called silently.
+			activeBrowser!.setFrameCallback((frame: FrameData) => {
+				wsSend(ws, frame.bytes as Uint8Array<ArrayBuffer>);
+			});
 
 			wsSendJson(ws, {
 				type: 'ready',
@@ -367,13 +373,41 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 
 			lifecycleManager.releaseLock();
 
-			// Wire message/close handlers for this WebSocket connection
+			// Wire full message/close handlers for this WebSocket connection
 			ws.on('message', async (data: Buffer) => {
 				if (!activeBrowser || !browserReady) return;
 				try {
 					const message = JSON.parse(data.toString());
-					if (message.type === 'navigate' && message.url) {
-						await activeBrowser.navigate(message.url);
+					switch (message.type) {
+						case 'navigate':
+							if (message.url) await activeBrowser.navigate(message.url);
+							break;
+						case 'mousemove':
+							if (typeof message.x === 'number' && typeof message.y === 'number')
+								await activeBrowser.mouseMove(message.x, message.y);
+							break;
+						case 'click':
+							if (typeof message.x === 'number' && typeof message.y === 'number')
+								await activeBrowser.click(message.x, message.y, message.button || 'left');
+							break;
+						case 'mousedown':
+							if (typeof message.x === 'number' && typeof message.y === 'number')
+								await activeBrowser.mouseDown(message.x, message.y, message.button || 'left');
+							break;
+						case 'mouseup':
+							if (typeof message.x === 'number' && typeof message.y === 'number')
+								await activeBrowser.mouseUp(message.x, message.y, message.button || 'left');
+							break;
+						case 'scroll':
+							if (typeof message.x === 'number' && typeof message.y === 'number')
+								await activeBrowser.scroll(message.x, message.y, message.deltaX || 0, message.deltaY || 0);
+							break;
+						case 'key':
+							if (message.key) await activeBrowser.pressKey(message.key);
+							break;
+						case 'type':
+							if (message.text) await activeBrowser.type(message.text);
+							break;
 					}
 				} catch {
 					/* ignore */
@@ -607,6 +641,16 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 				case 'click':
 					if (typeof message.x === 'number' && typeof message.y === 'number') {
 						await activeBrowser.click(message.x, message.y, message.button || 'left');
+					}
+					break;
+				case 'mousedown':
+					if (typeof message.x === 'number' && typeof message.y === 'number') {
+						await activeBrowser.mouseDown(message.x, message.y, message.button || 'left');
+					}
+					break;
+				case 'mouseup':
+					if (typeof message.x === 'number' && typeof message.y === 'number') {
+						await activeBrowser.mouseUp(message.x, message.y, message.button || 'left');
 					}
 					break;
 				case 'dblclick':

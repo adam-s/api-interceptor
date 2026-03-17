@@ -186,6 +186,28 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ## Observed Failures Log
 
+### Prompt 3 (Vacation Rental Intelligence): `test/rental-v1`
+
+**Bot detection encountered:**
+
+| Site | Challenge type | Blocks headless? | Fix |
+| --- | --- | --- | --- |
+| Zillow | Cloudflare Turnstile — "Press & Hold" (~1-2s hold) | Yes — fresh session has no history | Pre-warm: `/browser?profile=zillow&capture=zillow.com`, pass the hold once, profile persists |
+| Airbnb | Bot detection on fresh session | Yes | Same — persistent profile needed |
+| VRBO | Bot detection on fresh session | Yes | Same |
+
+**"Press & Hold" Turnstile specifics (Zillow):**
+
+- Challenge: `zillow.com` → Cloudflare Turnstile with a "Press & Hold to confirm you are a human" button
+- Reference ID format: `32dd5f29-219c-11f1-b9a4-61c50bee7ad3`
+- Requires: real `mousedown` held for ~1-2 seconds, then `mouseup` — not a click
+- Browser page fix applied: `remote-viewer.tsx` now sends `mousedown`/`mouseup` separately; `RemoteBrowserService` has `mouseDown()`/`mouseUp()` methods; WS handler routes both message types
+- **To pass manually**: navigate to `/browser?profile=zillow&capture=zillow.com` → navigate to `https://zillow.com` → press and hold the "Press & Hold" button in the browser canvas → profile cookie is saved for future headless runs
+
+**Framework gap:** No SMS bridge — Airbnb/VRBO require phone verification to create an account. Disposable email (minuteinbox domain) gets through email verification but is blocked at phone step.
+
+---
+
 ### Iteration 3 — Prompt 1 (ticket comparison): `test/ticket-comparison`
 
 **What was attempted:** Discovery for StubHub, Ticketmaster, SeatGeek, TicketNetwork. Phase B5 gate + UI not reached.

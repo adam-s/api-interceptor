@@ -250,17 +250,23 @@ export function RemoteBrowserViewer({
 		[screenToViewport, sendMessage],
 	);
 
-	const handleClick = useCallback(
+	const handleMouseDown = useCallback(
 		(e: React.MouseEvent<HTMLCanvasElement>) => {
 			const coords = screenToViewport(e.clientX, e.clientY);
 			if (coords) {
 				const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
-				sendMessage({
-					type: 'click',
-					x: coords.x,
-					y: coords.y,
-					button,
-				});
+				sendMessage({ type: 'mousedown', x: coords.x, y: coords.y, button });
+			}
+		},
+		[screenToViewport, sendMessage],
+	);
+
+	const handleMouseUp = useCallback(
+		(e: React.MouseEvent<HTMLCanvasElement>) => {
+			const coords = screenToViewport(e.clientX, e.clientY);
+			if (coords) {
+				const button = e.button === 2 ? 'right' : e.button === 1 ? 'middle' : 'left';
+				sendMessage({ type: 'mouseup', x: coords.x, y: coords.y, button });
 			}
 		},
 		[screenToViewport, sendMessage],
@@ -390,7 +396,8 @@ export function RemoteBrowserViewer({
 				ref={canvasRef}
 				width={viewport.width}
 				height={viewport.height}
-				onClick={handleClick}
+				onMouseDown={handleMouseDown}
+				onMouseUp={handleMouseUp}
 				onDoubleClick={handleDoubleClick}
 				onContextMenu={handleContextMenu}
 				onMouseMove={handleMouseMove}

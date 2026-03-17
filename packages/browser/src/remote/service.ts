@@ -768,6 +768,14 @@ export class RemoteBrowserService {
 	}
 
 	/**
+	 * Replace the frame callback (used when a new WS client reuses an existing browser session).
+	 * Without this, the old (closed) WS callback keeps getting called and the new client gets nothing.
+	 */
+	setFrameCallback(callback: FrameCallback): void {
+		this.frameCallback = callback;
+	}
+
+	/**
 	 * Navigate to a URL.
 	 */
 	async navigate(url: string): Promise<void> {
@@ -827,6 +835,33 @@ export class RemoteBrowserService {
 			await this.page.mouse.click(clampedX, clampedY, { button });
 		} catch (err) {
 			this.handleOperationError('click', err);
+		}
+	}
+
+	/**
+	 * Press mouse button down (without releasing) — required for press-and-hold interactions.
+	 */
+	async mouseDown(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
+		if (!this.page) return;
+		const clampedX = Math.max(0, Math.min(x, this.config.viewportWidth));
+		const clampedY = Math.max(0, Math.min(y, this.config.viewportHeight));
+		try {
+			await this.page.mouse.move(clampedX, clampedY);
+			await this.page.mouse.down({ button });
+		} catch (err) {
+			this.handleOperationError('mouseDown', err);
+		}
+	}
+
+	/**
+	 * Release mouse button — pair with mouseDown for press-and-hold interactions.
+	 */
+	async mouseUp(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
+		if (!this.page) return;
+		try {
+			await this.page.mouse.up({ button });
+		} catch (err) {
+			this.handleOperationError('mouseUp', err);
 		}
 	}
 

@@ -251,6 +251,128 @@ Each prompt tests different capabilities of the framework. Use these to validate
 
 ---
 
+## Prompt 8: Reddit Mobile Client
+
+> Create a `reddit` domain plugin. Reddit has a well-documented JSON API — appending `.json` to any Reddit URL returns structured data (e.g., `https://www.reddit.com/r/programming.json`). Use CDP traffic capture to discover the internal API endpoints that the new Reddit UI (`sh.reddit.com` / `www.reddit.com`) actually hits — these are richer than the public `.json` endpoints and include vote counts, awards, user flair, and nested comment trees. Fall back to the `.json` suffix pattern for any gaps.
+>
+> **Phase 1: API Discovery**
+>
+> Navigate to reddit.com, log in, and browse: the front page, a subreddit (`/r/programming`), a post with comments, user profile, search results, and the inbox. Capture all `gql.reddit.com` and `oauth.reddit.com` traffic via CDP. Document every endpoint with URL pattern, method, required headers (especially `Authorization: Bearer ...` and any `x-reddit-*` headers), request/response shapes as Zod schemas. Reddit's internal API is GraphQL-heavy — identify the operation names and variables for: feed posts, subreddit listings, post detail + comments, search, user profile, and vote/save/subscribe mutations.
+>
+> **Phase 2: Routes**
+>
+> Expose these as REST-style proxy routes:
+>
+> - `GET /api/reddit/feed?sort=hot|new|top&after=cursor` → home feed posts (paginated)
+> - `GET /api/reddit/r/:subreddit?sort=hot|new|top&after=cursor` → subreddit feed
+> - `GET /api/reddit/post/:id` → post detail + full comment tree (nested)
+> - `GET /api/reddit/search?q=query&type=posts|subreddits|users` → search
+> - `GET /api/reddit/user/:username` → profile + recent posts/comments
+> - `GET /api/reddit/inbox` → messages and notifications
+> - `POST /api/reddit/vote` → `{ id, direction: 1|0|-1 }` upvote/downvote/unvote
+> - `POST /api/reddit/save` → `{ id }` save/unsave a post
+> - `POST /api/reddit/subscribe` → `{ subreddit, action: "sub"|"unsub" }`
+> - `POST /api/reddit/comment` → `{ parentId, text }` post a comment
+>
+> **Phase 3: Mobile-First Dashboard at `/reddit`**
+>
+> Build a mobile-responsive Reddit client designed to feel like a native app. This must work well on phone screens (test at 390×844 iPhone viewport) while remaining usable on desktop.
+>
+> - **Feed view (default):** Infinite-scroll card feed. Each card shows: subreddit pill, post title, thumbnail/preview image (if media post), upvote count, comment count, time ago, author. Tap a card to open post detail. Top bar has feed type selector (Hot / New / Top) and a search icon.
+> - **Post detail view:** Full post content (text, image, link preview, or embedded video). Below: nested comment tree with indent lines (like the Reddit app), collapse/expand on tap, upvote/downvote buttons on each comment. Swipe right or back button to return to feed. Reply button that opens a comment composer.
+> - **Subreddit view:** Subreddit header (icon, name, subscriber count, description), then its post feed. Subscribe/unsubscribe button in header.
+> - **Search:** Full-screen search with tabs for Posts / Subreddits / Users. Results update as you type (debounced 300ms).
+> - **Bottom navigation bar:** Feed | Search | Inbox | Profile (4 tabs, like the Reddit mobile app)
+> - **Interactions:** Tap upvote/downvote arrows on posts and comments (optimistic UI — update count immediately, reconcile on response). Long-press a post to save it. Pull-to-refresh on feeds.
+> - **Media handling:** Image posts show inline. Video posts (v.redd.it) show with a play button — use the browser-proxied video URL. Gallery posts show a horizontal swipe carousel.
+> - **Dark mode by default** with a toggle in profile tab. Use Reddit's color palette: `#FF4500` orange for upvotes, `#7193FF` blue for downvotes, `#1A1A1B` dark background.
+>
+> The entire app should use **CSS-only responsive layout** (no separate mobile/desktop builds). Use `tailwindcss` with mobile-first breakpoints. Touch targets must be at least 44×44px. Animate transitions between views (slide left/right).
+
+**What this tests:**
+
+- GraphQL API discovery — Reddit's internal GQL endpoint with operation names and variables
+- POST mutations through browser proxy — voting, saving, commenting, subscribing (first write-heavy prompt)
+- Mobile-first responsive design — testing whether the framework + skills can build a phone-native experience
+- Infinite scroll with cursor-based pagination — `after` cursor pattern, load-more triggers
+- Nested data rendering — comment trees with arbitrary depth, collapse/expand state
+- Optimistic UI updates — client-side state management ahead of server confirmation
+- Media proxying — images, videos (v.redd.it), galleries through the browser session
+- Real-time interaction density — many tappable elements per screen (votes, comments, save, subscribe)
+
+---
+
+## Prompt 9: YouTube Without YouTube
+
+> Create a `youtube` domain plugin backed by both browser API interception and the Python bridge running `yt-dlp`. The goal: a clean, fast YouTube experience — search, watch, and save videos — without ads, tracking, or UI bloat.
+>
+> **Phase 1: API Discovery**
+>
+> Navigate to `youtube.com`, log in, and browse: the home feed, search results, a video watch page, a channel page, and the subscriptions feed. Capture all traffic to `youtubei.googleapis.com` via CDP. YouTube's internal API uses POST requests to `/youtubei/v1/{endpoint}` with a JSON body containing a `context` object (client name, version, API key). Document the key endpoints:
+>
+> - `/youtubei/v1/search` — search query + continuation token for pagination
+> - `/youtubei/v1/browse` — home feed, subscriptions, channel pages (driven by `browseId`)
+> - `/youtubei/v1/player` — video metadata, streaming URLs, adaptive formats
+> - `/youtubei/v1/next` — related videos, comments, description
+>
+> Extract the `INNERTUBE_API_KEY`, `INNERTUBE_CONTEXT`, and any `SAPISIDHASH` / session headers from CDP traffic. Document the full request shape for each endpoint as Zod schemas.
+>
+> **Phase 2: Python Bridge — yt-dlp Integration**
+>
+> Extend `services/python/worker.py` with methods that shell out to `yt-dlp` (install via `pip install yt-dlp`):
+>
+> - `get_video_info(params)` — `yt-dlp --dump-json {url}` → returns full metadata: title, description, duration, upload date, view count, channel, thumbnail URL, and all available format streams (resolution, codec, filesize)
+> - `download_video(params)` — `yt-dlp -f "bestvideo[height<=1080]+bestaudio/best[height<=1080]" -o "{output_dir}/{id}.%(ext)s" --merge-output-format mp4 {url}` → downloads to a server-side directory (`./downloads/youtube/`), returns the file path and progress updates via stdout line parsing
+> - `get_download_progress(params)` — check if a download is in progress, return percentage and ETA (parse yt-dlp stdout `[download] XX.X% of ~XXMiB at XXMiB/s ETA XX:XX`)
+> - `list_downloads(params)` — list all downloaded videos in `./downloads/youtube/` with file size, duration, and thumbnail
+>
+> Add a static file serving route: `GET /api/youtube/downloads/:filename` → serves the MP4 file from the downloads directory with proper `Content-Type` and `Content-Range` headers for seeking.
+>
+> Routes:
+>
+> - `GET /api/youtube/search?q=query&continuation=token` → search results
+> - `GET /api/youtube/feed?type=home|subscriptions|trending` → feed pages
+> - `GET /api/youtube/video/:id` → video metadata + streaming URLs (from browser API)
+> - `GET /api/youtube/video/:id/comments?continuation=token` → comment thread
+> - `GET /api/youtube/channel/:id` → channel info + recent uploads
+> - `POST /api/youtube/download` → `{ videoId, quality?: "1080p"|"720p"|"480p" }` → starts yt-dlp download, returns job ID
+> - `GET /api/youtube/download/:jobId` → download progress (percentage, ETA, status)
+> - `GET /api/youtube/downloads` → list all saved videos
+> - `GET /api/youtube/downloads/:filename` → stream the saved MP4 file
+>
+> **Phase 3: Dashboard at `/youtube`**
+>
+> Build a clean, fast video interface. No ads, no recommendations sidebar, no autoplay nagging.
+>
+> - **Home / Search:** Top search bar (full width). Below: video grid (responsive — 1 col mobile, 2 col tablet, 3-4 col desktop). Each card: thumbnail with duration overlay, title (2 lines max), channel name, view count, upload date. Click to watch.
+> - **Video player page:** Video fills the top of the viewport. Use a `<video>` element pointed at the proxied streaming URL from the `/video/:id` route (or the direct stream URL via browserFetch). Below the player:
+>   - Title, view count, upload date
+>   - Channel name + subscriber count + subscribe button
+>   - Expandable description
+>   - **Download button** — click opens a quality picker (1080p / 720p / 480p), starts download via `POST /api/youtube/download`. Show a progress bar that polls `/download/:jobId` every 2 seconds. When complete, the button changes to "Play saved copy" which loads from `/api/youtube/downloads/:filename`.
+>   - Comments section (lazy-loaded on scroll, paginated via continuation tokens)
+> - **Downloads library (`/youtube/downloads`):** Grid of all saved videos. Each card shows thumbnail, title, file size, duration. Click to play from local file (no network needed after download). Delete button to remove files.
+> - **Channel page:** Channel banner, avatar, subscriber count, description. Tabs: Videos | Shorts | About. Video grid for uploads.
+> - **Keyboard shortcuts:** `Space` play/pause, `F` fullscreen, `←/→` seek 5s, `↑/↓` volume, `M` mute.
+> - **Mobile responsive:** On small screens, video player goes full-width, grid collapses to single column, bottom nav appears (Home | Search | Downloads).
+>
+> **Stretch goal: Watch history + Resume playback**
+>
+> Store watch history in browser localStorage: `{ videoId, title, thumbnail, channel, watchedAt, progress }`. Show a "Continue watching" row on the home page with a progress bar overlay on thumbnails. When opening a previously watched video, seek to the saved position.
+
+**What this tests:**
+
+- YouTube's internal API (`youtubei`) — POST-based with nested context objects, continuation token pagination
+- Python bridge for CLI tool orchestration — shelling out to `yt-dlp`, parsing stdout progress, managing background downloads
+- Static file serving — serving large MP4 files with range request support (seeking in `<video>` element)
+- Background job tracking — download-as-async-job pattern with polling for progress
+- Video streaming through proxy — proxying YouTube's adaptive streams or serving local files
+- Anti-bot resilience — YouTube aggressively blocks automation; yt-dlp as the battle-tested fallback
+- localStorage persistence — client-side watch history without a database
+- Keyboard shortcut handling — media player hotkeys in a web app
+
+---
+
 ## How to Use These Prompts
 
 1. Clone the repository
