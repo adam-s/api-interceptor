@@ -231,24 +231,24 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — Pass 2 in progress
+Branch:        base — Pass 2 COMPLETE — SKILLS CONVERGED
 
 Pass 1 (Phase B) COMPLETE — all 8 prompts, base at 52 commits (8a2c7bb)
 
-Pass 2 progress (SKILLS CONVERGED):
-  P1 StubHub/Ticketmaster (DONE) — test/pass2-p1-v1 — ZERO new fixes
-  P2 Yahoo Finance (DONE) — test/pass2-p2-v1 — ZERO new fixes
-  P3 Vacation Rentals (DONE) — test/pass2-p3-v1 — ZERO new fixes
-  P5 Academic Research (DONE) — test/pass2-p5-v1 — ZERO new fixes
+Pass 2 COMPLETE — ALL 8 prompts, ZERO new base fixes:
+  P1 StubHub/Ticketmaster — test/pass2-p1-v1 — ZERO fixes
+  P2 Yahoo Finance — test/pass2-p2-v1 — ZERO fixes
+  P3 Vacation Rentals — test/pass2-p3-v1 — ZERO fixes
+  P4 Job Search — test/pass2-p4-v1 — ZERO fixes
+  P5 Academic Research — test/pass2-p5-v1 — ZERO fixes
+  P6 Gov Records — test/pass2-p6-v1 — ZERO fixes
+  P7 Reddit — test/pass2-p7-v1 — ZERO fixes
+  P8 YouTube — test/pass2-p8-v1 — ZERO fixes
 
-  CONVERGENCE: 4 consecutive prompts produced zero base fixes.
-  Skills are mature across all tested prompt archetypes:
-    - Hybrid API/browser routes (P1)
-    - RSS poller + Python NLP + WebSocket broadcast (P2)
-    - Multi-source SSR extraction + Python geo-scoring (P3)
-    - Public API parallel fetch + XML parsing + deduplication (P5)
-
-  Remaining: P4, P6, P7, P8 expected to also converge.
+SKILLS CONVERGED: All 8 prompts across every archetype produced zero new
+base fixes. The skills (api-discovery, dashboard-builder, visual-dev,
+debug-logs) are complete and self-sufficient for guiding Claude Code
+through building any domain plugin + dashboard from a natural language prompt.
 ```
 
 ## Conventions
