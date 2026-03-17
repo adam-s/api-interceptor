@@ -135,6 +135,58 @@ handler: async (c, browser) => {
 
 For structured cards, split `innerText` by `\n` and regex-match labeled values.
 
+### Cleaning messy SSR text
+
+`innerText` concatenates text differently depending on CSS layout. A listing card might render as `"Powell PeraltaRipper8.0"Midnight BlueSan Francisco, CA$89.99"` — no whitespace between brand, model, and location. Regex breaks on these edge cases. Two better approaches:
+
+**HTML parsers (preferred when structure exists):**
+- **Node.js:** `cheerio` — jQuery-like, runs server-side. `cheerio.load(html)` then CSS selectors. Far more reliable than splitting `innerText` by `\n`.
+- **Python:** `beautifulsoup4` or `lxml` — HTML/XML scraping standard. Use via the Python bridge for complex parsing that would require fragile regex chains in TypeScript.
+
+Use `innerText` only when the HTML structure is too dynamic or the data isn't in distinct elements.
+
+**Python NLP tools (preferred for unstructured text):**
+
+When the text IS flat (no HTML structure to parse), use Python NLP tools via the bridge instead of writing fragile regex per site:
+
+- `dateutil.parser.parse()` — normalizes any date format to ISO 8601. Handles "Mar 17, 2026", "3/17/26", "17 March 2026", etc. without per-format regex.
+- `usaddress.parse()` — splits concatenated address strings. "San Francisco, CAMoscone Center" → city, state, venue as separate fields.
+- `thefuzz.fuzz.ratio()` — fuzzy string matching for deduplication. "Element Skateboards" vs "Element Skateboard Co." → 87% match. Set threshold ~85.
+
+Add methods to `services/python/worker.py`, register in `METHODS` dict:
+
+```python
+# In worker.py
+import dateutil.parser
+from thefuzz import fuzz
+
+def parse_dates(params):
+    """Normalize messy date strings to ISO 8601."""
+    results = []
+    for text in params.get("texts", []):
+        try:
+            results.append(dateutil.parser.parse(text).isoformat())
+        except (ValueError, OverflowError):
+            results.append(None)
+    return {"dates": results}
+
+def fuzzy_match(params):
+    """Fuzzy string comparison — returns similarity ratio 0-100."""
+    return {"ratio": fuzz.ratio(params["a"], params["b"])}
+```
+
+Install: `pip install python-dateutil thefuzz`
+
+### Data source preference order
+
+When a site fires internal API calls (visible in CDP traffic), prefer intercepting those over DOM parsing:
+
+1. **Type A (direct proxy)** — clean JSON, no browser needed. Best case.
+2. **Type B2 (traffic capture)** — JSON from CORS-blocked endpoints. Still structured.
+3. **Type B (DOM extraction)** — last resort when the site has no API calls and everything is server-rendered. Use HTML parsers or Python NLP to clean the output.
+
+The intercepted JSON is always cleaner than `innerText` + regex. A site's internal API returns `{ "brand": "Element", "price": 8999 }` as separate typed fields. The same data from DOM text comes back as `"Element8.0\" Midnight Blue$89.99"` and requires fragile parsing.
+
 ### Type B2: Traffic capture for CORS-blocked APIs
 
 Clear traffic buffer → navigate (page JS fires API calls) → read from traffic buffer. Use when direct fetch gets CORS errors or 403.
@@ -172,6 +224,78 @@ await browser.browserFetch('https://api.example.com/data', { navigateTo: 'https:
 ### Type C: Hybrid (SSR + pagination API)
 
 Page 1: extract from SSR HTML. Page 2+: `browserFetch()` the pagination API discovered by clicking "Show more".
+
+## Decoding Encoded API Responses
+
+When a captured API response contains values that don't match what's rendered in the DOM — wrong prices, cryptic IDs instead of names, numbers in unexpected units — the site's JavaScript is decoding or transforming the raw response before display. The DOM is always ground truth. Trace backwards from the rendered output through the minified JS to find the decoder.
+
+### Why this works
+
+**String literals survive minification.** Variable names get mangled to `k`, `n`, `o` but string constants — attribute values, JSON property names, error messages, URL patterns — are preserved because they're runtime values. These are your anchors into the minified code.
+
+### The technique
+
+**Step 1 — Anchor from the DOM.** Find the element displaying the value. Note a stable identifier: `data-testid`, `data-bdd`, `aria-label`, or a unique string in the element's attributes. Avoid class names (they change with CSS-in-JS).
+
+**Step 2 — Fetch the JS bundle.** The page's `<script src="...">` tags point to the bundles. Download the main bundle. Search for your anchor string.
+
+**Step 3 — Read outward from the match.** The anchor sits inside a render function. The displayed value is a nearby variable used as `children:` or `textContent`. That variable was assigned from a prop or data object earlier in the same function.
+
+**Step 4 — Follow property accesses.** Property names on objects survive minification: `n.basePrice` stays as `.basePrice` even when `n` is meaningless. The dotted property path tells you the exact shape of the decoded object.
+
+**Step 5 — Find the transform between raw API and rendered value.** Look for arithmetic (`n / 100`), lookups (`e._rates[t.rateKey]`), or formatting (`"$" + n.toFixed(2)`). This is the decoder.
+
+### Example: encoded prices in a captured API response
+
+Imagine a skateboard marketplace. The API returns boards for sale at an event:
+
+```json
+{
+  "boards": [
+    { "sku": "SB-42", "rateKey": "MK4XNRQ", "brand": "Element", "deckSize": "8.0", "color": "midnight" }
+  ],
+  "_rates": {
+    "MK4XNRQ": { "cents": 8999, "cur": "USD", "shippingCents": 1200 }
+  }
+}
+```
+
+The DOM shows: `<span data-testid="board-price">$89.99</span>`
+
+The raw API value `8999` ≠ `$89.99`. Something decodes it. Search the JS bundle for `"board-price"`:
+
+```javascript
+// Minified (variable names mangled, strings preserved):
+(0,x.jsx)(eB,{"data-testid":"board-price",children:"$"+(n._rates[t.rateKey].cents/100).toFixed(2)})
+```
+
+Now you can read the decoder:
+- `t.rateKey` → `"MK4XNRQ"` — an indirect key, not a value itself
+- `n._rates["MK4XNRQ"]` → lookup in a sibling object by that key
+- `.cents / 100` → raw value is in cents, divide to get dollars
+- `"$" + (...).toFixed(2)` → formatted as `$89.99`
+
+### Common encoding patterns
+
+| Pattern | Signal | Decode |
+|---------|--------|--------|
+| **Indirect reference** | Items contain encoded string IDs; a sibling `_embedded` or `_pricing` block has matching keys | Map the ID to the referenced object to get actual values |
+| **Unit mismatch** | Raw number is 100x or 1000x the displayed value | Divide by the scale factor (cents → dollars, millicents → dollars) |
+| **Currency localization** | Price prefix is `S/.`, `€`, `£` instead of `$`; value is in local currency based on IP | Strip currency prefix before parsing; detect currency; convert to common base |
+| **Nested path** | Value isn't at `item.price` but at `item.offer.pricing.total.amount` | Follow the dotted path in the JS bundle to find the full access chain |
+| **Computed values** | Displayed value is a sum or product of multiple fields | Look for arithmetic in the render function: `n.base + n.fees`, `n.qty * n.unitPrice` |
+
+### When to use this
+
+- `curl` returns data but numbers don't match what the page shows
+- Fields contain encoded strings instead of human-readable values
+- Prices are off by a factor of 100 or 1000
+- The API response has a `_embedded`, `_refs`, or `_linked` block you don't understand
+
+### When NOT to use this
+
+- The API returns clean, matching values — just use them directly
+- The site has public API documentation — read the docs instead
 
 ## Phase 4: Verify — REQUIRED before proceeding
 

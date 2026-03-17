@@ -74,6 +74,28 @@ Always sequential, catch per source. If a source returns null, mark offline — 
 
 **Debug each source independently first.** Before composing sources together, `curl` each one and confirm it returns data. Add `DEBUG('fetch-sourceA', () => ({ status, count: data?.length }))` in the component's fetch function to see which source is failing at runtime. When sources are composed, a silent failure in one source produces confusing results in the merged view — debug logs tell you exactly which source returned null and why.
 
+### Multi-domain comparison views — browser sequencing
+
+When comparing data from two browser-dependent domains (e.g. two skateboard marketplaces showing the same board), the **singleton browser** navigates to each domain's page in turn. Each navigation clobbers the previous page state. This means:
+
+1. **Frontend must call domains sequentially** — never `Promise.all`. Source A navigates, extracts data, returns. Then source B navigates, extracts, returns. The data from A is safe because it was already extracted and returned as JSON before B's navigation started.
+
+2. **Show progress during sequential fetches** — tell the user which source is loading. `"Loading BoardShop... (1 of 2)"` then `"Loading DeckMarket... (2 of 2)"`. Without this, the user sees a spinner for 20+ seconds with no indication of progress.
+
+3. **Each source's route must fully extract before returning** — don't rely on the browser still being on the same page after the route handler returns. Navigate, wait, extract, return JSON. The next domain route will navigate away.
+
+```typescript
+// CORRECT — sequential, with progress updates
+setLoadingMessage('Searching BoardShop...');
+const shopA = await fetch(`${API}/api/boardshop/search?q=${q}`).then(r => r.json()).catch(() => null);
+
+setLoadingMessage('Searching DeckMarket...');
+const shopB = await fetch(`${API}/api/deckmarket/search?q=${q}`).then(r => r.json()).catch(() => null);
+
+// Now merge — both datasets are in memory, browser state doesn't matter
+const merged = mergeResults(shopA?.items ?? [], shopB?.items ?? []);
+```
+
 ## Multi-Source Entity Merging
 
 Merge by a **stable compound key** (not free-text titles) to avoid duplicate cards:
