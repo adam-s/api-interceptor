@@ -231,21 +231,17 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — Phase A complete, ready for Phase B prompt re-runs
+Branch:        base — Phase B in progress
 
-Completed prompts (all SOLVED on v1):
-  P1 StubHub, P2 Yahoo Finance (v3), P3 Rental, P4 Jobs, P5 Academic,
+Phase B re-runs completed:
+  P1 StubHub/Ticketmaster (DONE) — test/rerun-p1-v1
+    - TM domain: hybrid routes (Discovery API + browser SSR fallback)
+    - /tickets dashboard: search, event merge, seat comparison grid
+    - All 8 visual states verified via Patchright screenshots
+    - Learnings applied: API key degradation, auth-check-first, component preinstall
+
+Phase B remaining: P2 Yahoo Finance, P3 Rental, P4 Jobs, P5 Academic,
   P6 Gov Records, P7 Reddit, P8 YouTube
-
-Phase A completed:
-  - api-discovery: 857→766 lines (domain-specific → DEVELOPER_PROMPTS.md hints)
-  - dashboard-builder/visual-dev: minor domain-name removal
-  - CLAUDE.md: 313→252 lines (consolidated rules, compressed history)
-  - ROADMAP.md: 350→285 lines (replaced stale architecture plan)
-  - handler/index.ts: extracted shared WS handler, fixed 9 missing message types
-  - All 8 prompts have domain-specific discovery hints in DEVELOPER_PROMPTS.md
-
-Phase B next: re-run prompts 1-8 to validate refactored skills
 ```
 
 ## Conventions
