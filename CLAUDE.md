@@ -8,6 +8,27 @@ Every improvement to base skills, utilities, or architecture should serve this m
 
 ---
 
+## The Fundamental Rule: Base Accumulates All Learning
+
+**`base` is the product. Test branches are disposable experiments.**
+
+Every skill improvement, utility fix, documentation update, architectural insight, and framework capability MUST land on `base` — never only on a test branch. When you create a new test branch from `base`, it inherits every fix ever applied across every previous iteration. When a test branch is done, it is stripped and abandoned. Only `base` grows.
+
+| Lives on `base` (permanent) | Lives only on test branches (ephemeral) |
+|---|---|
+| `.claude/skills/` | `domains/<name>/` — domain plugins |
+| `CLAUDE.md` | Domain-specific route files |
+| `docs/temp/ROADMAP.md` | Domain-specific UI pages |
+| `docs/temp/DEVELOPER_PROMPTS.md` | `data/browser-profiles/<domain>/` |
+| Framework code in `packages/` | Nav entries for domain pages |
+| Shared utilities in `apps/api/src/` | `pnpm-lock.yaml` additions for domain deps |
+
+**The invariant:** If you delete every test branch, you lose nothing of lasting value. Everything that matters — every lesson from every iteration — is on `base`.
+
+**The consequence:** A skill or utility fix made on a test branch and NOT applied to `base` is permanently lost the moment you checkout `base` or another branch. This is the most common failure mode. Always apply fixes to `base` first, then branch.
+
+---
+
 Monorepo for API interception and typed client generation using Patchright + WebSocket streaming.
 
 ## Structure
