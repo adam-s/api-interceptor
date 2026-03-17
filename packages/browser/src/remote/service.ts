@@ -497,8 +497,14 @@ export class RemoteBrowserService {
 			console.log('[RemoteBrowserService] No proxy configured (direct connection)');
 		}
 
+		// Use real Chrome channel when available — it has window.chrome, proper plugins,
+		// and real WebGL contexts that Patchright's bundled Chromium lacks.
+		// Fall back to bundled Chromium when CHROMIUM_PATH is set (Docker) or Chrome isn't installed.
+		const useChannel = !executablePath ? 'chrome' : undefined;
+
 		this.context = await chromium.launchPersistentContext(this.userDataDir, {
 			...(executablePath && { executablePath }),
+			...(useChannel && { channel: useChannel }),
 			headless: this.config.headless,
 			viewport: {
 				width: this.config.viewportWidth,
