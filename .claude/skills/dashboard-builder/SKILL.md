@@ -7,716 +7,239 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
-## ⚠️ Critical: Single Browser Singleton
+## Critical: Single Browser Singleton
 
-The API server has **one shared browser instance** across all domain routes. This means:
+One shared browser instance. **Never call domain APIs in parallel** — always sequential with `.catch()` per source. `Promise.allSettled` will break: both handlers navigate the same page simultaneously.
 
-- Domain route handlers share the same page. If two handlers navigate simultaneously, they race — one navigates away before the other extracts.
-- **Never call multiple domain APIs in parallel from the UI.** `Promise.allSettled([tmSearch(q), shSearch(q)])` will break: both handlers try to navigate the same browser to different URLs simultaneously.
-- **Always call domain APIs sequentially** when your dashboard page hits multiple domains:
-  ```typescript
-  // ✗ BROKEN — race condition on shared browser
-  const [tm, sh] = await Promise.allSettled([tmSearch(q), shSearch(q)]);
-
-  // ✓ CORRECT — sequential, one browser navigation at a time
-  const tm = await tmSearch(q).catch(() => []);
-  const sh = await shSearch(q).catch(() => []);
-  ```
-- This applies to any sequence of API calls that ultimately navigate the proxy browser: search → detail → listings must all be awaited sequentially.
+```typescript
+const sourceA = await fetchA(q).catch(() => null);  // sequential
+const sourceB = await fetchB(q).catch(() => null);  // waits for A
+```
 
 ## Visual Quality Standard
 
-Every dashboard page should look clean, simple, and polished. These rules apply regardless of domain:
-
-- **Consistent spacing**: `gap-4` or `gap-6` between sections; `p-4` inside cards — never mix arbitrary pixel values
-- **Typographic hierarchy**: Page title large + bold → section labels `text-sm text-muted-foreground uppercase tracking-wide` → data values `text-2xl font-semibold`
-- **Color meaning**: Green = positive/bull, Red = negative/bear, `text-muted-foreground` = neutral/secondary — be consistent throughout the page
-- **Empty and loading states are first-class**: Every data container needs a `<Skeleton>` (loading) and a deliberate empty state message — never a blank panel
-- **Badges over raw text for categorical values**: Source names, sentiment labels, status values → `<Badge>` with a variant color, not plain text
-- **Cards with subtle borders**: `border border-border/50 rounded-lg` gives depth without heaviness; avoid heavy drop shadows
+- **Spacing**: `gap-4`/`gap-6` between sections; `p-4` inside cards — no arbitrary pixels
+- **Typography**: title `text-2xl font-bold` → labels `text-sm text-muted-foreground uppercase tracking-wide` → values `text-2xl font-semibold`
+- **Color**: green = positive, red = negative, `text-muted-foreground` = secondary
+- **States**: every container needs `<Skeleton>` (loading) + empty state message — never blank
+- **Badges** for categorical values (sources, status, sentiment) — never raw text
+- **Cards**: `border border-border/50 rounded-lg` — no heavy shadows
 
 ## Prerequisites
 
-- Domain plugins must exist with proxy routes registered (use api-discovery skill first)
-- Server running: `pnpm run dev` (ports 3000/3001)
-- Verify available APIs: `curl http://localhost:3001/api | jq .`
+Domain plugins registered, `pnpm run dev` (ports 3000/3001), verify: `curl http://localhost:3001/api | jq .`
 
-## Step 1: Plan the Page
+## Steps 1-3: Plan + Create Route
 
-Before writing code, identify:
+1. Plan: data endpoints, interactions, layout, multi-domain composition
+2. `mkdir -p apps/web/src/app/\(dashboard\)/<page-name>`
+3. Create `page.tsx` importing a `<PageContent />` client component
 
-1. **What data is needed** — which domain proxy endpoints provide it
-2. **User interactions** — search input, filters, sorting, pagination
-3. **Visual layout** — cards, tables, grids, comparison views
-4. **Data composition** — if combining multiple domains, how to normalize/merge
+## Step 4: Client Component Template
 
-## Step 2: Create the Route Directory
+Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `'use client'`. Use shadcn/ui components — not raw divs. Standard search page pattern:
 
-Next.js App Router uses directory-based routing:
-
-```bash
-mkdir -p apps/web/src/app/\(dashboard\)/<page-name>
-```
-
-## Step 3: Create the Page Component
-
-Create `apps/web/src/app/(dashboard)/<page-name>/page.tsx`:
-
-```typescript
-import PageContent from './<page-name>-content';
-
-export default function Page() {
-  return <PageContent />;
-}
-```
-
-## Step 4: Create the Client Component
-
-Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx`.
-
-Use shadcn/ui components — not raw divs. The template below is a starting point; replace the Card body with real data fields from your API response.
-
-```typescript
-'use client';
-
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-
-export default function PageContent() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<unknown[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-    setLoading(true);
-    setSearched(true);
-    try {
-      const res = await fetch(`http://localhost:3001/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      setResults(Array.isArray(data) ? data : data.results || [data]);
-    } catch (err) {
-      console.error('Search failed:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-1 flex-col gap-4 p-6 max-w-4xl mx-auto w-full">
-      <div>
-        <h1 className="text-2xl font-bold">Page Title</h1>
-        <p className="text-muted-foreground text-sm mt-1">Short description of what this page does.</p>
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="Search..."
-          className="flex-1"
-        />
-        <Button onClick={handleSearch} disabled={loading}>
-          {loading ? 'Searching...' : 'Search'}
-        </Button>
-      </div>
-
-      {/* Loading state */}
-      {loading && (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}><CardContent className="py-4 px-5"><Skeleton className="h-4 w-3/4" /></CardContent></Card>
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && searched && results.length === 0 && (
-        <Card><CardContent className="py-8 text-center text-muted-foreground">No results found for "{query}"</CardContent></Card>
-      )}
-
-      {/* Idle state */}
-      {!loading && !searched && (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-          <p>Search above to get started.</p>
-        </div>
-      )}
-
-      {/* Results */}
-      {!loading && results.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {results.map((item: unknown, i) => (
-            <Card key={i} className="cursor-pointer hover:border-primary/60 transition-colors">
-              <CardContent className="py-4 px-5">
-                {/* Replace with real fields from your API response */}
-                <p className="font-medium">{(item as Record<string, unknown>).name as string}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-```
+- State: `query`, `results`, `loading`, `searched`
+- Fetch: `http://localhost:3001/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}`
+- Layout: `flex flex-1 flex-col gap-4 p-6 max-w-4xl mx-auto w-full`
+- Search bar: `Input` + `Button` with `onKeyDown Enter` handler
+- Four render states: loading (`Skeleton` cards), empty ("No results for..."), idle ("Search above to get started"), populated (result `Card` list with hover)
 
 ## Step 5: Multi-Domain Composition
 
-When combining data from multiple domains, **always await each call sequentially**. The server has one shared browser — parallel calls race on the same page (see Single Browser Singleton warning above).
-
-```typescript
-// ✓ CORRECT — sequential, catch each source independently
-const sourceA = await fetchSourceA(query).catch(() => null);
-const sourceB = await fetchSourceB(query).catch(() => null);
-
-// Track which sources are offline
-const offline = {
-  sourceA: sourceA === null,
-  sourceB: sourceB === null,
-};
-```
-
-If a source returns `null` or `{ error }`, mark it offline and continue — never let one failing source break the whole page.
+Always sequential, catch per source. If a source returns null, mark offline — never let one failure break the page.
 
 ## Multi-Source Entity Merging
 
-When sources return the **same real-world entity** (same concert, same job posting, same paper), merge by a stable compound key instead of concatenating all results. This avoids showing the same event three times with different source labels.
-
-**The pattern:**
+Merge by a **stable compound key** (not free-text titles) to avoid duplicate cards:
 
 ```typescript
-// 1. Define a normalize+key function for your entity type
 function mergeKey(venue: string, date: string): string {
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   return `${norm(venue)}|${norm(date)}`;
 }
-
-// 2. Build Map<key, Record<sourceName, item>>
 const byKey = new Map<string, Record<string, unknown>>();
-
-for (const item of sourceAResults) {
-  const k = mergeKey(item.venue, item.date);
-  byKey.set(k, { ...byKey.get(k), sourceA: item });
-}
-for (const item of sourceBResults) {
-  const k = mergeKey(item.venue, item.date);
-  byKey.set(k, { ...byKey.get(k), sourceB: item });
-}
-
-// 3. Render — each Map entry is one display row
-//    entry.sourceA or entry.sourceB may be undefined (single-source entity)
-const rows = Array.from(byKey.values());
+for (const item of sourceAResults) byKey.set(mergeKey(item.venue, item.date), { ...byKey.get(mergeKey(item.venue, item.date)), sourceA: item });
+// repeat for sourceB...  each Map entry = one display row
 ```
 
-**Key selection rules:**
+**Rules:** Use stable fields (venue+date for events, company+title+city for jobs, DOI for papers). Normalize aggressively: lowercase, strip punctuation, parse dates to ISO. Normalize labels ("Section 101" = "Sec 101" = "101"). Single-source entities still appear with one badge.
 
-- Use the most stable fields: venue+date for events, company+title+city for jobs, DOI for papers
-- Normalize aggressively before comparing: lowercase, strip punctuation, parse dates to ISO
-- Normalize categorical labels across sources: "Section 101" = "Sec 101" = "101" -- strip common prefixes and normalize case before comparing
-- Never use free-text titles as the sole key -- they differ too much across sources
-- Single-source entities still appear -- just with one badge
-
-**Filter before merging:**
-
-- Validate that each result actually belongs to the search query before adding to the merge map
-- Use word-boundary regex or `startsWith` -- not `includes` -- to avoid false matches (e.g., "tribute" acts, unrelated recommendations)
-- Skip results with disqualifying keywords ("tribute", "experience", "symphony") that indicate unrelated content
+**Filter before merging:** Validate results belong to the query. Use `startsWith` or word-boundary regex — not `includes`. Skip disqualifying keywords.
 
 ## Step 6: Verify with Visual Dev
 
-After building the page, use the visual-dev skill to take screenshots and verify the layout:
-
-1. Navigate to `http://localhost:3000/<page-name>`
-2. Take screenshots at different states (empty, loading, populated, error)
-3. Iterate on visual issues
+Use visual-dev skill: screenshot at each state (empty, loading, populated, error), iterate on visual issues.
 
 ## Available UI Components
 
-The project uses shadcn/ui. Full component catalog: **https://ui.shadcn.com/docs/components**
-
-Installed components are in `apps/web/src/components/ui/`. Add new ones with:
-
-```bash
-cd apps/web && npx shadcn@latest add <component-name>
-```
-
-Common components for dashboards: `table`, `card`, `tabs`, `badge`, `skeleton`, `input`, `select`, `alert`.
-
-**Install commonly needed components upfront** before building any dashboard page:
+shadcn/ui — catalog: **https://ui.shadcn.com/docs/components**. Install upfront:
 
 ```bash
 cd apps/web && npx shadcn@latest add card badge sheet table skeleton alert input button -y
 ```
 
-This prevents mid-build interruptions to install missing components.
-
 ### List view vs detail view
 
-Every data-heavy dashboard follows one of two patterns. Pick based on how much detail the user needs without losing their place:
-
-| Pattern | When to use | Implementation |
-|---------|-------------|----------------|
-| **Inline expand** | Detail fits in 2–4 lines; user browses many rows | Collapsible row or Tooltip |
-| **Side sheet** | Detail needs its own layout; user compares against list | `Sheet` slides in from right, list stays visible behind it |
-| **Full page** | Detail has sub-navigation (tabs, charts, history) | `router.push('/item/[id]')` — only when sheet is too small |
-
-Default: start with Sheet. Upgrade to full page only when the detail view needs its own URL or has too many components to fit in a panel.
+| Pattern | When | Implementation |
+|---------|------|----------------|
+| **Inline expand** | Detail fits 2-4 lines | Collapsible row or Tooltip |
+| **Side sheet** (default) | Detail needs its own layout | `Sheet` from right, list stays visible |
+| **Full page** | Detail has sub-nav/tabs/charts | `router.push('/item/[id]')` |
 
 ### Pagination
 
-When a list can grow beyond ~25 items, paginate server-side. State pattern:
-
-```typescript
-const PAGE_SIZE = 25;
-const [page, setPage] = useState(0);
-const totalPages = Math.ceil(total / PAGE_SIZE);
-// In fetch: append `?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`
-// Reset to page 0 whenever filters change
-```
-
-Optional copy-paste pager component (generic, drop into `apps/web/src/components/ui/grid-pagination.tsx`):
-
-```typescript
-import { Button } from '@/components/ui/button';
-import { ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react';
-
-interface GridPaginationProps {
-  page: number;          // 0-indexed
-  totalPages: number;
-  totalItems: number;
-  itemLabel?: string;    // e.g. "results", "events"
-  onPageChange: (page: number) => void;
-}
-
-export function GridPagination({ page, totalPages, totalItems, itemLabel = 'items', onPageChange }: GridPaginationProps) {
-  return (
-    <div className="flex items-center justify-between px-3 py-2 border-t bg-muted/20 text-xs shrink-0">
-      <div className="text-muted-foreground font-mono">
-        Page {page + 1} of {totalPages} ({totalItems} {itemLabel})
-      </div>
-      <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(0)} disabled={page === 0}><ChevronsLeft className="h-3 w-3" /></Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(page - 1)} disabled={page === 0}><ChevronLeft className="h-3 w-3" /></Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages - 1}><ChevronRight className="h-3 w-3" /></Button>
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onPageChange(totalPages - 1)} disabled={page >= totalPages - 1}><ChevronsRight className="h-3 w-3" /></Button>
-      </div>
-    </div>
-  );
-}
-```
+State: `page` (0-indexed), `PAGE_SIZE = 25`, `totalPages = Math.ceil(total / PAGE_SIZE)`. Fetch with `?limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`. Reset page to 0 on filter change. Optional reusable pager: `apps/web/src/components/ui/grid-pagination.tsx` with `ChevronsLeft/Right` + `ChevronLeft/Right` buttons from lucide-react.
 
 ## Visual Design Guidance
 
-The Step 4 template is a starting scaffold. For a professional dashboard, apply these principles before calling the page done.
+### Required states (every page must implement all 8)
 
-### Required states
+| State | What to show |
+|-------|-------------|
+| Idle | "Search above to get started" |
+| Loading | `Skeleton` matching real content shape |
+| Empty | "No results for '...'" in a Card |
+| Populated | Real content with typography hierarchy |
+| Detail loading | `Skeleton` rows inside Sheet |
+| Detail populated | Full detail with visual hierarchy |
+| Partial offline | `Alert` naming the failing source |
+| Full offline | `Alert` per source with recovery instruction |
 
-Every page must implement all of these — not just the happy path:
+### Component choices
 
-| State | When | What to show |
-|-------|------|-------------|
-| Idle | No search yet | Centered prompt: "Search above to get started" |
-| Loading | Fetch in progress | `Skeleton` components matching real content shape |
-| Empty | 0 results returned | `Card` with message: "No results for '...'" |
-| Populated | Data present | Real content with proper typography hierarchy |
-| Detail loading | Sheet/panel open, fetching | `Skeleton` rows inside the panel |
-| Detail populated | Detail data present | Full detail view with clear visual hierarchy |
-| Partial offline | One source failed | `Alert` naming the failing source; other sources intact |
-| Full offline | All sources failed | `Alert` per source, clear recovery instruction |
+| Pattern | Component | Notes |
+|---------|-----------|-------|
+| List items | `Card` + `CardContent` | Never raw `<div>`. Hover state + border. |
+| Source labels | `Badge` | Consistent color across all views |
+| Detail view | `Sheet` from right | List stays visible behind |
+| Comparison grid | `Table` | Rows = entities, cols = sources. Best value in green. Missing = `—` |
+| Loading | `Skeleton` | Match real content dimensions |
+| Errors | `Alert` + `AlertDescription` | Name the specific source, never generic |
 
-### Component choices for common patterns
-
-**List items** → `Card` with `CardContent`. Never raw `<div>`. Adds hover state, border, proper spacing.
-
-**Data source labels** → `Badge`. Color-code sources consistently and carry that color into every view where that source appears (list badges, table column headers, offline alerts).
-
-**Detail view** → `Sheet` sliding from right. The list stays visible behind it — user keeps spatial context. Use `SheetHeader` + `SheetTitle` for the panel header.
-
-**Comparison grids** (multiple sources × multiple entities) → `Table`. Rows = entities, columns = sources. Highlight the "best" value per row in `font-semibold text-green-600`. Missing data → `—` (not blank, not 0).
-
-**Loading placeholders** → `Skeleton` with dimensions matching the real content. Prevents layout shift.
-
-**Per-source errors** → `Alert` with `AlertDescription`. Name the specific source: "StubHub unavailable — browser not connected." Never a generic "Error loading data."
-
-### Install components as needed
-
-```bash
-cd apps/web && npx shadcn@latest add card badge sheet table skeleton alert input button
-```
-
-### Responsive sidebar layout
-
-When combining a main content area with a sidebar panel (e.g., comparison comps, filters, activity feed):
+### Responsive sidebar
 
 ```tsx
 <div className="flex flex-col lg:flex-row gap-4">
-  {/* Main content — takes remaining space */}
-  <div className="flex-1 min-w-0">
-    {/* Listing cards, results, etc. */}
-  </div>
-  {/* Sidebar — fixed width on desktop, full width stacked on mobile */}
-  <div className="w-full lg:w-72 flex-shrink-0">
-    <Card>
-      {/* Sidebar content */}
-    </Card>
-  </div>
+  <div className="flex-1 min-w-0">{/* main content */}</div>
+  <div className="w-full lg:w-72 flex-shrink-0"><Card>{/* sidebar */}</Card></div>
 </div>
 ```
-
-Key: `lg:flex-row` switches from stacked (mobile) to side-by-side (desktop). `flex-shrink-0` prevents the sidebar from being compressed. `min-w-0` on the main content prevents it from overflowing with long text.
 
 ### Dark mode
 
-Use semantic tokens, not hardcoded colors:
-- Surfaces: `bg-background`, `bg-muted`, `border-border`
-- Text: `text-foreground`, `text-muted-foreground`
-- Accent panels: `bg-blue-950/30 border-blue-500/20` (not `bg-blue-50`)
-- Hover: `hover:bg-muted` (not `hover:bg-gray-50`)
+Semantic tokens only: `bg-background`, `bg-muted`, `text-foreground`, `text-muted-foreground`, `hover:bg-muted`. Accent: `bg-blue-950/30 border-blue-500/20` (not `bg-blue-50`).
 
 ## In-Process CRUD State
 
-When the prompt asks for user state (favorites, tracking, bookmarks, notes) and there's no database requirement, use a domain plugin with **in-process state** + `browserRequired: false` routes. No external deps, resets on server restart.
+For user state (favorites, tracking, bookmarks) with no database requirement: dedicated domain plugin with module-level `Set`/`Map` + `browserRequired: false` routes. Resets on server restart. Register in `apps/api/src/register-domains.ts`.
 
-Create a dedicated domain (e.g., `domains/jobs/`) with module-level state:
-
-```typescript
-// domains/jobs/src/routes.ts
-
-// Module-level store — persists for server lifetime, resets on restart
-const favorites = new Set<string>();
-const statusMap = new Map<string, string>();
-
-export const routes: DomainRoute[] = [
-  {
-    method: 'POST',
-    path: '/favorites',
-    browserRequired: false,
-    handler: async (c) => {
-      const { id } = await c.req.json() as { id: string };
-      const added = !favorites.has(id);
-      added ? favorites.add(id) : favorites.delete(id);
-      return c.json({ id, favorited: added });
-    },
-  },
-  {
-    method: 'GET',
-    path: '/favorites',
-    browserRequired: false,
-    handler: async (c) => c.json({ favorites: Array.from(favorites) }),
-  },
-  {
-    method: 'PUT',
-    path: '/status',
-    browserRequired: false,
-    handler: async (c) => {
-      const { id, status } = await c.req.json() as { id: string; status: string };
-      statusMap.set(id, status);
-      return c.json({ id, status });
-    },
-  },
-];
-```
-
-Register the plugin in `apps/api/src/register-domains.ts` alongside browser-based domains.
-
-**Pattern: optimistic UI update** — update local React state immediately, then fire the API call in background. Don't await the server sync before updating the UI.
-
-```typescript
-const toggleFavorite = async (id: string) => {
-  const newFavs = new Set(favorites);
-  newFavs.has(id) ? newFavs.delete(id) : newFavs.add(id);
-  setFavorites(newFavs); // optimistic
-  await fetch(`${API}/api/jobs/favorites`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id }),
-  }).catch(() => {}); // don't revert on network error
-};
-```
+**Optimistic UI:** Update React state immediately, fire API call in background. Don't await server sync before updating UI. `.catch(() => {})` — don't revert on network error.
 
 ## Cross-Source Entity Deduplication
 
-When multiple sources return the same real-world entity (same job, same product, same paper), merge by a stable compound key rather than concatenating arrays. This avoids showing the same entity with 4 source badges as 4 separate cards.
+Same pattern as Multi-Source Entity Merging above, but with `crossListed` tracking. Build `Map<key, { sources[], crossListed }>`. Normalize: lowercase, strip legal suffixes (Inc, LLC, Corp), strip punctuation.
 
-```typescript
-function dedupKey(company: string, title: string, location: string): string {
-  const norm = (s: string) => s.toLowerCase()
-    .replace(/\s+(inc\.?|llc\.?|corp\.?|ltd\.?|co\.?)$/i, '') // strip legal suffixes
-    .replace(/[^a-z0-9]/g, '');
-  return `${norm(company)}|${norm(title)}|${norm(location)}`;
-}
-
-// Merge: Map<key, { sources: Source[], bestPrice?, crossListed }>
-const byKey = new Map<string, MergedEntity>();
-for (const item of sourceAResults) {
-  const k = dedupKey(item.company, item.title, item.location);
-  const existing = byKey.get(k);
-  if (existing) {
-    existing.sources.push({ source: 'sourceA', ...item });
-    existing.crossListed = true;
-  } else {
-    byKey.set(k, { id: k, sources: [{ source: 'sourceA', ...item }], crossListed: false });
-  }
-}
-```
-
-**When to show cross-listed callout**: if the same entity appears on 2+ sources with different prices/salaries, show `"Source B lists $X higher"` next to the cheaper source. Normalize: `format(diff)` → `"$12K"` or `"$15/hr"`.
-
-**Cross-listed card badge**: show `"N sites"` badge on cards with `crossListed: true`. In the detail Sheet, show a "Salary by Source" or "Price by Source" comparison section with source badges and values side by side.
+**Cross-listed UI:** Show "N sites" badge on `crossListed: true` cards. In detail Sheet, show per-source price/salary comparison side by side. If prices differ: `"Source B lists $X higher"`.
 
 ### Status tracking in detail Sheet
 
-When a detail view needs per-item status tracking (application status, watchlist state, review status):
-
-```tsx
-{/* Status buttons in Sheet — one row of options */}
-<div>
-  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Application Status</p>
-  <div className="flex flex-wrap gap-2">
-    {STATUSES.map(s => (
-      <Button
-        key={s.value}
-        variant={currentStatus === s.value ? 'default' : 'outline'}
-        size="sm"
-        className="text-xs h-7"
-        onClick={() => updateStatus(itemKey, s.value)}
-      >
-        {s.label}
-      </Button>
-    ))}
-  </div>
-</div>
-```
-
-Use optimistic updates -- change React state immediately, fire the API call in background. The status buttons should be the last section in the Sheet, below the entity details.
+Row of `Button` variants (`default` for active, `outline` for inactive), `size="sm"`, optimistic updates. Place below entity details in Sheet.
 
 ## Cross-Source Timeline View
 
-When combining chronological events from multiple sources, build a unified timeline sorted by date. This is the natural view for activity monitoring, audit trails, and multi-source research.
-
-```typescript
-interface TimelineItem {
-  date: string;       // ISO date for sorting
-  type: string;       // category string -- drives dot color per source type
-  title: string;
-  subtitle: string;   // source-specific context
-  source: string;     // display label
-  link: string;       // external URL
-}
-
-function buildTimeline(...sources: TimelineItem[][]): TimelineItem[] {
-  return sources.flat().sort((a, b) => b.date.localeCompare(a.date));
-}
-```
-
-**Visual pattern:** Vertical line with colored dots — blue for one source, amber for another. Each dot anchors a card. Tab bar above switches between Timeline (merged), and per-source filtered views.
+Flatten + sort by date descending: `sources.flat().sort((a, b) => b.date.localeCompare(a.date))`. Each item: `{ date, type, title, subtitle, source, link }`. Visual: vertical line with colored dots per source. Tab bar for merged vs per-source views.
 
 ## Background Job Polling
 
-When a domain route starts a long-running operation (download, processing, generation), track it with job IDs and poll for progress:
+For long-running operations: POST to start (returns `jobId`), store in `Map<jobId, Job>`, `useEffect` with `setInterval(1000)` polling active jobs. Auto-stop when all complete/error. Show `<Progress value={job.progress} />` + status `<Badge>`.
 
-```typescript
-// Start a job
-const startJob = async (params: Record<string, unknown>) => {
-  const res = await fetch(`${API}/download`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-  });
-  const { jobId } = await res.json();
-  setJobs(prev => new Map(prev).set(jobId, { jobId, status: 'starting', progress: 0 }));
-};
+## Mini Sparkline (SVG, no deps)
 
-// Poll active jobs — auto-stops when all complete
-useEffect(() => {
-  const active = Array.from(jobs.values()).filter(
-    j => j.status !== 'complete' && j.status !== 'error'
-  );
-  if (!active.length) return;
-  const interval = setInterval(async () => {
-    for (const job of active) {
-      const res = await fetch(`${API}/download/${job.jobId}`);
-      const data = await res.json();
-      setJobs(prev => new Map(prev).set(job.jobId, data));
-    }
-  }, 1000);
-  return () => clearInterval(interval);
-}, [jobs]);
-```
+Inline SVG `<polyline>`, map data points to coords, green (`#22c55e`) if up, red (`#ef4444`) if down. Filter nulls, compute min/max/range, scale to `120x32` viewbox. For complex charts: `@visx/shape` + `@visx/scale`.
 
-Show progress with `<Progress value={job.progress} />` and a status `<Badge>`. Include the job list in a Downloads or Activity tab.
+## Mobile-First with Brand Colors
 
-## Mini Sparkline Pattern (SVG)
-
-For simple sparklines (price charts, trend indicators), use an inline SVG polyline. No dependencies needed:
-
-```tsx
-function Sparkline({ data }: { data: (number | null)[] }) {
-  const valid = data.filter((d): d is number => d != null);
-  if (valid.length < 2) return null;
-  const min = Math.min(...valid), max = Math.max(...valid), range = max - min || 1;
-  const w = 120, h = 32;
-  const points = valid.map((v, i) =>
-    `${(i / (valid.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`
-  ).join(' ');
-  const isUp = valid[valid.length - 1] >= valid[0];
-  return (
-    <svg width={w} height={h}>
-      <polyline points={points} fill="none" stroke={isUp ? '#22c55e' : '#ef4444'}
-        strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-```
-
-For complex charts (axes, tooltips, interactions), install `@visx/shape` + `@visx/scale`.
-
-## Mobile-First Dark Mode with Brand Colors
-
-When the prompt calls for a mobile-native feel with specific brand colors (e.g., Reddit orange `#FF4500`), use a color constants object with inline `style` rather than Tailwind classes. This gives precise control over brand palettes:
-
-```tsx
-const COLORS = {
-  bg: '#1A1A1B',
-  cardBg: '#272729',
-  border: '#343536',
-  textPrimary: '#D7DADC',
-  textSecondary: '#818384',
-  accent: '#FF4500',
-};
-
-// Use in components:
-<div style={{ backgroundColor: COLORS.bg, color: COLORS.textPrimary }}>
-```
-
-Touch targets: `min-w-[44px] min-h-[44px]` on all interactive elements. Bottom nav bar for mobile app feel. Use `className` for layout (flex, gap, padding) and `style` for colors.
+For brand-specific palettes, use a `COLORS` constants object with inline `style` (not Tailwind). Use `className` for layout (flex, gap, padding) and `style` for colors. Touch targets: `min-w-[44px] min-h-[44px]`. Bottom nav bar for mobile app feel.
 
 ## Nested Comment / Thread Tree
 
-For threaded content (Reddit comments, forum replies, nested discussions), use a recursive component:
+Recursive component with `depth` prop. Colored left-border per depth: `borderColor: hsl(${depth * 60 % 360}, 50%, 40%)`. Indent: `marginLeft: Math.min(depth, 6) * 16`. Click header to collapse/expand. Cap at maxDepth 6.
 
 ```tsx
 function CommentTree({ comment, depth = 0 }: { comment: Comment; depth?: number }) {
   const [collapsed, setCollapsed] = useState(false);
-  const indent = Math.min(depth, 6) * 16;
   return (
-    <div style={{ marginLeft: indent }}>
-      <div className="py-2 border-l-2 pl-3"
-        style={{ borderColor: `hsl(${depth * 60 % 360}, 50%, 40%)` }}>
-        <button onClick={() => setCollapsed(!collapsed)}>
-          {/* author, score, timeAgo */}
-        </button>
-        {!collapsed && (
-          <>
-            <p>{comment.body}</p>
-            {comment.replies.map(r => <CommentTree key={r.id} comment={r} depth={depth + 1} />)}
-          </>
-        )}
+    <div style={{ marginLeft: Math.min(depth, 6) * 16 }}>
+      <div className="py-2 border-l-2 pl-3" style={{ borderColor: `hsl(${depth * 60 % 360}, 50%, 40%)` }}>
+        <button onClick={() => setCollapsed(!collapsed)}>{/* author, score, timeAgo */}</button>
+        {!collapsed && <>
+          <p>{comment.body}</p>
+          {comment.replies.map(r => <CommentTree key={r.id} comment={r} depth={depth + 1} />)}
+        </>}
       </div>
     </div>
   );
 }
 ```
 
-Key: colored left-border per depth level creates visual thread lines. Cap at maxDepth (6) to prevent infinite nesting. Click header to collapse.
+## Video / Iframe Embed
 
-## Video / Iframe Embed Pattern
-
-For embedded video or media content, wrap in an aspect-ratio container:
-
-```tsx
-<div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-  <iframe
-    src={embedUrl}
-    className="w-full h-full"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-    title={title}
-  />
-</div>
-```
-
-For privacy-conscious embeds, prefer `-nocookie` variants of embed domains when available. For locally-served video files, use `<video>` with `controls` attribute and ensure the server supports `Content-Range` headers for seeking.
+Wrap `<iframe>` in `aspect-video` container. Prefer `-nocookie` embed domains. For local video: `<video controls>` with server-side `Content-Range` support.
 
 ### Static file serving with range requests
 
-When domain routes serve large files (video, audio, downloads), return a raw `Response` with `Content-Range` headers for seeking support:
+Return raw `new Response()` (not `c.json()`) with `Content-Range` headers. Prevent path traversal (`..` and `/` in filename). Import `createReadStream` from `node:fs`, `Readable` from `node:stream`. Status 206 for partial content.
 
 ```typescript
-// In routes.ts handler
-const filepath = resolve(DOWNLOADS_DIR, filename);
-if (filename.includes('..') || filename.includes('/')) {
-  return c.json({ error: 'Invalid filename' }, 400); // path traversal prevention
-}
-const stat = statSync(filepath);
 const range = c.req.header('range');
 if (range) {
   const [startStr, endStr] = range.replace('bytes=', '').split('-');
-  const start = parseInt(startStr);
-  const end = endStr ? parseInt(endStr) : stat.size - 1;
-  const stream = createReadStream(filepath, { start, end });
-  return new Response(Readable.toWeb(stream) as ReadableStream, {
-    status: 206,
-    headers: { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Type': 'video/mp4' },
+  const start = parseInt(startStr), end = endStr ? parseInt(endStr) : stat.size - 1;
+  return new Response(Readable.toWeb(createReadStream(filepath, { start, end })) as ReadableStream, {
+    status: 206, headers: { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Content-Type': 'video/mp4' },
   });
 }
 ```
 
-Key: return a raw `new Response()` -- not `c.json()`. Import `createReadStream` from `node:fs` and `Readable` from `node:stream`.
-
 ## API Call Pattern
 
-All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.
-
-- The browser must be connected to the domain for proxy to work
-- If browser is not connected, proxy returns `503 { error: "Browser not connected" }`
-- GET endpoints: `fetch('http://localhost:3001/api/<domain>/<path>')`
-- POST endpoints: include `Content-Type: application/json` and body
+All endpoints: `http://localhost:3001/api/<domain>/<path>`. Browser must be connected or proxy returns 503. POST endpoints need `Content-Type: application/json`.
 
 ## Gotchas
 
 | Problem | Fix |
 |---------|-----|
-| CORS error in browser | The API server has CORS enabled (`app.use('/*', cors())`) — should work. If not, check the port. |
-| 503 from proxy | Browser not connected. Open dashboard at `/browser?profile=<domain>&capture=<root-domain>` first. |
-| Empty results | Check the proxy endpoint directly with curl first: `curl http://localhost:3001/api/<domain>/<path>` |
-| Hydration error | Ensure the component is marked `'use client'` at the top |
-| Page not found | Check directory name matches the URL path — Next.js uses directory-based routing |
+| CORS error | Server has CORS enabled — check port |
+| 503 from proxy | Connect browser at `/browser?profile=<domain>` |
+| Empty results | `curl` the endpoint directly first |
+| Hydration error | Add `'use client'` at top |
+| Page not found | Directory name must match URL path |
+
+## Guiding Principles
+
+These override everything above. If a principle conflicts with a pattern, the principle wins.
+
+1. **An untested button is a broken button.** Walk the full user journey to reach it — don't test in isolation. `search → click result → scroll → click download → verify`
+2. **Every view of the same entity is the same product.** If the watch page has rich metadata, the downloads page playing the same video must too.
+3. **The first visit with zero setup IS the product.** No browser connected, no data seeded. If it shows an error, it's not done.
+4. **Silent failure is the worst failure.** Empty `catch {}` = user stares at a spinner forever. Every catch must surface a message.
+5. **Clickable things must look clickable. Non-clickable things must not.** No hover-only affordance — mobile has no hover. `cursor-pointer`, color, underline, or icon must be visible by default.
+6. **Pass values, not state.** Never `setState(x)` then call a function that reads state — it sees the old value. Pass `x` as a parameter. `fetchResults(suggestion)` not `setQuery(s); handleSearch()`
+7. **Error messages answer three questions: what, why, what now.** "Unavailable" fails. "Dice unavailable — connect browser at /browser to enable" passes.
+8. **Text never touches its container edge.** `p-4` minimum for cards, `p-6` for sheets. If text touches the border, spacing is broken.
+9. **Every list item earns its click.** Title alone is never enough. Show title + subtitle + one metric. `"Kendrick Lamar"` fails. `"Kendrick Lamar · Jun 15 · Allegiant Stadium · from $89"` passes.
+10. **Every input responds to Enter.** If you can type in it and there's a submit action, Enter triggers it.
+11. **Sequential fetches need progress narration.** Show which source is being queried. `"Searching Airbnb... (2 of 3)"` not a generic spinner for 30 seconds.
+12. **Normalize before merging.** Different formats of the same entity must produce the same key. `"Austin, TX"` and `"Austin TX"` must match. Trim, lowercase, strip punctuation.
+13. **Mobile is a different product.** Test at 375px for: overlapping text, truncated inputs, hidden hover-only elements, 44px minimum touch targets, single-column layout.
 
 ## Definition of Done
 
-**Every page must pass ALL of these before committing. This is mandatory, not optional.**
+**Use visual-dev skill + debug-logs skill. Every page must pass before committing.**
 
-### Visual validation (use visual-dev skill)
-
-- [ ] Screenshot every state: empty, loading, populated, error, detail view
-- [ ] Screenshot mobile viewport (375px) — no overlapping text, no truncation, no broken layout
-- [ ] Judge every screenshot against the 7 criteria (3-second test, data accuracy, visual hierarchy, interaction affordance, error communication, empty states, density balance)
-- [ ] Internal padding consistent: `p-4` minimum for cards, `p-6` for sheets/panels — text must never touch container edges
-
-### Interaction testing (use Patchright)
-
-- [ ] Every button clicked, every input filled, every form submitted via Patchright script
-- [ ] Full user journeys tested end-to-end: search → results → detail → interact → back
-- [ ] Suggestion chips / quick actions tested on first visit (watch for stale closure bugs)
-
-### Runtime validation (use debug-logs skill)
-
-- [ ] Zero console errors on page load
-- [ ] Zero console errors after each interaction
-- [ ] Any runtime bug → add targeted DEBUG() logs, reproduce, read output, fix, remove logs
-
-### Zero-setup first visit
-
-- [ ] Page screenshotted with no browser connected and no data seeded
-- [ ] Default view shows useful content OR clear guidance with actionable next step
-- [ ] Never show a raw error ("Failed to fetch", "unavailable") — always explain what to do
-
-### Consistency
-
-- [ ] Every view of the same entity has the same quality (list view, detail view, library view)
-- [ ] Every list item shows enough context to decide whether to click (title + subtitle + metric minimum)
+- [ ] Screenshot every state (empty, loading, populated, error, detail, mobile 375px) — judge against the 7 criteria
+- [ ] Walk every user journey end-to-end via Patchright (search → results → detail → interact → back)
+- [ ] Zero console errors on load and after each interaction
+- [ ] Zero-setup first visit shows useful content or clear actionable guidance
+- [ ] Padding, affordance, Enter key, error messages all pass the 13 principles above
