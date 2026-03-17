@@ -30,7 +30,16 @@ If no server is running, check `package.json` for the dev command (`pnpm dev`, `
 
 ### 2. Discover auth credentials AND post-login redirect
 
-Search in this order:
+**First check if auth exists at all.** Search for login-related files:
+
+```bash
+find apps/web/src -name "*.tsx" -path "*/login*" -o -name "*.tsx" -path "*auth*" | head -5
+grep -r 'fill.*password\|fill.*email\|getByLabel.*Email' tests/ e2e/ 2>/dev/null | head -3
+```
+
+If no login page or auth files exist, **skip login entirely** in the screenshot script — go straight to the target page. Many apps (especially internal tools) have no auth.
+
+If auth exists, search for credentials in this order:
 
 1. `CLAUDE.md` or project README
 2. Existing e2e tests — `grep -r 'fill.*password\|fill.*email' tests/ e2e/`

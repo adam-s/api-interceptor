@@ -81,6 +81,28 @@ export const routes: DomainRoute[] = [
 
 If the public API only covers part of the data (e.g., search yes, but detail pages need scraping), use a **hybrid approach**: `browserRequired: false` for public API routes, `browserRequired: true` (or omit) for browser-dependent routes.
 
+### Graceful API key degradation
+
+Some public APIs are free but require email-verified registration (e.g., Ticketmaster Discovery API). When the API key is optional:
+
+```typescript
+const API_KEY = process.env.EXAMPLE_API_KEY ?? '';
+
+handler: async (c, browser) => {
+  // Try public API first if key is available
+  if (API_KEY) {
+    const res = await fetch(`https://api.example.com/search?key=${API_KEY}&q=...`);
+    if (res.ok) return c.json(await res.json());
+  }
+  // Fall back to browser SSR extraction
+  const page = browser.getPage();
+  if (!page) return c.json({ error: 'No API key and no browser connected' }, 503);
+  // ... SSR extraction code ...
+},
+```
+
+This pattern lets routes work with OR without the key -- the key path is faster and more reliable, but browser extraction is the universal fallback.
+
 ### CLI tool bridge -- when sites aggressively block automation
 
 Some sites have public APIs that require paid/complex auth AND aggressively block browser automation. For these, use battle-tested CLI tools via the Python bridge instead. Common tools: `yt-dlp` (video), `gallery-dl` (images), `spotdl` (audio), `aria2` (generic downloads).

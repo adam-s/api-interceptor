@@ -245,7 +245,15 @@ Installed components are in `apps/web/src/components/ui/`. Add new ones with:
 cd apps/web && npx shadcn@latest add <component-name>
 ```
 
-Common components for dashboards: `table`, `card`, `tabs`, `badge`, `skeleton`, `input`, `select`.
+Common components for dashboards: `table`, `card`, `tabs`, `badge`, `skeleton`, `input`, `select`, `alert`.
+
+**Install commonly needed components upfront** before building any dashboard page:
+
+```bash
+cd apps/web && npx shadcn@latest add card badge sheet table skeleton alert input button -y
+```
+
+This prevents mid-build interruptions to install missing components.
 
 ### List view vs detail view
 

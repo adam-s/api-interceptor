@@ -29,6 +29,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - Performer pages on both sites include "Recommended" / "You may also like" sections. Filter extracted URLs to only those containing the performer name slug to avoid unrelated events.
 - `data-price` attributes on StubHub may hold USD-internal values that differ from displayed text in non-USD geolocations. Read prices from displayed text.
 - TM geolocks to regional domains (`.es`, `.de`, `.co.uk`) based on browser IP. Ensure event URLs use the correct domain.
+- TM Discovery API (`app.ticketmaster.com/discovery/v2`) is free but requires email-verified registration at `developer.ticketmaster.com`. Without `TM_API_KEY` env var, the domain plugin should fall back to browser SSR extraction for search. Use the graceful degradation pattern: check env var, try API, fall back to browser.
 
 **What this tests:**
 
