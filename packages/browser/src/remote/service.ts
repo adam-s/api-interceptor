@@ -340,6 +340,11 @@ export class RemoteBrowserService {
 			'--disable-background-timer-throttling',
 			'--disable-backgrounding-occluded-windows',
 			'--disable-renderer-backgrounding',
+			// SwiftShader provides software WebGL on Linux/Docker without a GPU.
+			// Our addInitScript spoofs the WebGL vendor/renderer to "Apple M1"
+			// so the site sees a real GPU regardless.
+			'--use-gl=swiftshader',
+			'--use-angle=swiftshader-webgl',
 		];
 
 		// When using a persistent Chrome user data dir, force the Default profile.

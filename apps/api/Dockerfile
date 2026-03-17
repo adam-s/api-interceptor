@@ -1,4 +1,6 @@
 # syntax=docker/dockerfile:1
+
+# ── Build stage (Alpine for speed) ──────────────────────────────────
 FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
 RUN npm install -g turbo
@@ -24,12 +26,43 @@ COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 COPY turbo.json turbo.json
 RUN pnpm build --filter=@interceptor/api
 
-# 4. Run — both Node.js and Python in one container for IPC bridge
-FROM node:22-alpine AS runner
-RUN apk add --no-cache python3
+# ── Runtime stage (Debian for xvfb + Chromium) ──────────────────────
+# Headed Chromium + xvfb bypasses Cloudflare Turnstile bot detection.
+# Alpine lacks the glibc/X11 libraries Chromium needs — Debian is required.
+FROM node:22-slim AS runner
+
+# Install Chromium, xvfb, dbus, and Python for IPC bridge
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    xvfb \
+    dbus \
+    fonts-liberation \
+    fonts-noto-color-emoji \
+    libgbm1 \
+    libnss3 \
+    libatk-bridge2.0-0 \
+    libgtk-3-0 \
+    libxss1 \
+    libasound2 \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell Patchright to use system Chromium instead of downloading its own
+ENV CHROMIUM_PATH=/usr/bin/chromium
+# Default to headed mode (Turnstile bypass). Set BROWSER_HEADLESS=true to override.
+ENV BROWSER_HEADLESS=false
+
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/apps/api/dist ./dist
 COPY --from=builder /app/apps/api/package.json ./
 COPY services/python/ ./services/python/
-CMD ["node", "dist/index.js"]
+
+# Browser profile persistence — mount a volume here for cross-restart sessions
+RUN mkdir -p /app/data/browser-profiles
+
+# xvfb-run starts a virtual X display, then runs the API server.
+# --auto-servernum picks an available display number.
+# -screen 0 1280x720x24 creates a 24-bit color 720p virtual screen.
+# -ac disables X access control (needed inside Docker).
+CMD ["xvfb-run", "--auto-servernum", "--server-args=-screen 0 1280x720x24 -ac", "node", "dist/index.js"]

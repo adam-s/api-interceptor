@@ -91,12 +91,16 @@ export async function autoStartHeadlessBrowser(profile?: string): Promise<void> 
 			if (profilePath) userDataDir = profilePath;
 		}
 
+		// headless: false bypasses Cloudflare Turnstile and most bot detection.
+		// On macOS it opens a background Chromium window. On Linux, use xvfb.
+		// Set BROWSER_HEADLESS=true to force headless (e.g., Docker/CI).
+		const headless = process.env.BROWSER_HEADLESS === 'true';
 		activeBrowser = new RemoteBrowserService({
 			fps: 1,
 			quality: 30,
 			viewportWidth: VIEWPORT_WIDTH,
 			viewportHeight: VIEWPORT_HEIGHT,
-			headless: true, // always headless — no WS client to stream to
+			headless,
 			userDataDir,
 		});
 
