@@ -165,10 +165,30 @@ GitHub Actions runs on push to `main` and PRs:
 - **NEVER commit unless:** (a) explicitly asked, OR (b) about to switch branches — always commit before `git checkout` to avoid losing work, OR (c) in autonomous iteration mode (see below)
 - **ALWAYS plan before coding:** call `EnterPlanMode` before writing any new files or modifying existing ones — **EXCEPTION: skip `EnterPlanMode` in Autonomous Iteration Mode** (plan internally, proceed without waiting for approval)
 - **NEVER move on without verifying:** each completed step must be proven — curl returns real data, screenshot shows real content
-- **ALWAYS update CLAUDE.md before switching branches** — the "Current Iteration State" block below must reflect where you are before every `git checkout`
-- **SKILLS AND DOCS MUST BE EDITED ON BASE** — any change to CLAUDE.md, DEVELOPER_PROMPTS.md, ROADMAP.md, or `.claude/skills/` made on a test branch is LOST when you checkout base or another branch. Always: (1) edit skills/docs on base, (2) commit, (3) then checkout the test branch. Never edit these files on a test branch unless you immediately cherry-pick or re-apply them to base before switching.
 - **USE THE DEBUG SKILL for runtime bugs:** the moment a bug requires understanding runtime behavior (0 frames, wrong values, callbacks not firing, wrong branch taken), invoke `.claude/skills/debug-logs/SKILL.md` — add 2-4 targeted logs, reproduce, read output, fix, remove logs. Do NOT read code for 10+ minutes without logging. Remove all debug logs after the fix is confirmed.
 - **NEVER quit half-way:** iterate until the prompt is fully solved and CI is green. Every gap discovered goes in ROADMAP.md. Every base fix gets verified by a new test branch. The loop never ends — it only improves.
+
+### ⚠️ The Notes File Rule — How Learning Moves from Test → Base
+
+**On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.**
+
+Instead, write every failure, root cause, skill gap, and fix idea to the persistent fix queue — a file outside git that is always accessible regardless of branch:
+
+```text
+~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/base-fixes-needed.md
+```
+
+You may prototype a fix on the test branch to verify it works. But record it in `base-fixes-needed.md` so it gets applied permanently to `base`.
+
+When you return to `base`:
+
+1. Read `memory/base-fixes-needed.md`
+2. Apply every item to base: skills, CLAUDE.md, ROADMAP.md, utilities, MEMORY.md
+3. Delete each item from the file once applied
+4. Commit base — file should be empty before cutting the next test branch
+5. Create the next test branch — it inherits ALL learnings from ALL prior iterations
+
+**Why:** CLAUDE.md and skills edited on a test branch vanish when you `git checkout base`. The memory fix queue is outside git — it survives every branch switch.
 
 ---
 
@@ -211,20 +231,32 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ### Returning to Base After a Test Iteration
 
+**Step 1 — On the test branch, wrap up:**
+
 1. Kill running servers
-2. Document all failures in `docs/temp/ROADMAP.md` (failure, root cause, fix needed)
-3. Update CLAUDE.md "Current Iteration State" block (set branch to `base`, record what failed)
-4. Commit on test branch: `git add -A && git commit -m "test: iteration complete — <summary>"`
-5. `git checkout base`
-6. Strip domain artifacts:
-   - Remove domain routes, pages, nav entries, package.json deps
-   - `rm -rf data/browser-profiles/<domain>` if created during test
-   - `rm -rf test-results/dev-screenshots/`
-7. Fix the specific failures — skills/utilities only, NOTHING domain-specific
-8. `./scripts/ci-local.sh` — must pass
-9. Update CLAUDE.md "Current Iteration State" block (set next test branch name, phase 1)
-10. `git commit` on base
-11. `git checkout -b test/<id>-v<n+1>` and continue
+2. Append all failures, root causes, and fix ideas to `memory/base-fixes-needed.md` (outside git — always accessible)
+3. Commit domain work: `git add -A && git commit -m "test: iteration complete — <summary>"`
+
+**Step 2 — On base, apply learnings:**
+
+1. `git checkout base`
+2. Strip domain artifacts from working tree:
+   - `rm -rf domains/<name>/` for each test domain
+   - Revert `apps/api/src/register-domains.ts`, `apps/web/src/components/layout/nav-main.tsx`, `pnpm-lock.yaml`
+   - `rm -rf data/browser-profiles/<domain>` and `test-results/dev-screenshots/`
+3. Read `memory/base-fixes-needed.md` and apply every item to base:
+   - `.claude/skills/` — the primary deliverable of every iteration
+   - `CLAUDE.md` — Current Iteration State + any new rules
+   - `docs/temp/ROADMAP.md` — observed failures log
+   - `docs/temp/DEVELOPER_PROMPTS.md` — if a prompt needs revision
+   - `memory/MEMORY.md` — if a new pattern needs remembering
+4. Clear applied items from `memory/base-fixes-needed.md`
+5. `./scripts/ci-local.sh` — must pass
+6. `git commit` on base
+
+**Step 3 — Start next iteration:**
+
+1. `git checkout -b test/<id>-v<n+1>` — inherits ALL learnings from ALL iterations
 
 ---
 
