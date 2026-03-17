@@ -686,3 +686,37 @@ All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.
 | Empty results | Check the proxy endpoint directly with curl first: `curl http://localhost:3001/api/<domain>/<path>` |
 | Hydration error | Ensure the component is marked `'use client'` at the top |
 | Page not found | Check directory name matches the URL path — Next.js uses directory-based routing |
+
+## Definition of Done
+
+**Every page must pass ALL of these before committing. This is mandatory, not optional.**
+
+### Visual validation (use visual-dev skill)
+
+- [ ] Screenshot every state: empty, loading, populated, error, detail view
+- [ ] Screenshot mobile viewport (375px) — no overlapping text, no truncation, no broken layout
+- [ ] Judge every screenshot against the 7 criteria (3-second test, data accuracy, visual hierarchy, interaction affordance, error communication, empty states, density balance)
+- [ ] Internal padding consistent: `p-4` minimum for cards, `p-6` for sheets/panels — text must never touch container edges
+
+### Interaction testing (use Patchright)
+
+- [ ] Every button clicked, every input filled, every form submitted via Patchright script
+- [ ] Full user journeys tested end-to-end: search → results → detail → interact → back
+- [ ] Suggestion chips / quick actions tested on first visit (watch for stale closure bugs)
+
+### Runtime validation (use debug-logs skill)
+
+- [ ] Zero console errors on page load
+- [ ] Zero console errors after each interaction
+- [ ] Any runtime bug → add targeted DEBUG() logs, reproduce, read output, fix, remove logs
+
+### Zero-setup first visit
+
+- [ ] Page screenshotted with no browser connected and no data seeded
+- [ ] Default view shows useful content OR clear guidance with actionable next step
+- [ ] Never show a raw error ("Failed to fetch", "unavailable") — always explain what to do
+
+### Consistency
+
+- [ ] Every view of the same entity has the same quality (list view, detail view, library view)
+- [ ] Every list item shows enough context to decide whether to click (title + subtitle + metric minimum)

@@ -5,6 +5,8 @@ description: Visual development with Patchright screenshots. Use when building, 
 
 # Visual Development Loop
 
+**This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the prompt iteration is considered complete. See CLAUDE.md "Validation Gate" section. Skipping this step is how broken buttons, missing padding, and unusable mobile layouts ship.
+
 Use Patchright (anti-detection Playwright fork) as a development tool to see the UI, verify interactions, and improve visual quality through an iterative screenshot loop.
 
 **The core principle**: Build, screenshot, judge, fix, re-screenshot, repeat until you can't find problems. The screenshot loop IS the development loop. Every change gets visually verified. Every visual problem gets fixed immediately. You keep going until you run out of problems to find.

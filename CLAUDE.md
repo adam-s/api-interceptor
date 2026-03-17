@@ -194,10 +194,20 @@ The user has granted full autonomous operation. You may:
 ### The Iteration Loop
 
 ```text
-test branch → observe failures → document in docs/temp/ROADMAP.md → git checkout base
+test branch → build prompt → VALIDATE → observe failures → document → git checkout base
 → strip domain artifacts → fix skills/utilities on base (nothing domain-specific)
 → ./scripts/ci-local.sh → git commit → git checkout -b test/<id>-v<n+1> → repeat
 ```
+
+### Validation Gate (mandatory before committing test work)
+
+**A prompt is NOT done until this gate passes. This is not optional polish — it is the definition of done.**
+
+1. **Visual-dev skill** (`.claude/skills/visual-dev/SKILL.md`): Enumerate every page state (empty, loading, populated, error, mobile). Take Patchright screenshots of each. Judge every screenshot against the 7 criteria (3-second test, data accuracy, visual hierarchy, interaction affordance, error communication, empty states, density balance). Zero issues = pass.
+2. **Debug-logs skill** (`.claude/skills/debug-logs/SKILL.md`): For any runtime bug found during visual verification — add targeted `DEBUG()` logs, reproduce, read output, fix, remove logs.
+3. **Interaction testing**: Use Patchright to click every button, fill every input, submit every form, test every user journey end-to-end. An untested button is a broken button.
+4. **Zero-setup first visit**: Screenshot the page with no prior setup (no browser connected, no data seeded). If the default view shows an error or empty state with no guidance, the page is not done.
+5. **Mobile viewport**: Screenshot at 375px width. No overlapping text, no truncated inputs, no broken layouts.
 
 Full details and checkpoint rules: `docs/temp/ROADMAP.md`
 
