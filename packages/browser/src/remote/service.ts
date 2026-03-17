@@ -1016,15 +1016,43 @@ export class RemoteBrowserService {
 			/** Navigate to this origin before fetching instead of the target API origin.
 			 *  Use for cross-origin APIs where the main site has CORS access. */
 			navigateTo?: string;
+			/** Timeout in ms for the entire operation (navigation + fetch). Default: 20000. */
+			timeout?: number;
 		} = {},
 	): Promise<{ status: number; data: T; headers: Record<string, string> }> {
 		if (!this.page) {
 			throw new Error('Browser not started');
 		}
 
+		const timeoutMs = options.timeout ?? 20_000;
+
+		// Wrap the entire operation in a timeout so callers never hang
+		const timeoutPromise = new Promise<never>((_, reject) => {
+			setTimeout(() => reject(new Error(`browserFetch timed out after ${timeoutMs}ms: ${url}`)), timeoutMs);
+		});
+
+		const fetchPromise = this._browserFetchInner<T>(url, options);
+		return Promise.race([fetchPromise, timeoutPromise]);
+	}
+
+	/** Inner implementation of browserFetch, separated to enable timeout wrapping. */
+	private async _browserFetchInner<T>(
+		url: string,
+		options: {
+			method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+			headers?: Record<string, string>;
+			body?: unknown;
+			navigateTo?: string;
+			timeout?: number;
+		},
+	): Promise<{ status: number; data: T; headers: Record<string, string> }> {
+		// this.page is guaranteed non-null — caller (browserFetch) checks before calling
+		// biome-ignore lint/style/noNonNullAssertion: guarded by browserFetch
+		const page = this.page!;
+
 		// Extract the origin from the target URL
 		const targetOrigin = new URL(url).origin;
-		const currentUrl = this.page.url();
+		const currentUrl = page.url();
 		const currentOrigin = currentUrl ? new URL(currentUrl).origin : '';
 
 		// Determine navigation target: use navigateTo override if provided,
@@ -1040,13 +1068,13 @@ export class RemoteBrowserService {
 		if (currentOrigin !== navigationOrigin) {
 			try {
 				// Navigate to a lightweight page on the target origin
-				await this.page.goto(navigationOrigin, { waitUntil: 'domcontentloaded', timeout: 15000 });
+				await page.goto(navigationOrigin, { waitUntil: 'domcontentloaded', timeout: 15000 });
 			} catch (_err) {
 				// If navigation fails, try anyway - the fetch might still work
 			}
 		}
 
-		const result = await this.page.evaluate(
+		const result = await page.evaluate(
 			async ({ url, options }) => {
 				try {
 					const fetchOptions: RequestInit = {

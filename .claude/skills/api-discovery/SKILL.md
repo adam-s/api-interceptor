@@ -187,6 +187,31 @@ When a site fires internal API calls (visible in CDP traffic), prefer intercepti
 
 The intercepted JSON is always cleaner than `innerText` + regex. A site's internal API returns `{ "brand": "Element", "price": 8999 }` as separate typed fields. The same data from DOM text comes back as `"Element8.0\" Midnight Blue$89.99"` and requires fragile parsing.
 
+**Type A sources can die without warning.** Public APIs get auth-gated overnight (Dice went from public JSON to 403 in one release). Write domain plugins defensively — if a Type A endpoint returns 403/429, the fix is to fall down the decision tree to Type B2 or B, not to retry the same broken endpoint. Set `browserRequired: true` and use `browser.navigate()` + `page.evaluate()` to extract from the DOM.
+
+### Rate-limited outbound fetch
+
+For all `browserRequired: false` routes, use `rateLimitedFetch` from `@interceptor/shared` instead of raw `fetch()`. It enforces per-hostname rate limits registered at startup, and auto-retries 429 responses with exponential backoff.
+
+```typescript
+import { rateLimitedFetch } from '@interceptor/shared';
+
+const res = await rateLimitedFetch('https://api.semanticscholar.org/...');
+```
+
+Register host limits in `apps/api/src/register-domains.ts`:
+
+```typescript
+import { registerRateLimit } from '@interceptor/shared';
+registerRateLimit('api.semanticscholar.org', { maxPerMinute: 10, retryOn429: 2 });
+```
+
+Unregistered hosts pass through with no delay. Add a `@interceptor/shared` workspace dependency to any domain package that uses it.
+
+### browserFetch timeout
+
+`browserFetch()` has a default 20-second timeout covering both navigation and the in-browser fetch. If the browser is disconnected or the target site hangs, it throws `"browserFetch timed out"` instead of hanging forever. Override with `{ timeout: 30000 }` for slow endpoints.
+
 ### Type B2: Traffic capture for CORS-blocked APIs
 
 Clear traffic buffer → navigate (page JS fires API calls) → read from traffic buffer. Use when direct fetch gets CORS errors or 403.

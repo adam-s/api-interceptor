@@ -293,3 +293,28 @@ or edge cases may surface gaps. Always log potential improvements to
 - Monorepo .env: Next.js loads from app dir; `next.config.ts` loads root `.env` via dotenv
 - TypeScript: Enable strict mode in all `tsconfig.json`
 - Tests: Vitest with workspace mode
+
+### Frontend API URLs
+
+Dashboard components MUST use **relative URLs** (`/api/...`), not `http://localhost:3001/api/...`. The Next.js rewrites proxy in `apps/web/next.config.ts` maps `/api/*` → `localhost:3001/api/*`. Relative URLs survive port changes and deployment — hardcoded localhost URLs don't.
+
+```typescript
+// CORRECT — relative, works through Next.js proxy
+const res = await fetch(`/api/yahoo-finance/quote/${symbol}`);
+
+// WRONG — breaks if port changes, doesn't work in production
+const res = await fetch(`http://localhost:3001/api/yahoo-finance/quote/${symbol}`);
+```
+
+### Rate-Limited Outbound Fetch
+
+For direct HTTP calls to external APIs (`browserRequired: false` routes), use `rateLimitedFetch` from `@interceptor/shared` instead of raw `fetch()`. Register host limits in `apps/api/src/register-domains.ts` alongside domain registration.
+
+```typescript
+import { rateLimitedFetch } from '@interceptor/shared';
+
+// Drop-in fetch replacement — respects registered per-host rate limits
+const res = await rateLimitedFetch('https://api.semanticscholar.org/...');
+```
+
+Unregistered hosts pass through with no delay. 429 responses are retried automatically with exponential backoff.
