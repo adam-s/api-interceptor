@@ -266,46 +266,35 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 5 (next — Academic Research Aggregator: PubMed + Semantic Scholar + ArXiv)
+Prompt:        Prompt 6 (next — Government & Public Records Monitor: SEC EDGAR, business registry, property records, PACER)
 
-NOTE: Prompt 5 (Social Media Cross-Poster) was DELETED — Reddit (now Prompt 7) covers social media.
-      Prompts renumbered: old 6→5, old 7→6, old 8→7, old 9→8.
-      test/social-v1 branch was created but has no domain commits — abandon it.
+Prompt 5 (Academic Research Aggregator) — SOLVED on test/academic-v1:
+  ✅ ArXiv domain plugin — public Atom/XML API (export.arxiv.org/api), browserRequired: false
+  ✅ Semantic Scholar domain plugin — public JSON API (api.semanticscholar.org/graph/v1), browserRequired: false
+  ✅ PubMed domain plugin — NCBI E-utilities (esearch + efetch XML), browserRequired: false
+  ✅ /research dashboard — cross-database search, DOI-based deduplication
+  ✅ "Most Influential Papers" panel ranked by citation count
+  ✅ Detail sheet with abstract, authors, DOI, citation network (cited-by + references from S2)
+  ✅ Sort by relevance/citations/year, source badges, cross-listed indicator
 
-Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1:
-  ✅ Dice domain plugin — direct JSON API (job-search-api.dice.com), browserRequired: false
-  ✅ Indeed domain plugin — DOM extraction via extractFromPage(), job card selectors
-  ✅ LinkedIn domain plugin — DOM extraction, geoId map, bot-detection documented
-  ✅ Glassdoor domain plugin — __NEXT_DATA__ + DOM extraction fallback, bot-detection documented
-  ✅ Jobs CRUD domain — in-process favorites/status state, browserRequired: false
-  ✅ /jobs dashboard — sequential fetch, dedup by company|title|location, salary comparison
-  ✅ Star favorites + application status tracking (saved/applied/interviewing/rejected/offer)
-  ✅ Cross-listed badge + salary callout ("Source B lists $12K higher")
+Base fixes applied from Prompt 5 iteration:
+  ✅ api-discovery skill: Phase 0 — "Check for a Public API" section (skip browser for public REST APIs)
+  ✅ api-discovery skill: gotcha rows for XML APIs and soft rate limits (S2 total:0 with 200 status)
+  ✅ First iteration where ALL three domains use browserRequired: false — zero browser dependency
 
-Base fixes applied from Prompt 4 iteration:
-  ✅ dashboard-builder skill: In-Process CRUD State section (favorites, status pattern)
-  ✅ dashboard-builder skill: Cross-Source Entity Deduplication section (compound key, merge map)
-  ✅ autoStartHeadlessBrowser(): headless browser auto-starts at server boot — eliminates 503 "Browser not connected"
-  ✅ visual-dev skill: "Getting Unstuck" row for Browser not connected / 503 symptom
-  ✅ browser page: fixed 0-frames reuse path bug (setFrameCallback on reconnect)
-  ✅ browser page: mouseDown/mouseUp support for Cloudflare Turnstile "Press & Hold"
-  ✅ CLAUDE.md: EnterPlanMode skipped in Autonomous Iteration Mode
-
-Framework gaps discovered (Prompt 4):
-  - LinkedIn and Glassdoor require persistent authenticated session (no SMS/OAuth bridge)
-  - Cross-domain type sharing: Job interface defined locally in each domain (4 copies)
-  - Direct JSON API domains (Dice) work with browserRequired: false — first real-world example
-  - No salary normalization utility — implemented ad-hoc per domain
+Framework gaps discovered (Prompt 5):
+  - Semantic Scholar rate limits aggressively (100 req/5min unauthenticated) — soft 429 returns total:0 with 200 status
+  - XML parsing for public APIs (ArXiv Atom, PubMed NCBI XML) — no DOMParser in Node.js, regex-based parsing works
+  - DOI is the best dedup key for academic papers; normalized title is fallback
 
 Previous:
+Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1
 Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
 Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
 Prompt 1 (StubHub) — SOLVED
 
-Next iteration: Run Prompt 5 (Academic Research Aggregator) from docs/temp/DEVELOPER_PROMPTS.md
-  Expected new gap: api-discovery skill has no guidance for "public API exists — skip browser interception"
-  ArXiv and Semantic Scholar both have documented public REST APIs.
-  Branch: test/academic-v1
+Next iteration: Run Prompt 6 (Government & Public Records Monitor) from docs/temp/DEVELOPER_PROMPTS.md
+  Branch: test/gov-records-v1
 ```
 
 ## Conventions

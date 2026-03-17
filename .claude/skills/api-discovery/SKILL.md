@@ -19,6 +19,52 @@ ls domains/ | grep <domain-name>
 
 If it exists, read `domains/<name>/src/routes.ts` and skip to "Use Existing Domain" at the bottom.
 
+## Phase 0: Check for a Public API
+
+Before launching a browser, check if the target site has a **documented public REST API**. Many data providers (academic databases, government services, social platforms) offer free APIs that are faster, more reliable, and more structured than browser interception.
+
+### How to check
+
+1. Search for `<site-name> API documentation` or `<site-name> developer API`
+2. Look for API subdomains in the site's docs: `api.example.com`, `developer.example.com`
+3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), GitHub, Reddit (OAuth), Wikipedia, OpenStreetMap, etc.
+
+### If a public API exists — skip browser interception entirely
+
+Set all routes to `browserRequired: false` and use direct `fetch()` in handlers:
+
+```typescript
+export const routes: DomainRoute[] = [
+  {
+    method: 'GET',
+    path: '/search',
+    browserRequired: false,  // no browser needed — public API
+    description: 'Search via public REST API',
+    handler: async (c) => {
+      const q = c.req.query('q') ?? '';
+      const res = await fetch(`https://api.example.com/search?q=${encodeURIComponent(q)}`, {
+        headers: { 'User-Agent': 'api-interceptor/1.0 (research tool)' },
+      });
+      if (res.status === 429) return c.json({ error: 'Rate limited', retryAfter: 30 }, 429);
+      if (!res.ok) return c.json({ error: `API error: ${res.status}` }, 502);
+      const data = await res.json();
+      return c.json(data);
+    },
+  },
+];
+```
+
+**Key differences from browser-intercepted routes:**
+- No interceptor patterns, no browser profiles, no CDP traffic capture needed
+- The config's `interceptPatterns` and `baseUrls` arrays stay empty
+- Rate limiting: public APIs enforce rate limits (e.g., Semantic Scholar: 100 req/5min unauthenticated). Always handle 429 responses and return them to the client.
+- Some public APIs return **XML** (ArXiv Atom, PubMed NCBI XML), not JSON. Parse with regex (see "RSS / XML feed parsing" section below) — no DOMParser in Node.js.
+- Authentication: some APIs offer optional API keys for higher rate limits. Embed as a header or query param. Never require browser auth for truly public APIs.
+
+If the public API only covers part of the data (e.g., search yes, but detail pages need scraping), use a **hybrid approach**: `browserRequired: false` for public API routes, `browserRequired: true` (or omit) for browser-dependent routes.
+
+If no public API exists, proceed to Phase 1.
+
 ## Phase 1: Observe
 
 Navigate to the target page and see what data is visible.
@@ -597,6 +643,8 @@ This lets a StubHub session also intercept Ticketmaster API calls when the brows
 | Substring artist filter passes tribute bands | `name.includes(query)` is too broad — "Bad Bunny Tribute Experience" contains "Bad Bunny". Filter must check that the artist name is the **subject** of the event, not just a substring. Require: `norm(eventName).startsWith(norm(artist))` OR use a stricter regex like `new RegExp('\\b' + escapedArtist + '\\b', 'i')`. Also skip names containing words like "tribute", "experience", "symphony", "comedy", "theater". |
 | Direct `fetch()` returns 429 but browser and `curl` return 200 | The site uses **TLS fingerprinting** (also called JA3/JA4 fingerprinting). Node.js has a distinct TLS fingerprint from Chrome. Sites like Yahoo Finance and others with anti-bot protection will 429 Node.js `fetch()` while accepting requests from real browsers. **Fix**: use `browserFetch(url, { headers })` inside the route handler instead of `fetch()` — the proxy browser's TLS fingerprint matches a real Chrome browser. Alternatively, mark the route `browserRequired: true` and navigate to the URL to extract data from the DOM. |
 | `browserRequired: false` route still gets 503 | Check the `createDomainProxy` implementation in `packages/browser/src/handler/api-proxy.ts`. The browser-not-connected check must be `if (!browser && route.browserRequired !== false)` — not `if (!browser)`. If the check is unconditional, all routes will 503 when no browser is connected, even browserless ones. |
+| Public API returns `total: 0` with 200 status | Some APIs (Semantic Scholar) return empty results under load — a soft rate limit. This looks like "no results" but is actually transient. Retry after a few seconds. Check if `total` is 0 but 200 status — differentiate from a genuine empty result (which would also have `total: 0` but for a nonsense query). |
+| Public API returns XML, not JSON | ArXiv (Atom), PubMed (NCBI XML), and some government APIs return XML. Parse with regex: `/<entry>([\s\S]*?)<\/entry>/g` for Atom, `/<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g` for PubMed. See "RSS / XML feed parsing" section for the general pattern. |
 
 ### Clearing a poisoned browser profile
 

@@ -240,6 +240,26 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ---
 
+### Iteration 6 — Prompt 5 (Academic Research Aggregator): `test/academic-v1`
+
+**What was attempted:** Create domains for PubMed, Semantic Scholar, and ArXiv. Search for a research topic, collect papers with citations and abstracts. Deduplicate papers across databases. Build a literature review dashboard.
+
+**What was delivered:** Fully working end-to-end. All three domains created with public REST APIs (zero browser dependency). Dashboard with cross-database search, DOI dedup, citation network, and "Most Influential Papers" panel.
+
+**Key discovery:** All three domains (ArXiv, Semantic Scholar, PubMed) have documented public REST APIs. The api-discovery skill had NO guidance for this case — it assumed browser interception was always needed. Added "Phase 0: Check for a Public API" to the skill.
+
+**Failures observed:**
+
+| # | Failure | Root cause | Fix applied to base |
+|---|---------|-----------|---------------------|
+| 1 | api-discovery skill has no "public API" path | Skill always starts with browser + CDP | Added Phase 0 section with public API detection and `browserRequired: false` pattern |
+| 2 | Semantic Scholar returns total:0 with 200 status under load | Soft rate limit — not a true empty result | Added gotcha row documenting this behavior |
+| 3 | ArXiv and PubMed return XML, not JSON | No XML parsing guidance in skill | Added gotcha row referencing regex-based XML parsing |
+
+**No failures requiring test branch reruns.** First prompt solved on v1 with no re-iterations needed.
+
+---
+
 ### Iteration 2 — Prompt 1 (ticket comparison): `test/iteration-2`
 
 **What was attempted:** Full Prompt 1 — discover APIs for StubHub, Ticketmaster, SeatGeek, TicketNetwork; build /tickets dashboard.
