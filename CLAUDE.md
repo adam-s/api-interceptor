@@ -251,7 +251,12 @@ Phase B re-runs completed:
     - Deduplication by DOI + normalized title, sorted by citation count
     - /research dashboard: search, source badges, detail Sheet with DOI
 
-Phase B remaining: P3 Rental, P4 Jobs, P6 Gov Records, P7 Reddit, P8 YouTube
+  P6 Gov Records (DONE) — test/rerun-p6-v1
+    - Gov-records domain: 4 routes (SEC EDGAR + CourtListener)
+    - SEC User-Agent requirement, proper field extraction
+    - /records dashboard: vertical timeline with colored dots per source
+
+Phase B remaining: P3 Rental, P4 Jobs, P7 Reddit, P8 YouTube
 ```
 
 ## Conventions
