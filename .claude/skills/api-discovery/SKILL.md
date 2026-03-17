@@ -27,7 +27,8 @@ Before launching a browser, check if the target site has a **documented public R
 
 1. Search for `<site-name> API documentation` or `<site-name> developer API`
 2. Look for API subdomains in the site's docs: `api.example.com`, `developer.example.com`
-3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), GitHub, Reddit (OAuth), Wikipedia, OpenStreetMap, etc.
+3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), SEC EDGAR (`efts.sec.gov`, `data.sec.gov`), CourtListener (`courtlistener.com/api/rest/v4`), GitHub, Reddit (OAuth), Wikipedia, OpenStreetMap, etc.
+4. When the primary data source requires paid auth or CAPTCHA (e.g., PACER for court records), look for **free open-source mirrors** — CourtListener mirrors PACER data for free.
 
 ### If a public API exists — skip browser interception entirely
 
@@ -60,6 +61,7 @@ export const routes: DomainRoute[] = [
 - Rate limiting: public APIs enforce rate limits (e.g., Semantic Scholar: 100 req/5min unauthenticated). Always handle 429 responses and return them to the client.
 - Some public APIs return **XML** (ArXiv Atom, PubMed NCBI XML), not JSON. Parse with regex (see "RSS / XML feed parsing" section below) — no DOMParser in Node.js.
 - Authentication: some APIs offer optional API keys for higher rate limits. Embed as a header or query param. Never require browser auth for truly public APIs.
+- **User-Agent requirements**: some government APIs (SEC EDGAR) require a descriptive User-Agent with contact info: `'api-interceptor/1.0 (research tool; admin@example.com)'`. Requests without it get 403.
 
 If the public API only covers part of the data (e.g., search yes, but detail pages need scraping), use a **hybrid approach**: `browserRequired: false` for public API routes, `browserRequired: true` (or omit) for browser-dependent routes.
 

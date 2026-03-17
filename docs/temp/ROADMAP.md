@@ -240,6 +240,22 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ---
 
+### Iteration 7 — Prompt 6 (Government & Public Records Monitor): `test/gov-records-v1`
+
+**What was attempted:** Create domains for SEC EDGAR, state business registry, county property records, and PACER. Search by company name, aggregate filings and court cases. Build a due diligence dashboard with timeline.
+
+**What was delivered:** Fully working end-to-end. SEC EDGAR (public REST API) and CourtListener (free PACER alternative) both use `browserRequired: false`. Dashboard shows company info panel, timeline of all activity, and tabbed views.
+
+**Key discoveries:**
+- PACER requires paid account + CAPTCHA. CourtListener (courtlistener.com) is a free, open-source alternative that mirrors PACER data.
+- SEC EDGAR requires a descriptive User-Agent with contact email. Requests without it get 403.
+- OpenCorporates API timed out on test -- dropped.
+- Timeline view pattern: map multiple source events to `{ date, type, title, subtitle, source, link }`, sort descending. Visual: vertical line with colored dots.
+
+**No failures requiring test branch reruns.** Second consecutive prompt solved on v1.
+
+---
+
 ### Iteration 6 — Prompt 5 (Academic Research Aggregator): `test/academic-v1`
 
 **What was attempted:** Create domains for PubMed, Semantic Scholar, and ArXiv. Search for a research topic, collect papers with citations and abstracts. Deduplicate papers across databases. Build a literature review dashboard.

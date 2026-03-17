@@ -435,6 +435,27 @@ for (const item of sourceAResults) {
 
 **When to show cross-listed callout**: if the same entity appears on 2+ sources with different prices/salaries, show `"Source B lists $X higher"` next to the cheaper source. Normalize: `format(diff)` → `"$12K"` or `"$15/hr"`.
 
+## Cross-Source Timeline View
+
+When combining chronological events from multiple sources (SEC filings, court cases, transactions, publications), build a unified timeline sorted by date. This is the natural view for due diligence, activity monitoring, and audit trails.
+
+```typescript
+interface TimelineItem {
+  date: string;       // ISO date for sorting
+  type: string;       // 'filing' | 'case' | 'transaction' — drives dot color
+  title: string;
+  subtitle: string;   // source-specific context (company name, court name)
+  source: string;     // display label
+  link: string;       // external URL
+}
+
+function buildTimeline(...sources: TimelineItem[][]): TimelineItem[] {
+  return sources.flat().sort((a, b) => b.date.localeCompare(a.date));
+}
+```
+
+**Visual pattern:** Vertical line with colored dots — blue for one source, amber for another. Each dot anchors a card. Tab bar above switches between Timeline (merged), and per-source filtered views.
+
 ## API Call Pattern
 
 All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.

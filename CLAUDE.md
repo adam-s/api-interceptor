@@ -266,35 +266,36 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 6 (next — Government & Public Records Monitor: SEC EDGAR, business registry, property records, PACER)
+Prompt:        Prompt 7 (next — Reddit Mobile Client)
 
-Prompt 5 (Academic Research Aggregator) — SOLVED on test/academic-v1:
-  ✅ ArXiv domain plugin — public Atom/XML API (export.arxiv.org/api), browserRequired: false
-  ✅ Semantic Scholar domain plugin — public JSON API (api.semanticscholar.org/graph/v1), browserRequired: false
-  ✅ PubMed domain plugin — NCBI E-utilities (esearch + efetch XML), browserRequired: false
-  ✅ /research dashboard — cross-database search, DOI-based deduplication
-  ✅ "Most Influential Papers" panel ranked by citation count
-  ✅ Detail sheet with abstract, authors, DOI, citation network (cited-by + references from S2)
-  ✅ Sort by relevance/citations/year, source badges, cross-listed indicator
+Prompt 6 (Government & Public Records Monitor) — SOLVED on test/gov-records-v1:
+  ✅ SEC EDGAR domain plugin — public REST APIs (efts.sec.gov + data.sec.gov), browserRequired: false
+  ✅ CourtListener domain plugin — free PACER alternative (courtlistener.com/api/rest/v4), browserRequired: false
+  ✅ /due-diligence dashboard — company info panel, timeline view, tabbed SEC/Court views
+  ✅ Timeline merges SEC filings and court cases chronologically with colored dots
+  ✅ Company details auto-loaded from SEC (ticker, CIK, state, industry)
 
-Base fixes applied from Prompt 5 iteration:
-  ✅ api-discovery skill: Phase 0 — "Check for a Public API" section (skip browser for public REST APIs)
-  ✅ api-discovery skill: gotcha rows for XML APIs and soft rate limits (S2 total:0 with 200 status)
-  ✅ First iteration where ALL three domains use browserRequired: false — zero browser dependency
+Base fixes applied from Prompt 6 iteration:
+  ✅ api-discovery skill: SEC EDGAR User-Agent requirement note
+  ✅ api-discovery skill: PACER alternative pattern (CourtListener as free mirror)
+  ✅ dashboard-builder skill: Cross-Source Timeline View pattern
+  ✅ Prompts 5 and 6 both solved with zero browser dependency — public APIs only
 
-Framework gaps discovered (Prompt 5):
-  - Semantic Scholar rate limits aggressively (100 req/5min unauthenticated) — soft 429 returns total:0 with 200 status
-  - XML parsing for public APIs (ArXiv Atom, PubMed NCBI XML) — no DOMParser in Node.js, regex-based parsing works
-  - DOI is the best dedup key for academic papers; normalized title is fallback
+Framework gaps discovered (Prompt 6):
+  - OpenCorporates API timed out — some public APIs are unreliable or require API keys for basic access
+  - PACER requires paid account + CAPTCHA — CourtListener is the free alternative
+  - SEC EDGAR requires descriptive User-Agent with contact email — 403 without it
 
 Previous:
+Prompt 5 (Academic Research Aggregator) — SOLVED on test/academic-v1
 Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1
 Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
 Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
 Prompt 1 (StubHub) — SOLVED
 
-Next iteration: Run Prompt 6 (Government & Public Records Monitor) from docs/temp/DEVELOPER_PROMPTS.md
-  Branch: test/gov-records-v1
+Next iteration: Run Prompt 7 (Reddit Mobile Client) from docs/temp/DEVELOPER_PROMPTS.md
+  This will be the first prompt requiring GraphQL API discovery and POST mutations.
+  Branch: test/reddit-v1
 ```
 
 ## Conventions
