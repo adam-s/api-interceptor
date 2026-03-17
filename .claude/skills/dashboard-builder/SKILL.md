@@ -7,6 +7,8 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
+**Development principle:** Use debug-logs and visual-dev skills at EVERY step — not just at the end. Build a component → screenshot it → see that it's wrong → fix it → screenshot again. Wire up a fetch → add DEBUG() to the handler → see what's actually returned → fix the data flow. This is how you go from guessing to knowing. The build loop IS the screenshot + debug-log loop.
+
 ## Critical: Single Browser Singleton
 
 One shared browser instance. **Never call domain APIs in parallel** — always sequential with `.catch()` per source. `Promise.allSettled` will break: both handlers navigate the same page simultaneously.
@@ -29,6 +31,8 @@ const sourceB = await fetchB(q).catch(() => null);  // waits for A
 
 Domain plugins registered, `pnpm run dev` (ports 3000/3001), verify: `curl http://localhost:3001/api | jq .`
 
+**Before writing any UI code:** `curl` every API endpoint the page will consume and confirm they return real data. If an endpoint returns empty or errors, fix the API layer first (use debug-logs skill). Building UI on top of broken APIs wastes time debugging the wrong layer.
+
 ## Steps 1-3: Plan + Create Route
 
 1. Plan: data endpoints, interactions, layout, multi-domain composition
@@ -45,9 +49,13 @@ Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `
 - Search bar: `Input` + `Button` with `onKeyDown Enter` handler
 - Four render states: loading (`Skeleton` cards), empty ("No results for..."), idle ("Search above to get started"), populated (result `Card` list with hover)
 
+**After writing the component:** Screenshot it immediately (visual-dev skill). Don't write more code until you've seen what the current state looks like. If the fetch returns empty, add `DEBUG()` to the API route handler to see what's happening server-side. If the layout looks wrong, fix it now — not after building 3 more components on top of it.
+
 ## Step 5: Multi-Domain Composition
 
 Always sequential, catch per source. If a source returns null, mark offline — never let one failure break the page.
+
+**Debug each source independently first.** Before composing sources together, `curl` each one and confirm it returns data. Add `DEBUG('fetch-sourceA', () => ({ status, count: data?.length }))` in the component's fetch function to see which source is failing at runtime. When sources are composed, a silent failure in one source produces confusing results in the merged view — debug logs tell you exactly which source returned null and why.
 
 ## Multi-Source Entity Merging
 
@@ -67,9 +75,17 @@ for (const item of sourceAResults) byKey.set(mergeKey(item.venue, item.date), { 
 
 **Filter before merging:** Validate results belong to the query. Use `startsWith` or word-boundary regex — not `includes`. Skip disqualifying keywords.
 
-## Step 6: Verify with Visual Dev
+## Step 6: Verify — the build loop IS the screenshot loop
 
-Use visual-dev skill: screenshot at each state (empty, loading, populated, error), iterate on visual issues.
+**This is not a final step — it runs continuously from Step 4 onward.**
+
+After every meaningful change (new component, new fetch, new state handler):
+1. **Screenshot (visual-dev skill)** — see what the page actually looks like. Compare to expectations.
+2. **If something is wrong visually** — fix it, re-screenshot, repeat until zero issues.
+3. **If data is wrong or missing** — add `DEBUG()` calls to the fetch/handler chain (debug-logs skill), reproduce, read `/tmp/interceptor-debug/debug-*.log`, fix, remove logs.
+4. **If a button/interaction doesn't work** — use Patchright to click it programmatically, check console for errors, add DEBUG() to the handler it should trigger.
+
+At the end, enumerate all states (empty, loading, populated, error, detail, mobile 375px) and screenshot each one. Judge against the 7 criteria. This is the final gate — but the real work happened iteratively during Steps 4-5.
 
 ## Available UI Components
 

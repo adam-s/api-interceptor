@@ -9,6 +9,8 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions.
 
+**Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage.
+
 ## Quick Check: Does the Domain Plugin Already Exist?
 
 ```bash
@@ -38,6 +40,8 @@ Before launching a browser, check if the target site has a documented public RES
 ### Public API route pattern
 
 Set `browserRequired: false`, use direct `fetch()`. Key differences from browser routes: no interceptor patterns, empty `interceptPatterns`/`baseUrls` arrays, handle 429 responses. Some APIs return XML — parse with regex (see RSS section below). Government APIs often require a descriptive `User-Agent` with contact info or they 403.
+
+**After writing each route, verify immediately:** `curl` the route, check the response shape, add `DEBUG('route-name', () => ({ status, itemCount }))` inside the handler to confirm it's being hit and returning real data. Don't write the next route until the current one is proven.
 
 ```typescript
 { method: 'GET', path: '/search', browserRequired: false, handler: async (c) => {
@@ -78,8 +82,9 @@ If no public API exists and no CLI tool covers the site, proceed to Phase 1.
 
 1. Start server: `pnpm run dev`
 2. Connect browser: `ws://localhost:3001/browser/stream?profile=default&url=<target-url>` (or dashboard at `http://localhost:3000/browser?profile=default&url=<target-url>`)
-3. Screenshot: `await page.screenshot({ path: 'test-results/dev-screenshots/discovery.png' })` — identify visible data (prices, names, dates, listings)
+3. **Screenshot (visual-dev skill):** Take a screenshot to see what data is visible — prices, names, dates, listings. This is your ground truth. Every extraction step must produce data that matches what you see here.
 4. Check traffic: `curl -s http://localhost:3001/browser/traffic | jq '[.entries[] | {method, url: .url[:120], status}]'`
+5. **If traffic is empty or confusing, add DEBUG() calls** to `packages/browser/src/handler/index.ts` or `service.ts` to trace what CDP is capturing. Don't guess why traffic is missing — observe it.
 
 **Use CDP for discovery, not `page.route()`.** CDP `Network.enable` catches ALL network requests; `page.route()` only intercepts requests matching its glob patterns and misses requests to unexpected domains (tracking pixels, subdomain APIs, third-party analytics). Narrow to `page.route()` later for proxy interception once you know the endpoints.
 
@@ -168,12 +173,18 @@ await browser.browserFetch('https://api.example.com/data', { navigateTo: 'https:
 
 Page 1: extract from SSR HTML. Page 2+: `browserFetch()` the pagination API discovered by clicking "Show more".
 
-## Phase 4: Verify
+## Phase 4: Verify — EVERY route, EVERY time
 
-Curl the route, compare against screenshot. Data must match what's visible on the page.
+**Do not move to the next route or Phase 5 until the current route is proven.**
+
+1. `curl` the route — does it return real data?
+2. Compare against your Phase 1 screenshot — does the data match what's visible on the page?
+3. If the response is empty, wrong, or unexpected: **use debug-logs skill immediately.** Add `DEBUG()` calls inside the route handler to trace: was the handler hit? What did `browserFetch`/`fetch`/`evaluate` return? What did the transformation produce? Read the log, fix, re-curl. Don't guess — observe.
+4. **Take a screenshot (visual-dev skill)** of the browser page after the route runs to confirm the browser state is what you expect.
 
 ```bash
 curl -s http://localhost:3001/api/<domain>/<path> | jq '.items | length'
+tail -20 /tmp/interceptor-debug/debug-$(date +%Y-%m-%d).log
 ```
 
 ## Phase 5: Create Domain Plugin
@@ -184,7 +195,7 @@ bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>
 
 1. Populate `domains/<name>/src/routes.ts` with discovered routes
 2. Register in `apps/api/src/register-domains.ts` and `apps/api/package.json`
-3. `pnpm install` then test end-to-end
+3. `pnpm install` then **test every route end-to-end with curl + debug logs before building any UI.** The API layer must be rock-solid before the dashboard layer begins. If a route returns wrong data, the dashboard will display wrong data and you'll waste time debugging the wrong layer.
 
 ## SSR Extraction Patterns
 
