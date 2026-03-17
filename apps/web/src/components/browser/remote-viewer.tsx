@@ -188,8 +188,13 @@ export function RemoteBrowserViewer({
 			setIsConnected(false);
 			setIsReady(false);
 			onStatusChange?.(event.code === 1000 ? 'disconnected' : 'error');
-			wsRef.current = null;
-			onWsRef?.(null);
+			// Only null the ref if this WS is still the current one — avoids
+			// race condition where strict mode remount creates a new WS before
+			// the old one's onclose fires, which would null the new ref.
+			if (wsRef.current === ws) {
+				wsRef.current = null;
+				onWsRef?.(null);
+			}
 		};
 
 		ws.onerror = () => {

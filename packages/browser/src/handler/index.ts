@@ -394,10 +394,14 @@ async function handleWsMessage(
 function wireWsMessageHandler(ws: WebSocket): void {
 	ws.on('message', async (data: Buffer) => {
 		try {
-			const message = JSON.parse(data.toString()) as Record<string, unknown>;
+			const str = data.toString();
+			const message = JSON.parse(str) as Record<string, unknown>;
+			if (message.type !== 'mousemove') {
+				console.log('[BrowserWS] msg:', message.type, 'activeBrowser:', !!activeBrowser, 'ready:', browserReady);
+			}
 			await handleWsMessage(message, ws);
-		} catch {
-			// Ignore parse/dispatch errors
+		} catch (err) {
+			console.error('[BrowserWS] message handler error:', err instanceof Error ? err.message : err);
 		}
 	});
 }
@@ -415,6 +419,11 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 	const profile = requestUrl.searchParams.get('profile') || undefined;
 	const url = requestUrl.searchParams.get('url') || undefined;
 	const captureDomainsParam = requestUrl.searchParams.get('capture') || undefined;
+
+	// Wire message handler FIRST — before any async work.
+	// Messages from the frontend can arrive immediately after WS upgrade.
+	// If we wire after async browser startup, early messages are silently dropped.
+	wireWsMessageHandler(ws);
 
 	browserLogger.connection('open', {
 		profile: profile || 'temp',
@@ -486,9 +495,6 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			}
 
 			lifecycleManager.releaseLock();
-
-			// Wire message handler (shared with fresh-browser path)
-			wireWsMessageHandler(ws);
 
 			ws.on('close', () => {
 				browserLogger.connection('close', { profile: currentProfile || 'unknown', reused: true });
@@ -696,9 +702,6 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 	} finally {
 		lifecycleManager.releaseLock();
 	}
-
-	// --- onMessage handler ---
-	wireWsMessageHandler(ws);
 
 	// --- onClose handler ---
 	// Browser stays alive when WebSocket disconnects — proxy continues to work.

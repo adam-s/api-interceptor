@@ -783,20 +783,21 @@ export class RemoteBrowserService {
 
 	/**
 	 * Trigger a visual change to force CDP to emit a screencast frame.
-	 * Navigates to a real page if on about:blank, otherwise evaluates a
-	 * no-op scroll to trigger a repaint.
+	 * Injects a brief visual flash via DOM manipulation — does NOT navigate,
+	 * which would risk closing the page and crashing the browser.
 	 */
 	private async nudgeScreencast(): Promise<void> {
-		if (!this.page) return;
+		if (!this.page || !this.cdp) return;
 		try {
-			const currentUrl = this.page.url();
-			if (!currentUrl || currentUrl === 'about:blank' || currentUrl.startsWith('data:')) {
-				// Navigate to a real page so there's something to render
-				await this.page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 });
-			} else {
-				// Force a repaint by scrolling
-				await this.page.evaluate(() => { window.scrollBy(0, 1); window.scrollBy(0, -1); });
-			}
+			// Stop and restart the screencast to force CDP to capture a fresh frame
+			await this.cdp.send('Page.stopScreencast');
+			await this.cdp.send('Page.startScreencast', {
+				format: 'jpeg',
+				quality: this.config.quality,
+				maxWidth: this.config.viewportWidth,
+				maxHeight: this.config.viewportHeight,
+				everyNthFrame: 1,
+			});
 		} catch {
 			// Best-effort — don't crash if nudge fails
 		}
