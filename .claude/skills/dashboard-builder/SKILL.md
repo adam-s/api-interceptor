@@ -349,6 +349,27 @@ Every page must implement all of these — not just the happy path:
 cd apps/web && npx shadcn@latest add card badge sheet table skeleton alert input button
 ```
 
+### Responsive sidebar layout
+
+When combining a main content area with a sidebar panel (e.g., comparison comps, filters, activity feed):
+
+```tsx
+<div className="flex flex-col lg:flex-row gap-4">
+  {/* Main content — takes remaining space */}
+  <div className="flex-1 min-w-0">
+    {/* Listing cards, results, etc. */}
+  </div>
+  {/* Sidebar — fixed width on desktop, full width stacked on mobile */}
+  <div className="w-full lg:w-72 flex-shrink-0">
+    <Card>
+      {/* Sidebar content */}
+    </Card>
+  </div>
+</div>
+```
+
+Key: `lg:flex-row` switches from stacked (mobile) to side-by-side (desktop). `flex-shrink-0` prevents the sidebar from being compressed. `min-w-0` on the main content prevents it from overflowing with long text.
+
 ### Dark mode
 
 Use semantic tokens, not hardcoded colors:

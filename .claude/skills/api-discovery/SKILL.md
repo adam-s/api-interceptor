@@ -143,7 +143,7 @@ threading.Thread(target=lambda: tool_instance.extract_info(url, download=True)).
 
 - Add methods to `services/python/worker.py` -- register in `METHODS` dict
 - Domain routes use `browserRequired: false` -- no browser needed
-- Create a dedicated `PythonBridge` in the domain's `routes.ts` with `timeoutMs: 60_000` (downloads are slow)
+- Create a dedicated `PythonBridge` in the domain's `routes.ts` with `timeoutMs: 60_000` (downloads are slow). Import: `import { PythonBridge } from '@interceptor/shared';`
 - For downloads, use `threading.Thread(daemon=True)` + module-level job dict for progress tracking
 - **Path resolution from domain plugins**: `import.meta.dirname` in `domains/<name>/src/` is the source dir. To reach `services/python/worker.py`, use `resolve(import.meta.dirname, '../../../services/python/worker.py')` (3 levels: src -> name -> domains -> root)
 - **Python 3.9 compatibility**: always add `from __future__ import annotations` at top of worker.py for `int | float` union syntax support
