@@ -25,11 +25,23 @@ Before launching a browser, check if the target site has a **documented public R
 
 ### How to check
 
-1. Search for `<site-name> API documentation` or `<site-name> developer API`
+1. **Use WebSearch** — search for `"<site-name> API documentation"` or `"<site-name> API reference"` or `"<site-name> developer API"`. Do NOT guess at endpoints. Read the official docs page first. This is mandatory — not optional.
 2. Look for API subdomains in the site's docs: `api.example.com`, `developer.example.com`
 3. Common public APIs: ArXiv (`export.arxiv.org/api`), Semantic Scholar (`api.semanticscholar.org/graph/v1`), PubMed/NCBI E-utilities (`eutils.ncbi.nlm.nih.gov`), SEC EDGAR (`efts.sec.gov`, `data.sec.gov`), CourtListener (`courtlistener.com/api/rest/v4`), Reddit (`.json` suffix on any URL), GitHub, Wikipedia, OpenStreetMap, etc.
    - **Reddit pattern**: append `.json` to any Reddit URL (`reddit.com/r/programming/hot.json`) for read-only JSON. No API key needed. ~60 req/min rate limit. Pagination via `after` cursor token.
 4. When the primary data source requires paid auth or CAPTCHA (e.g., PACER for court records), look for **free open-source mirrors** — CourtListener mirrors PACER data for free.
+
+### If the API requires a key — use minuteinbox for dev
+
+Many public APIs are free but require email-verified registration. During development, use the existing `minuteinbox` domain plugin to get a temporary API key:
+
+1. `GET /api/minuteinbox/inbox` → get a temp email address
+2. Register on the target service's signup page (via browser or direct POST)
+3. `GET /api/minuteinbox/inbox` → read verification email, extract confirmation link
+4. Navigate to confirmation link → account active, API key issued
+5. Use the key for the dev session (10-15 min is plenty)
+
+**Dev only** — production requires real account credentials configured in `.env`.
 
 ### If a public API exists — skip browser interception entirely
 
