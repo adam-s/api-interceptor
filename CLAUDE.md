@@ -245,8 +245,13 @@ Phase B re-runs completed:
     - /market dashboard: watchlist, quote card, sparkline, news with sentiment
     - Learnings: shared dep in scaffold, lazy Python imports, SVG sparkline
 
-Phase B remaining: P3 Rental, P4 Jobs, P5 Academic, P6 Gov Records,
-  P7 Reddit, P8 YouTube
+  P5 Academic Research (DONE) — test/rerun-p5-v1
+    - Academic domain: 5 routes (ArXiv Atom, S2 Graph, PubMed E-utils)
+    - All browserRequired: false, parallel fetch with Promise.all
+    - Deduplication by DOI + normalized title, sorted by citation count
+    - /research dashboard: search, source badges, detail Sheet with DOI
+
+Phase B remaining: P3 Rental, P4 Jobs, P6 Gov Records, P7 Reddit, P8 YouTube
 ```
 
 ## Conventions

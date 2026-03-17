@@ -247,6 +247,7 @@ Each prompt tests different capabilities of the framework. Use these to validate
 - Semantic Scholar has a public REST API at `api.semanticscholar.org/graph/v1` -- 100 req/5min unauthenticated. It may return `total: 0` with 200 status under load (soft rate limit) -- retry after a few seconds.
 - PubMed/NCBI uses E-utilities at `eutils.ncbi.nlm.nih.gov` -- returns NCBI XML. Parse with `/<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g`.
 - All three are `browserRequired: false` -- no browser interception needed.
+- Since these are independent HTTP calls to different servers (not sharing a browser), they can be fetched in parallel with `Promise.all` -- unlike browser-dependent domain routes which must be sequential.
 
 **What this tests:**
 
