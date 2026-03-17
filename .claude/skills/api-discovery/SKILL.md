@@ -78,7 +78,43 @@ export const routes: DomainRoute[] = [
 
 If the public API only covers part of the data (e.g., search yes, but detail pages need scraping), use a **hybrid approach**: `browserRequired: false` for public API routes, `browserRequired: true` (or omit) for browser-dependent routes.
 
-If no public API exists, proceed to Phase 1.
+### CLI tool bridge — when sites aggressively block automation
+
+Some sites (YouTube, Spotify, Instagram) have public APIs that require paid/complex auth AND aggressively block browser automation. For these, use battle-tested CLI tools via the Python bridge instead:
+
+| Site | Tool | Install |
+|------|------|---------|
+| YouTube | `yt-dlp` | `pip install yt-dlp` |
+| Instagram/Tumblr | `gallery-dl` | `pip install gallery-dl` |
+| Spotify | `spotdl` | `pip install spotdl` |
+
+**Pattern: yt-dlp as data source (YouTube example)**
+
+```python
+# Search
+yt_dlp.YoutubeDL({'extract_flat': True}).extract_info('ytsearch20:query', download=False)
+
+# Video info (full metadata, formats, related)
+yt_dlp.YoutubeDL({'skip_download': True}).extract_info(url, download=False)
+
+# Download with progress tracking
+def progress_hook(d):
+    if d['status'] == 'downloading':
+        job['progress'] = d['downloaded_bytes'] / d['total_bytes'] * 100
+threading.Thread(target=lambda: ydl.extract_info(url, download=True)).start()
+```
+
+**Key implementation details:**
+
+- Add methods to `services/python/worker.py` — register in `METHODS` dict
+- Domain routes use `browserRequired: false` — no browser needed
+- Create a dedicated `PythonBridge` in the domain's `routes.ts` with `timeoutMs: 60_000` (downloads are slow)
+- For downloads, use `threading.Thread(daemon=True)` + module-level job dict for progress tracking
+- **Path resolution from domain plugins**: `import.meta.dirname` in `domains/<name>/src/` is the source dir. To reach `services/python/worker.py`, use `resolve(import.meta.dirname, '../../../services/python/worker.py')` (3 levels: src -> name -> domains -> root)
+- **Python 3.9 compatibility**: always add `from __future__ import annotations` at top of worker.py for `int | float` union syntax support
+- **pythonPath**: if system python3 isn't on PATH, specify `pythonPath: '/usr/bin/python3'` in bridge config
+
+If no public API exists and no CLI tool covers the site, proceed to Phase 1.
 
 ## Phase 1: Observe
 

@@ -240,6 +240,24 @@ See "Observed Failures Log" below — each iteration adds to this list.
 
 ---
 
+### Iteration 9 — Prompt 8 (YouTube Without YouTube): `test/youtube-v1`
+
+**What was attempted:** Create a YouTube domain plugin with search, video player, and downloads. YouTube aggressively blocks browser automation, so yt-dlp (battle-tested CLI tool) via the Python bridge was the primary strategy.
+
+**What was delivered:** Fully working end-to-end. yt-dlp handles search, video info extraction, and downloads without any API key or browser interception. Dashboard at /youtube with responsive video grid, embedded player (youtube-nocookie.com), download management with progress tracking, and keyboard shortcuts.
+
+**Key discoveries:**
+- yt-dlp is a fourth data access paradigm: "CLI tool orchestration via Python bridge." No API keys, no browser, no interception patterns. Just `yt_dlp.YoutubeDL().extract_info()`.
+- macOS system python3 is 3.9 which doesn't support `int | float` union syntax. Fix: `from __future__ import annotations` at top of worker.py.
+- PythonBridge path resolution from domain plugins: `import.meta.dirname` in `domains/<name>/src/` needs exactly 3 `../` to reach project root: `resolve(import.meta.dirname, '../../../services/python/worker.py')`.
+- YouTube download can hit HTTP 403 (anti-bot). yt-dlp can work around this with cookies from a real browser session, but that wasn't needed for search/info endpoints.
+- Background download threading: `threading.Thread(daemon=True)` with module-level job dict + lock for progress reporting through the JSON-RPC bridge.
+- YouTube embed pattern: `youtube-nocookie.com/embed/{id}` provides ad-free, tracking-free playback without API auth.
+
+**No failures requiring test branch reruns.** Fourth consecutive prompt solved on v1.
+
+---
+
 ### Iteration 8 — Prompt 7 (Reddit Mobile Client): `test/reddit-v1`
 
 **What was attempted:** Create a Reddit domain plugin using CDP traffic capture for GraphQL discovery (gql.reddit.com). Build a mobile-responsive Reddit client with feed, post detail with nested comments, search, and dark mode.

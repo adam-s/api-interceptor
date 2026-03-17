@@ -9,6 +9,7 @@ Protocol:
 CRITICAL: All logging goes to stderr. stdout is the RPC channel —
 one stray print() and the bridge hangs trying to parse your log line as JSON.
 """
+from __future__ import annotations
 
 import json
 import os

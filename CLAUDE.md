@@ -266,27 +266,34 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ```text
 Branch:        base — all base fixes committed, ready for next test iteration
-Prompt:        Prompt 8 (next — YouTube Without YouTube)
+Prompt:        Prompt 9 (next — TBD)
 
-Prompt 7 (Reddit Mobile Client) — SOLVED on test/reddit-v1:
-  ✅ Reddit domain plugin — public .json API (append .json to any URL), browserRequired: false
-  ✅ /reddit dashboard — dark theme (#FF4500 orange, #1A1A1B background)
-  ✅ Feed view with scores, thumbnails, flair badges, Hot/New/Top sorting
-  ✅ Post detail with nested comment tree (colored depth borders, collapsible, OP highlighting)
-  ✅ Search across all subreddits
-  ✅ Mobile-responsive at 375px
-  ✅ Load More pagination with cursor token
+Prompt 8 (YouTube Without YouTube) — SOLVED on test/youtube-v1:
+  ✅ YouTube domain plugin — yt-dlp via Python bridge, browserRequired: false on all routes
+  ✅ Search (ytsearch), video info, download management, file streaming with range requests
+  ✅ /youtube dashboard — search grid, embedded video player, downloads library
+  ✅ Background download threads with progress tracking via job IDs
+  ✅ Keyboard shortcuts (Space, F, arrows, M) for video playback
+  ✅ Mobile responsive at 375px
+  ✅ Related videos, categories, tags, expandable description
 
-Base fixes applied from Prompt 7 iteration:
-  ✅ api-discovery skill: Reddit .json API pattern added to common public APIs
-  ✅ Third consecutive prompt (5, 6, 7) solved on v1 with zero browser dependency
+Base fixes applied from Prompt 8 iteration:
+  ✅ worker.py: from __future__ import annotations for Python 3.9 compat
+  ✅ api-discovery skill: CLI tool bridge pattern (yt-dlp, gallery-dl, spotdl)
+  ✅ api-discovery skill: PythonBridge path resolution guidance for domain plugins
+  ✅ dashboard-builder skill: background job polling pattern
+  ✅ dashboard-builder skill: YouTube embed pattern (privacy-enhanced)
+  ✅ Fourth consecutive prompt (5,6,7,8) solved on v1 with zero browser dependency
 
-Framework gaps discovered (Prompt 7):
-  - Reddit .json API is a third paradigm: "append .json to HTML URL" — not REST, not XML
-  - Write operations (vote, save, subscribe) require OAuth — read-only was sufficient for the prompt
-  - GraphQL discovery (gql.reddit.com) was NOT needed — public .json API covered everything
+Framework gaps discovered (Prompt 8):
+  - yt-dlp is a fourth paradigm: "CLI tool orchestration via Python bridge"
+  - System python3 on macOS is 3.9 — needs __future__ annotations for modern type syntax
+  - PythonBridge path resolution from domain plugins requires careful ../../../ counting
+  - yt-dlp download can hit 403 (YouTube anti-bot) — error handling works, but downloads may need cookies/auth for reliability
+  - CLI tool pattern generalizes to gallery-dl (Instagram), spotdl (Spotify), aria2 (generic)
 
 Previous:
+Prompt 7 (Reddit Mobile Client) — SOLVED on test/reddit-v1
 Prompt 6 (Government & Public Records Monitor) — SOLVED on test/gov-records-v1
 Prompt 5 (Academic Research Aggregator) — SOLVED on test/academic-v1
 Prompt 4 (Job Search Aggregator) — SOLVED on test/job-search-v1
@@ -294,9 +301,7 @@ Prompt 3 (Vacation Rental Intelligence) — SOLVED on test/rental-v1
 Prompt 2 (Yahoo Finance) — SOLVED on test/market-v3
 Prompt 1 (StubHub) — SOLVED
 
-Next iteration: Run Prompt 8 (YouTube Without YouTube) from docs/temp/DEVELOPER_PROMPTS.md
-  This requires YouTubei internal API (POST-based), Python bridge (yt-dlp), background jobs.
-  Branch: test/youtube-v1
+Next iteration: Run Prompt 9 from docs/temp/DEVELOPER_PROMPTS.md
 ```
 
 ## Conventions

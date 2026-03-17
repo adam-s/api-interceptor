@@ -456,6 +456,59 @@ function buildTimeline(...sources: TimelineItem[][]): TimelineItem[] {
 
 **Visual pattern:** Vertical line with colored dots — blue for one source, amber for another. Each dot anchors a card. Tab bar above switches between Timeline (merged), and per-source filtered views.
 
+## Background Job Polling
+
+When a domain route starts a long-running operation (download, processing, generation), track it with job IDs and poll for progress:
+
+```typescript
+// Start a job
+const startJob = async (params: Record<string, unknown>) => {
+  const res = await fetch(`${API}/download`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  const { jobId } = await res.json();
+  setJobs(prev => new Map(prev).set(jobId, { jobId, status: 'starting', progress: 0 }));
+};
+
+// Poll active jobs — auto-stops when all complete
+useEffect(() => {
+  const active = Array.from(jobs.values()).filter(
+    j => j.status !== 'complete' && j.status !== 'error'
+  );
+  if (!active.length) return;
+  const interval = setInterval(async () => {
+    for (const job of active) {
+      const res = await fetch(`${API}/download/${job.jobId}`);
+      const data = await res.json();
+      setJobs(prev => new Map(prev).set(job.jobId, data));
+    }
+  }, 1000);
+  return () => clearInterval(interval);
+}, [jobs]);
+```
+
+Show progress with `<Progress value={job.progress} />` and a status `<Badge>`. Include the job list in a Downloads or Activity tab.
+
+## Video Embed Pattern
+
+For video content, use privacy-enhanced YouTube embeds instead of raw `<video>` elements:
+
+```tsx
+<div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
+  <iframe
+    src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1`}
+    className="w-full h-full"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
+    title={title}
+  />
+</div>
+```
+
+The `-nocookie` domain avoids tracking cookies. No API key or auth required.
+
 ## API Call Pattern
 
 All proxy endpoints are at `http://localhost:3001/api/<domain>/<path>`.
