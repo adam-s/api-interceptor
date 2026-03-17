@@ -27,11 +27,19 @@ const sourceB = await fetchB(q).catch(() => null);  // waits for A
 - **Badges** for categorical values (sources, status, sentiment) — never raw text
 - **Cards**: `border border-border/50 rounded-lg` — no heavy shadows
 
-## Prerequisites
+## Prerequisites — GATE: do not proceed without proof
 
-Domain plugins registered, `pnpm run dev` (ports 3000/3001), verify: `curl http://localhost:3001/api | jq .`
+Domain plugins registered, `pnpm run dev` (ports 3000/3001).
 
-**Before writing any UI code:** `curl` every API endpoint the page will consume and confirm they return real data. If an endpoint returns empty or errors, fix the API layer first (use debug-logs skill). Building UI on top of broken APIs wastes time debugging the wrong layer.
+**You must have curl output showing real data from every API endpoint before writing any UI code.** Run each endpoint, read the response, confirm it contains real titles/prices/names/dates. If any endpoint returns empty or errors, stop and fix the API layer using debug-logs skill. Do NOT start building UI until every endpoint is proven.
+
+```bash
+# Run each endpoint and verify real data
+curl -s http://localhost:3001/api/<domain>/search?q=test | jq '.items | length'
+curl -s http://localhost:3001/api/<domain>/detail/123 | jq '.title'
+```
+
+The curl output from this step is what you use to build the UI. You know exactly what fields exist, what the data looks like, and what edge cases to handle.
 
 ## Steps 1-3: Plan + Create Route
 
@@ -49,7 +57,16 @@ Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `
 - Search bar: `Input` + `Button` with `onKeyDown Enter` handler
 - Four render states: loading (`Skeleton` cards), empty ("No results for..."), idle ("Search above to get started"), populated (result `Card` list with hover)
 
-**After writing the component:** Screenshot it immediately (visual-dev skill). Don't write more code until you've seen what the current state looks like. If the fetch returns empty, add `DEBUG()` to the API route handler to see what's happening server-side. If the layout looks wrong, fix it now — not after building 3 more components on top of it.
+**GATE: Screenshot the component before writing anything else.**
+
+1. Take a Patchright screenshot of the page
+2. Read the screenshot — describe in one sentence what you see
+3. If the page shows an error, blank content, or broken layout: fix it NOW
+4. If data is missing: add `DEBUG()` to the API route handler, re-fetch, read the log, fix
+5. Re-screenshot after the fix — confirm the fix worked
+6. Only proceed to the next component when the screenshot shows correct content
+
+**You cannot add Step 5 (multi-domain composition) on top of a broken Step 4.** Each layer must be proven before building the next.
 
 ## Step 5: Multi-Domain Composition
 
@@ -75,17 +92,26 @@ for (const item of sourceAResults) byKey.set(mergeKey(item.venue, item.date), { 
 
 **Filter before merging:** Validate results belong to the query. Use `startsWith` or word-boundary regex — not `includes`. Skip disqualifying keywords.
 
-## Step 6: Verify — the build loop IS the screenshot loop
+## Step 6: Final QA — GATE: zero issues or you're not done
 
-**This is not a final step — it runs continuously from Step 4 onward.**
+**You have been screenshotting and debugging throughout Steps 4-5. This step is the comprehensive final sweep.**
 
-After every meaningful change (new component, new fetch, new state handler):
-1. **Screenshot (visual-dev skill)** — see what the page actually looks like. Compare to expectations.
-2. **If something is wrong visually** — fix it, re-screenshot, repeat until zero issues.
-3. **If data is wrong or missing** — add `DEBUG()` calls to the fetch/handler chain (debug-logs skill), reproduce, read `/tmp/interceptor-debug/debug-*.log`, fix, remove logs.
-4. **If a button/interaction doesn't work** — use Patchright to click it programmatically, check console for errors, add DEBUG() to the handler it should trigger.
+Write a Patchright script that tests every user journey and captures every state:
 
-At the end, enumerate all states (empty, loading, populated, error, detail, mobile 375px) and screenshot each one. Judge against the 7 criteria. This is the final gate — but the real work happened iteratively during Steps 4-5.
+```
+1. Navigate to the page (first visit, no data) → screenshot → describe what you see
+2. Perform a search → screenshot results → describe what you see
+3. Click into a detail view → screenshot → describe what you see
+4. Click every interactive element (buttons, favorites, filters, downloads) → verify each responds
+5. Set viewport to 375x812 → screenshot → describe what you see
+6. Check browser console for errors after each interaction
+```
+
+**For each screenshot:** Read it. Describe what you see in one sentence. If ANYTHING is wrong (broken layout, missing data, dead button, overlapping text, vague error message, content touching edges) — fix it, re-screenshot, confirm the fix.
+
+**Iterate until the screenshots show zero issues.** Not "looks okay" — genuinely zero. If you catch yourself thinking "this is probably fine," it's not done. Name the specific thing and decide: is it correct or not?
+
+**Only commit after this step produces zero-issue screenshots across all states and viewports.**
 
 ## Available UI Components
 

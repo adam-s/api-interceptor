@@ -173,19 +173,26 @@ await browser.browserFetch('https://api.example.com/data', { navigateTo: 'https:
 
 Page 1: extract from SSR HTML. Page 2+: `browserFetch()` the pagination API discovered by clicking "Show more".
 
-## Phase 4: Verify — EVERY route, EVERY time
+## Phase 4: Verify — REQUIRED before proceeding
 
-**Do not move to the next route or Phase 5 until the current route is proven.**
+**Each route must produce curl output showing real data. This output is what you use to build the UI. No output = no UI.**
 
-1. `curl` the route — does it return real data?
-2. Compare against your Phase 1 screenshot — does the data match what's visible on the page?
-3. If the response is empty, wrong, or unexpected: **use debug-logs skill immediately.** Add `DEBUG()` calls inside the route handler to trace: was the handler hit? What did `browserFetch`/`fetch`/`evaluate` return? What did the transformation produce? Read the log, fix, re-curl. Don't guess — observe.
-4. **Take a screenshot (visual-dev skill)** of the browser page after the route runs to confirm the browser state is what you expect.
+For EACH route you wrote:
 
 ```bash
-curl -s http://localhost:3001/api/<domain>/<path> | jq '.items | length'
-tail -20 /tmp/interceptor-debug/debug-$(date +%Y-%m-%d).log
+curl -s http://localhost:3001/api/<domain>/<path> | jq '.'
 ```
+
+Read the response. Does it contain real data (titles, prices, names, dates)? If yes — this route is done, move to the next one.
+
+If the response is empty, wrong, or an error:
+1. Add `DEBUG()` inside the route handler: `DEBUG('route-name', () => ({ rawResponse, itemCount, firstItem }))`
+2. Re-curl the route
+3. Read the log: `tail -20 /tmp/interceptor-debug/debug-$(date +%Y-%m-%d).log`
+4. The log tells you exactly what happened — fix it
+5. Remove the DEBUG() calls, re-curl, confirm real data
+
+**Do NOT proceed to the dashboard-builder skill until EVERY route returns real data from curl.** The dashboard displays whatever the API returns. If the API returns garbage, the dashboard displays garbage, and you'll waste time debugging the UI when the bug is in the API.
 
 ## Phase 5: Create Domain Plugin
 

@@ -200,20 +200,29 @@ The user has granted full autonomous operation. You may:
 ### The Iteration Loop
 
 ```text
-test branch → build prompt → VALIDATE → observe failures → document → git checkout base
-→ strip domain artifacts → fix skills/utilities on base (nothing domain-specific)
-→ ./scripts/ci-local.sh → git commit → git checkout -b test/<id>-v<n+1> → repeat
+FOR each prompt:
+  1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
+  2. Build UI component → screenshot it → describe what you see → fix if wrong → re-screenshot → repeat until correct
+  3. Wire interactions → click each button with Patchright → verify the response → fix if broken
+  4. Full QA pass → screenshot every state (empty, loading, populated, error, detail, mobile 375px)
+     → walk every user journey end-to-end → fix everything → re-screenshot → zero issues = done
+  5. Commit only after step 4 passes with zero issues
 ```
 
-### Validation Gate (mandatory before committing test work)
+### The Rule That Makes This Work
 
-**A prompt is NOT done until this gate passes. This is not optional polish — it is the definition of done.**
+**Verification output is required input for the next step. You cannot skip it because the next step needs it.**
 
-1. **Visual-dev skill** (`.claude/skills/visual-dev/SKILL.md`): Enumerate every page state (empty, loading, populated, error, mobile). Take Patchright screenshots of each. Judge every screenshot against the 7 criteria (3-second test, data accuracy, visual hierarchy, interaction affordance, error communication, empty states, density balance). Zero issues = pass.
-2. **Debug-logs skill** (`.claude/skills/debug-logs/SKILL.md`): For any runtime bug found during visual verification — add targeted `DEBUG()` logs, reproduce, read output, fix, remove logs.
-3. **Interaction testing**: Use Patchright to click every button, fill every input, submit every form, test every user journey end-to-end. An untested button is a broken button.
-4. **Zero-setup first visit**: Screenshot the page with no prior setup (no browser connected, no data seeded). If the default view shows an error or empty state with no guidance, the page is not done.
-5. **Mobile viewport**: Screenshot at 375px width. No overlapping text, no truncated inputs, no broken layouts.
+- You cannot build UI until you have curl output proving the API returns real data
+- You cannot add the next component until you have a screenshot proving the current component renders correctly
+- You cannot commit until you have screenshots of every state showing zero visual/functional issues
+- You cannot call a button "done" until you have Patchright output showing you clicked it and it responded correctly
+
+**If something is wrong — use debug-logs skill immediately.** Add 2-4 targeted `DEBUG()` calls, reproduce, read `/tmp/interceptor-debug/debug-*.log`, fix, remove logs. Do NOT read code for 10 minutes trying to guess. Observe the runtime — it tells you exactly what's wrong.
+
+**If something looks wrong — use visual-dev skill immediately.** Screenshot it, read the screenshot, describe the problem in one sentence, fix it, re-screenshot. Repeat until the screenshot shows zero issues.
+
+The agent goes from GUESSING (without these tools) to KNOWING (with them). This is the single most important behavior change.
 
 Full details and checkpoint rules: `docs/temp/ROADMAP.md`
 
