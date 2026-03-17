@@ -19,7 +19,7 @@ Every skill improvement, utility fix, documentation update, architectural insigh
 | `.claude/skills/` | `domains/<name>/` — domain plugins |
 | `CLAUDE.md` | Domain-specific route files |
 | `docs/temp/ROADMAP.md` | Domain-specific UI pages |
-| `docs/temp/DEVELOPER_PROMPTS.md` | `data/browser-profiles/<domain>/` |
+| `prompts/` | `data/browser-profiles/<domain>/` |
 | Framework code in `packages/` | Nav entries for domain pages |
 | Shared utilities in `apps/api/src/` | `pnpm-lock.yaml` additions for domain deps |
 
@@ -27,7 +27,7 @@ Every skill improvement, utility fix, documentation update, architectural insigh
 
 **The consequence:** A skill or utility fix made on a test branch and NOT applied to `base` is permanently lost the moment you checkout `base` or another branch. This is the most common failure mode. Always apply fixes to `base` first, then branch.
 
-**Skills must be domain-agnostic.** Skills teach HOW (generalized patterns); prompts in `docs/temp/DEVELOPER_PROMPTS.md` teach WHAT (domain-specific details). If a skill names a specific website, API, or domain, extract that detail into the relevant prompt's "Discovery hints" section and replace with a one-line generalized statement.
+**Skills must be domain-agnostic.** Skills teach HOW (generalized patterns); prompts in `prompts/` teach WHAT (domain-specific details). If a skill names a specific website, API, or domain, extract that detail into the relevant prompt's "Discovery hints" section and replace with a one-line generalized statement.
 
 ---
 
