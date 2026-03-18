@@ -28,7 +28,7 @@ export type AuthState =
  * Configuration for auth service.
  */
 export interface AuthConfig {
-	/** Profile name for persistent storage (e.g., 'robinhood-trading', 'linkedin-profile') */
+	/** Profile name for persistent storage (e.g., 'boardshop-main', 'deckmarket-profile') */
 	profileName?: string;
 	/** Whether to run headless (default: false) */
 	headless?: boolean;
@@ -49,17 +49,17 @@ export interface AuthConfig {
  *
  * Usage:
  * ```typescript
- * class LinkedInAuthService extends GenericAuthService {
+ * class DeckmarketAuthService extends GenericAuthService {
  *   constructor(config: AuthConfig) {
  *     super(config);
  *   }
  *
  *   protected createInterceptor(): GenericInterceptor {
- *     return new LinkedInInterceptor(linkedInConfig);
+ *     return new DeckmarketInterceptor(deckmarketConfig);
  *   }
  *
  *   protected getLoginUrl(): string {
- *     return 'https://linkedin.com/login';
+ *     return 'https://deckmarket.com/login';
  *   }
  * }
  * ```

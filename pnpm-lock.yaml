@@ -48,18 +48,9 @@ importers:
       '@interceptor/browser':
         specifier: workspace:*
         version: link:../../packages/browser
-      '@interceptor/domain-investing':
-        specifier: workspace:*
-        version: link:../../domains/investing
       '@interceptor/domain-minuteinbox':
         specifier: workspace:*
         version: link:../../domains/minuteinbox
-      '@interceptor/domain-robinhood':
-        specifier: workspace:*
-        version: link:../../domains/robinhood
-      '@interceptor/domain-stubhub':
-        specifier: workspace:*
-        version: link:../../domains/stubhub
       '@interceptor/shared':
         specifier: workspace:*
         version: link:../../packages/shared

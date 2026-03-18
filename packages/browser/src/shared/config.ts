@@ -2,7 +2,7 @@
  * Interceptor Configuration
  *
  * Defines the contract that domain-specific interceptors must implement.
- * A domain is any website whose API you want to capture (Robinhood, LinkedIn, etc).
+ * A domain is any website whose API you want to capture.
  *
  * @module browser/shared/config
  */
@@ -16,14 +16,14 @@ import type { z } from 'zod';
  */
 export interface InterceptorConfig {
 	/**
-	 * Human-readable domain name (e.g., 'robinhood', 'linkedin', 'twitter').
+	 * Human-readable domain name (e.g., 'boardshop', 'deckmarket').
 	 * Used for logging, session file naming, and plugin identification.
 	 */
 	domainName: string;
 
 	/**
 	 * URL patterns to intercept (glob-style).
-	 * Example: ['https://api.robinhood.com/**', 'https://bonfire.robinhood.com/**']
+	 * Example: ['https://api.boardshop.com/**', 'https://cdn.boardshop.com/**']
 	 *
 	 * Patchright route interception will capture traffic matching these patterns.
 	 */
@@ -31,7 +31,7 @@ export interface InterceptorConfig {
 
 	/**
 	 * Required header names that indicate successful authentication.
-	 * Example: ['Authorization', 'X-Hyper-Ex', 'X-Robinhood-API-Version']
+	 * Example: ['Authorization', 'X-Api-Key', 'X-Client-Version']
 	 *
 	 * The interceptor waits until all required headers are captured,
 	 * then validates them against headerSchema.
@@ -46,8 +46,8 @@ export interface InterceptorConfig {
 	 * ```typescript
 	 * headerSchema: z.object({
 	 *   Authorization: z.string().startsWith('Bearer '),
-	 *   'X-Hyper-Ex': z.string(),
-	 *   'X-Robinhood-API-Version': z.string(),
+	 *   'X-Api-Key': z.string(),
+	 *   'X-Client-Version': z.string(),
 	 * })
 	 * ```
 	 */
@@ -56,21 +56,21 @@ export interface InterceptorConfig {
 	/**
 	 * Optional: Base URLs for the domain (for API calls).
 	 * Can be derived from captured traffic or hardcoded.
-	 * Example: ['https://api.robinhood.com', 'https://bonfire.robinhood.com']
+	 * Example: ['https://api.boardshop.com', 'https://cdn.boardshop.com']
 	 */
 	baseUrls?: string[];
 
 	/**
 	 * Optional: Login page URL.
 	 * Used by GenericAuthService to navigate to login.
-	 * Example: 'https://robinhood.com/login'
+	 * Example: 'https://boardshop.com/login'
 	 */
 	loginUrl?: string;
 
 	/**
 	 * Optional: Account/dashboard page URL.
 	 * Used by GenericAuthService to check if user is logged in.
-	 * Example: 'https://robinhood.com/account'
+	 * Example: 'https://boardshop.com/account'
 	 */
 	accountUrl?: string;
 
@@ -89,7 +89,7 @@ export interface InterceptorConfig {
 	 * Example:
 	 * ```typescript
 	 * verifyFn: async (headers) => {
-	 *   const res = await fetch('https://api.robinhood.com/accounts/', { headers });
+	 *   const res = await fetch('https://api.boardshop.com/accounts/', { headers });
 	 *   if (!res.ok) return { valid: false, error: 'API returned ' + res.status };
 	 *   const data = await res.json();
 	 *   return { valid: true, accountNumber: data.results[0].account_number };

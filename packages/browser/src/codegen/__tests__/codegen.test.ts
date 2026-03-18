@@ -9,21 +9,21 @@ import { analyzeTraffic, normalizeUrl, type TrafficEntry } from '../traffic-anal
 
 describe('Traffic Analyzer', () => {
 	it('should normalize UUIDs to {id}', () => {
-		const url = 'https://api.robinhood.com/accounts/550e8400-e29b-41d4-a716-446655440000/positions';
+		const url = 'https://api.boardshop.com/accounts/550e8400-e29b-41d4-a716-446655440000/positions';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('https://api.robinhood.com/accounts/{id}/positions');
+		expect(normalized).toBe('https://api.boardshop.com/accounts/{id}/positions');
 	});
 
 	it('should normalize numeric IDs to {id}', () => {
-		const url = 'https://api.robinhood.com/accounts/12345/positions';
+		const url = 'https://api.boardshop.com/accounts/12345/positions';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('https://api.robinhood.com/accounts/{id}/positions');
+		expect(normalized).toBe('https://api.boardshop.com/accounts/{id}/positions');
 	});
 
 	it('should remove query strings', () => {
-		const url = 'https://api.robinhood.com/accounts?page=1&limit=10';
+		const url = 'https://api.boardshop.com/accounts?page=1&limit=10';
 		const normalized = normalizeUrl(url);
-		expect(normalized).toBe('https://api.robinhood.com/accounts');
+		expect(normalized).toBe('https://api.boardshop.com/accounts');
 	});
 
 	it('should analyze traffic and group by endpoint', () => {
@@ -32,7 +32,7 @@ describe('Traffic Analyzer', () => {
 				id: 1,
 				timestamp: 1000,
 				method: 'GET',
-				url: 'https://api.robinhood.com/accounts/',
+				url: 'https://api.boardshop.com/accounts/',
 				requestHeaders: { Authorization: 'Bearer token' },
 				requestBody: undefined,
 				status: 200,
@@ -44,7 +44,7 @@ describe('Traffic Analyzer', () => {
 				id: 2,
 				timestamp: 1100,
 				method: 'GET',
-				url: 'https://api.robinhood.com/accounts/',
+				url: 'https://api.boardshop.com/accounts/',
 				requestHeaders: { Authorization: 'Bearer token' },
 				requestBody: undefined,
 				status: 200,
@@ -56,7 +56,7 @@ describe('Traffic Analyzer', () => {
 				id: 3,
 				timestamp: 1200,
 				method: 'GET',
-				url: 'https://api.robinhood.com/accounts/',
+				url: 'https://api.boardshop.com/accounts/',
 				requestHeaders: { Authorization: 'Bearer token' },
 				requestBody: undefined,
 				status: 200,
@@ -70,7 +70,7 @@ describe('Traffic Analyzer', () => {
 
 		expect(patterns).toHaveLength(1);
 		expect(patterns[0].method).toBe('GET');
-		expect(patterns[0].pattern).toBe('https://api.robinhood.com/accounts/');
+		expect(patterns[0].pattern).toBe('https://api.boardshop.com/accounts/');
 		expect(patterns[0].examples).toHaveLength(3);
 		expect(patterns[0].canInferSchema).toBe(true);
 	});
@@ -81,7 +81,7 @@ describe('Traffic Analyzer', () => {
 				id: 1,
 				timestamp: 1000,
 				method: 'GET',
-				url: 'https://api.robinhood.com/accounts/',
+				url: 'https://api.boardshop.com/accounts/',
 				requestHeaders: {},
 				requestBody: undefined,
 				status: 401,
@@ -174,17 +174,17 @@ describe('Client Code Generator', () => {
 
 	it('should generate code with proper imports', () => {
 		const config = {
-			domainName: 'robinhood',
-			className: 'RobinhoodApiClient',
-			baseUrls: ['https://api.robinhood.com'],
-			requiredHeaders: ['Authorization', 'X-Robinhood-API-Version'],
+			domainName: 'boardshop',
+			className: 'BoardshopApiClient',
+			baseUrls: ['https://api.boardshop.com'],
+			requiredHeaders: ['Authorization', 'X-Api-Version'],
 			endpoints: [],
 		};
 
 		const code = generateClientFile(config);
 
 		expect(code).toContain('Auto-generated API client');
-		expect(code).toContain('robinhood');
-		expect(code).toContain('RobinhoodApiClient');
+		expect(code).toContain('boardshop');
+		expect(code).toContain('BoardshopApiClient');
 	});
 });

@@ -16,13 +16,13 @@ import type { InterceptedRequest, InterceptedResponse, InterceptionCallback } fr
  *
  * Usage:
  * ```typescript
- * class LinkedInInterceptor extends GenericInterceptor {
+ * class DeckmarketInterceptor extends GenericInterceptor {
  *   constructor() {
- *     super(linkedInConfig);
+ *     super(deckmarketConfig);
  *   }
  * }
  *
- * const interceptor = new LinkedInInterceptor();
+ * const interceptor = new DeckmarketInterceptor();
  * await interceptor.attach(page);
  * const headers = await interceptor.waitForHeaders(5000);
  * ```

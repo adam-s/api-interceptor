@@ -2,7 +2,7 @@
  * Domain Plugin Loader
  *
  * Provides a runtime registry for domain plugins. Domain packages
- * (e.g., @interceptor/domain-robinhood) export a DomainPlugin object
+ * (e.g., @interceptor/domain-boardshop) export a DomainPlugin object
  * and register it at application startup.
  *
  * The browser handler uses getDomain() to look up plugins by name.
@@ -12,11 +12,11 @@
  * Usage:
  *   // In your app's startup (e.g., apps/api/src/register-domains.ts):
  *   import { registerDomain } from '@interceptor/browser/handler';
- *   import { plugin } from '@interceptor/domain-robinhood';
+ *   import { plugin } from '@interceptor/domain-boardshop';
  *   registerDomain(plugin);
  *
  *   // In the browser handler (automatic):
- *   const plugin = getDomain('robinhood');
+ *   const plugin = getDomain('boardshop');
  *   if (plugin) { ... attach interceptor, verify credentials, etc. }
  *
  * @module browser/handler/domain-loader
@@ -66,7 +66,7 @@ export type DomainRoute =
  * 3. Proxy API calls through the browser (the service layer)
  */
 export interface DomainPlugin {
-	/** Unique domain name (e.g., 'robinhood', 'investing', 'ticketmaster') */
+	/** Unique domain name (e.g., 'boardshop', 'example-finance', 'example-marketplace') */
 	domainName: string;
 
 	/** Interceptor configuration (URL patterns, required headers, schema) */

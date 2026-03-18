@@ -69,7 +69,7 @@ export type SessionStatus =
  * Persists across server restarts.
  */
 export interface GenericSession {
-	/** Profile name (e.g., 'robinhood-trading') */
+	/** Profile name (e.g., 'boardshop-main') */
 	profileName: string;
 	/** Captured authentication headers */
 	headers?: Record<string, string>;

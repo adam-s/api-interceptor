@@ -23,21 +23,21 @@ import { BlockerManager } from '../blocker';
 
 /**
  * URLs to block completely (tracking, analytics, fingerprinting)
- * These are Robinhood-specific trackers that can detect automation
+ * Domain-specific trackers that can detect automation
  */
 const BLOCKED_TRACKING_URLS = [
 	// Fingerprinting / device detection - CRITICAL for bot detection
 	'**/fingerprintjs.com/**',
 	'**/fpjs.io/**',
 	'**/cdn.fingerprint.com/**',
-	'**/fp.robinhood.com/**',
+	'**/fp.boardshop.com/**',
 	'**/arkoselabs.com/**',
 	'**/funcaptcha.com/**',
 
 	// Analytics & tracking
 	'**/segment.io/**',
 	'**/segment.com/**',
-	'**/analytics.robinhood.com/**',
+	'**/analytics.boardshop.com/**',
 	'**/cdn.segment.com/**',
 	'**/api.segment.io/**',
 
@@ -247,7 +247,7 @@ export class RemoteBrowserService {
 
 	/**
 	 * Register a route interceptor for capturing/modifying requests.
-	 * @param pattern - URL glob pattern to intercept (e.g., '**\/api.robinhood.com\/**')
+	 * @param pattern - URL glob pattern to intercept (e.g., '**\/api.boardshop.com\/**')
 	 * @param handler - Async handler function that receives the Route
 	 */
 	async addInterceptor(pattern: string, handler: (route: Route) => Promise<void>): Promise<void> {
@@ -529,8 +529,8 @@ export class RemoteBrowserService {
 		// Override sec-ch-ua to prevent HeadlessChrome detection.
 		// When Patchright runs in headless mode, Chromium automatically sets
 		// sec-ch-ua to include "HeadlessChrome" — a primary Cloudflare Bot Management
-		// detection signal. Sites like Yahoo Finance allow CDN-cached endpoints through
-		// but block real-time data endpoints (quotes, prices) when HeadlessChrome is detected.
+		// detection signal. Some sites allow CDN-cached endpoints through
+		// but block real-time data endpoints when HeadlessChrome is detected.
 		// setExtraHTTPHeaders overrides browser-generated headers for ALL requests from this context,
 		// including JavaScript-initiated fetch() calls via page.evaluate().
 		// The value must match MAC_USER_AGENT version (Chrome 145) to avoid version-mismatch detection.
@@ -552,7 +552,7 @@ export class RemoteBrowserService {
 		await this.page.addInitScript(antiDetectionScript);
 
 		// Block fingerprinting and tracking URLs at the route level
-		// This runs BEFORE Ghostery and catches Robinhood-specific trackers
+		// This runs BEFORE Ghostery and catches domain-specific trackers
 		for (const pattern of BLOCKED_TRACKING_URLS) {
 			await this.context.route(pattern, (route) => route.abort());
 		}
@@ -697,7 +697,7 @@ export class RemoteBrowserService {
 		'https://www.wikipedia.org',
 		'https://www.weather.com',
 		'https://news.ycombinator.com',
-		'https://www.reddit.com',
+		'https://www.github.com',
 	];
 
 	/**
@@ -1111,9 +1111,9 @@ export class RemoteBrowserService {
 	 * This ensures cookies and session state are included.
 	 *
 	 * Use `navigateTo` when the API is on a subdomain that allows CORS from the main site.
-	 * Example: Yahoo Finance serves APIs on query2.finance.yahoo.com but allows CORS from
-	 * finance.yahoo.com. Navigating to the API subdomain first loses the main site session
-	 * and may hit rate limits. Instead, pass `navigateTo: 'https://finance.yahoo.com'` so
+	 * Example: A site serves APIs on api.example.com but allows CORS from
+	 * www.example.com. Navigating to the API subdomain first loses the main site session
+	 * and may hit rate limits. Instead, pass `navigateTo: 'https://www.example.com'` so
 	 * the browser stays on the main site and makes a credentialed cross-origin fetch.
 	 *
 	 * @param url - The URL to fetch

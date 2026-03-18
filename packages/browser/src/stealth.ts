@@ -128,7 +128,7 @@ export function buildFetchHeaders(options?: {
 }
 
 /**
- * Headers for XHR/Ajax requests (like Investing.com API)
+ * Headers for XHR/Ajax requests (e.g., form-encoded API calls)
  */
 export function buildXhrHeaders(origin: string, referer: string): Record<string, string> {
 	return {

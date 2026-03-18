@@ -13,13 +13,13 @@ import type { EndpointPattern } from './traffic-analyzer';
  * Configuration for client generation.
  */
 export interface ClientGenerationConfig {
-	/** Domain name (e.g., 'robinhood', 'linkedin') */
+	/** Domain name (e.g., 'boardshop', 'deckmarket') */
 	domainName: string;
 
-	/** Class name for generated client (e.g., 'RobinhoodApiClient') */
+	/** Class name for generated client (e.g., 'BoardshopApiClient') */
 	className: string;
 
-	/** Base URLs (e.g., ['https://api.robinhood.com', 'https://bonfire.robinhood.com']) */
+	/** Base URLs (e.g., ['https://api.boardshop.com', 'https://cdn.boardshop.com']) */
 	baseUrls: string[];
 
 	/** Required header names for authentication */
@@ -35,7 +35,7 @@ export interface ClientGenerationConfig {
 /**
  * Extract the path portion from a URL pattern (strips protocol + host).
  * Examples:
- * - https://www.ticketmaster.com/api/config/menu → /api/config/menu
+ * - https://www.example-marketplace.com/api/config/menu → /api/config/menu
  * - /accounts/{id}/positions → /accounts/{id}/positions
  */
 function extractPath(pattern: string): string {
@@ -65,7 +65,7 @@ function extractBaseUrl(pattern: string): string {
  * Examples:
  * - /accounts/{id}/positions → getAccountPositions
  * - /api/config/menu → getApiConfigMenu
- * - https://promoted.ticketmaster.com/browse-category → getBrowseCategory
+ * - https://promoted.example-marketplace.com/browse-category → getBrowseCategory
  * - POST /orders → createOrder
  */
 function patternToMethodName(method: string, pattern: string): string {

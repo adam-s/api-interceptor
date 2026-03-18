@@ -21,7 +21,7 @@ import type { GenericSession, SessionEvent, SessionEventType, SessionStatus } fr
  * Default max age for sessions (30 days - browser cookies last this long).
  * The browser profile maintains login cookies that persist for ~30 days.
  * Bearer tokens expire after ~24 hours but are refreshed automatically
- * when the browser navigates to Robinhood.
+ * when the browser navigates to the domain.
  */
 const DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -39,20 +39,20 @@ export const TOKEN_REFRESH_THRESHOLD_MS = 20 * 60 * 60 * 1000;
  *
  * Usage:
  * ```typescript
- * const robinhoodMgr = GenericSessionManager.getInstance('robinhood');
- * const linkedinMgr = GenericSessionManager.getInstance('linkedin');
+ * const boardshopMgr = GenericSessionManager.getInstance('boardshop');
+ * const deckmarketMgr = GenericSessionManager.getInstance('deckmarket');
  *
  * // When headers are captured from interceptor
- * robinhoodMgr.setHeaders('robinhood-trading', capturedHeaders);
+ * boardshopMgr.setHeaders('boardshop-main', capturedHeaders);
  *
  * // Check if we have valid auth
- * if (robinhoodMgr.hasValidSession('robinhood-trading')) {
- *   const headers = robinhoodMgr.getHeaders('robinhood-trading');
+ * if (boardshopMgr.hasValidSession('boardshop-main')) {
+ *   const headers = boardshopMgr.getHeaders('boardshop-main');
  *   // Use headers for API calls
  * }
  *
  * // Subscribe to status changes (for SSE)
- * robinhoodMgr.on('status', (event) => {
+ * boardshopMgr.on('status', (event) => {
  *   console.log(`Profile ${event.profileName} is now ${event.type}`);
  * });
  * ```
@@ -366,7 +366,7 @@ export class GenericSessionManager extends EventEmitter {
 
 	/**
 	 * Update session with refreshed headers (new Bearer token).
-	 * Called after navigating the browser to Robinhood and capturing new headers.
+	 * Called after navigating the browser to the domain and capturing new headers.
 	 * This resets the token refresh timer without changing connectedAt.
 	 */
 	refreshToken(profileName: string, headers: Record<string, string>): void {

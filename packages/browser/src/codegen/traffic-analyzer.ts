@@ -34,7 +34,7 @@ export interface EndpointPattern {
 	/** Normalized URL pattern (e.g., /accounts/{id}/positions) */
 	pattern: string;
 
-	/** Original base URL (e.g., https://api.robinhood.com) */
+	/** Original base URL (e.g., https://api.boardshop.com) */
 	baseUrl: string;
 
 	/** Examples of traffic matching this pattern */
@@ -52,9 +52,9 @@ export interface EndpointPattern {
  * Handles UUIDs and numeric IDs.
  *
  * Examples:
- * - https://api.robinhood.com/accounts/abc123def456/positions
+ * - https://api.boardshop.com/accounts/abc123def456/positions
  *   → /accounts/{id}/positions
- * - https://api.robinhood.com/options/orders/550e8400-e29b-41d4-a716-446655440000
+ * - https://api.boardshop.com/options/orders/550e8400-e29b-41d4-a716-446655440000
  *   → /options/orders/{id}
  */
 export function normalizeUrl(url: string): string {
@@ -79,8 +79,8 @@ export function normalizeUrl(url: string): string {
 /**
  * Extract base URL from full URL.
  * Examples:
- * - https://api.robinhood.com/accounts → https://api.robinhood.com
- * - https://bonfire.robinhood.com/v1/orders → https://bonfire.robinhood.com
+ * - https://api.boardshop.com/accounts → https://api.boardshop.com
+ * - https://cdn.boardshop.com/v1/orders → https://cdn.boardshop.com
  */
 function extractBaseUrl(url: string): string {
 	const urlObj = new URL(url);

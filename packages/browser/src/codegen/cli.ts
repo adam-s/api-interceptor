@@ -6,9 +6,9 @@
  * Usage: pnpm codegen <domain> --output <path>
  *
  * Examples:
- * - pnpm codegen robinhood
- * - pnpm codegen robinhood --output ./generated/robinhood-client.ts
- * - pnpm codegen linkedin --server http://localhost:3001
+ * - pnpm codegen boardshop
+ * - pnpm codegen boardshop --output ./generated/boardshop-client.ts
+ * - pnpm codegen deckmarket --server http://localhost:3001
  *
  * @module browser/codegen/cli
  */

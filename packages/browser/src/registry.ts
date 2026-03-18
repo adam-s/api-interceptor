@@ -75,7 +75,7 @@ export interface ScraperMeta {
 	name: string;
 	/** Description of what this scraper fetches */
 	description: string;
-	/** Data source (e.g., 'investing.com', 'tradingeconomics.com') */
+	/** Data source (e.g., 'boardshop.com', 'deckmarket.com') */
 	source: string;
 	/** Version string */
 	version: string;
@@ -216,7 +216,7 @@ export class ScraperRegistry {
 	/**
 	 * Find scrapers by source.
 	 *
-	 * @param source - Source name (e.g., 'investing.com')
+	 * @param source - Source name (e.g., 'boardshop.com')
 	 * @returns Array of matching scrapers
 	 */
 	findBySource(source: string): RegisteredScraper[] {

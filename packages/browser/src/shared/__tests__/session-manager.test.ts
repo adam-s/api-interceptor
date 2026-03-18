@@ -11,17 +11,17 @@ describe('GenericSessionManager', () => {
 	});
 
 	it('should create singleton per domain', () => {
-		const manager1 = GenericSessionManager.getInstance('robinhood');
-		const manager2 = GenericSessionManager.getInstance('robinhood');
+		const manager1 = GenericSessionManager.getInstance('boardshop');
+		const manager2 = GenericSessionManager.getInstance('boardshop');
 
 		expect(manager1).toBe(manager2);
 	});
 
 	it('should create separate instances for different domains', () => {
-		const robinhoodMgr = GenericSessionManager.getInstance('robinhood');
-		const linkedinMgr = GenericSessionManager.getInstance('linkedin');
+		const boardshopMgr = GenericSessionManager.getInstance('boardshop');
+		const deckmarketMgr = GenericSessionManager.getInstance('deckmarket');
 
-		expect(robinhoodMgr).not.toBe(linkedinMgr);
+		expect(boardshopMgr).not.toBe(deckmarketMgr);
 	});
 
 	it('should support event listeners', () => {
@@ -35,9 +35,9 @@ describe('GenericSessionManager', () => {
 	});
 
 	it('should reset all instances', () => {
-		const manager1 = GenericSessionManager.getInstance('robinhood');
+		const manager1 = GenericSessionManager.getInstance('boardshop');
 		GenericSessionManager.resetInstances();
-		const manager2 = GenericSessionManager.getInstance('robinhood');
+		const manager2 = GenericSessionManager.getInstance('boardshop');
 
 		expect(manager1).not.toBe(manager2);
 	});

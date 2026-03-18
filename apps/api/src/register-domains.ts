@@ -11,26 +11,16 @@
  */
 
 import { registerDomain } from '@interceptor/browser/handler/domain-loader';
-import { plugin as investing } from '@interceptor/domain-investing';
 import { plugin as minuteinbox } from '@interceptor/domain-minuteinbox';
-import { plugin as robinhood } from '@interceptor/domain-robinhood';
-import { plugin as stubhub } from '@interceptor/domain-stubhub';
-import { registerRateLimit } from '@interceptor/shared';
 
 // ─── Domain plugins ──────────────────────────────────────────────────
+// Only framework utilities are registered on base.
+// Domain-specific plugins are imported on test branches.
 
-registerDomain(robinhood);
-registerDomain(investing);
 registerDomain(minuteinbox);
-registerDomain(stubhub);
 
 // ─── Outbound rate limits (per-hostname) ─────────────────────────────
-// These protect against 429s from external APIs. Limits are conservative
-// estimates for unauthenticated access. Domain plugins using
-// rateLimitedFetch() automatically respect these.
-
-registerRateLimit('api.semanticscholar.org', { maxPerMinute: 10, retryOn429: 2 });
-registerRateLimit('eutils.ncbi.nlm.nih.gov', { maxPerMinute: 30 });
-registerRateLimit('export.arxiv.org', { maxPerMinute: 20 });
-registerRateLimit('efts.sec.gov', { maxPerMinute: 10, retryOn429: 1 });
-registerRateLimit('feeds.finance.yahoo.com', { maxPerMinute: 30 });
+// Register per-host limits here when domain plugins use rateLimitedFetch().
+// Example:
+// import { registerRateLimit } from '@interceptor/shared';
+// registerRateLimit('api.example.com', { maxPerMinute: 10, retryOn429: 2 });
