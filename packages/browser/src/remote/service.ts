@@ -357,9 +357,13 @@ export class RemoteBrowserService {
 			commonArgs.push('--no-default-browser-check');
 		}
 
-		// Use system Chrome/Chromium if CHROME_PATH or CHROMIUM_PATH is set (Docker),
-		// otherwise Patchright finds Chrome via channel: 'chrome' (local dev).
-		const executablePath = process.env.CHROME_PATH || process.env.CHROMIUM_PATH || undefined;
+		// Use system Chrome/Chromium if available (Docker sets CHROME_PATH or CHROMIUM_PATH).
+		// Only use the path if the binary actually exists — avoids crash when both env vars
+		// are set but only one binary is installed (e.g., arm64 has Chromium but not Chrome).
+		const { existsSync } = await import('node:fs');
+		const chromePath = process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH) ? process.env.CHROME_PATH : undefined;
+		const chromiumPath = process.env.CHROMIUM_PATH && existsSync(process.env.CHROMIUM_PATH) ? process.env.CHROMIUM_PATH : undefined;
+		const executablePath = chromePath || chromiumPath || undefined;
 
 		// Use consistent Mac User-Agent across all platforms to avoid bot detection
 		// Chrome 145 — matches real Chrome binary version and sec-ch-ua override below.
