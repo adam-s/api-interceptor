@@ -208,6 +208,16 @@ def fuzzy_match(params):
 
 Install: `pip install python-dateutil thefuzz`
 
+### DOM Extraction Rules
+
+**Displayed text is ground truth.** Data attributes (`data-price`, `data-amount`) contain internal representations that may differ from what the user sees — different currencies, different units, encoded values. Always extract from the visible rendered text, then parse.
+
+**Constrain selectors to the narrowest match.** A broad selector returns navigation links, footer links, ads, and recommendations alongside real results. Scope queries to a container first, or use attribute selectors that match only the URL path segment you need.
+
+**Extracted text contains layout noise.** Sites prepend categories, append suffixes, and inject decorative content into text nodes. After extracting `innerText`, compare it to what a user would actually read on screen and strip anything extra.
+
+**Navigate like a user, not like a crawler.** Go search → list → detail in order. Each step builds cookies, referrers, and session trust. Jumping directly to a deep URL skips those signals and triggers harder bot challenges.
+
 ### Data source preference order
 
 When a site fires internal API calls (visible in CDP traffic), prefer intercepting those over DOM parsing:

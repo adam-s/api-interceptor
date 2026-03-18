@@ -52,6 +52,8 @@ Every skill improvement, utility fix, documentation update, architectural insigh
 
 **The consequence:** A skill or utility fix made on a test branch and NOT applied to `base` is permanently lost the moment you checkout `base` or another branch. This is the most common failure mode. Always apply fixes to `base` first, then branch.
 
+**Where to encode learnings:** When a fix lives in a specific file, put the guard **in the code as a comment** — not in a skill doc. A warning comment next to `ignoreDefaultArgs` in `service.ts` prevents the next iteration from removing it. A paragraph in SKILL.md about the same thing gets skimmed and forgotten. **Code comments guard implementations. Skills teach generalized principles.** If you find yourself writing a SKILL.md paragraph that names a specific file, variable, or config option, that knowledge belongs in that file as a comment instead.
+
 **Skills must be domain-agnostic.** Skills teach HOW (generalized patterns); prompts in `prompts/` teach WHAT (domain-specific details). If a skill names a specific website, API, or domain, extract that detail into the relevant prompt's "Discovery hints" section and replace with a one-line generalized statement.
 
 ---

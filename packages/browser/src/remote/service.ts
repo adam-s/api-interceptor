@@ -334,9 +334,11 @@ export class RemoteBrowserService {
 			this.userDataDir = mkdtempSync(join(tmpdir(), 'patchright-'));
 		}
 
+		// ⚠️  ANTI-DETECTION ARGS — do not remove or reorder without testing against bot-protected sites.
+		// Each flag prevents a specific detection vector. Removing any one can break all browser-dependent routes.
 		const commonArgs = [
 			'--disable-infobars',
-			'--disable-blink-features=AutomationControlled',
+			'--disable-blink-features=AutomationControlled', // hides navigator.webdriver from JS
 			'--disable-background-timer-throttling',
 			'--disable-backgrounding-occluded-windows',
 			'--disable-renderer-backgrounding',
@@ -520,6 +522,11 @@ export class RemoteBrowserService {
 			locale: 'en-US',
 			timezoneId: 'America/New_York',
 			args: commonArgs,
+			// ⚠️  DO NOT REMOVE. --enable-automation sets navigator.webdriver=true and shows
+			// an automation infobar — both are primary bot detection signals. Without this
+			// line, every bot-protected site (Ticketmaster, Cloudflare, etc.) blocks the browser.
+			// DO NOT add --disable-extensions here — Ghostery extension needs it.
+			ignoreDefaultArgs: ['--enable-automation'],
 			// Add proxy config if specified
 			...(proxyConfig && { proxy: proxyConfig }),
 			// Ignore HTTPS errors when using residential proxies (they use MITM for SSL)
