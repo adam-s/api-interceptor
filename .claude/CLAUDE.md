@@ -287,7 +287,8 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 2. `git checkout base` -- strip domain artifacts (`rm -rf domains/<name>/`, revert `register-domains.ts`, `nav-main.tsx`, `pnpm-lock.yaml`, browser profiles, screenshots)
 3. Apply `memory/base-fixes-needed.md` to: skills, CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md
 4. Clear the file, run `./scripts/ci-local.sh`, commit
-5. `git checkout -b test/<id>-v<n+1>` -- inherits all learnings
+5. `git branch -D test/<id>-v<n>` -- delete the old test branch (it has no lasting value)
+6. `git checkout -b test/<id>-v<n+1>` -- inherits all learnings
 
 ---
 
