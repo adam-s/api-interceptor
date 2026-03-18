@@ -4,56 +4,27 @@ Paste a natural-language prompt. Claude Code discovers the target site's API thr
 
 The browser IS the API client. Patchright drives a real browser session, captures network traffic via CDP, and reverse-engineers API endpoints — no documentation required. Proxy routes then serve that data through the browser's authenticated session, so cookies and auth are automatic.
 
-## Architecture
+## How It Works
 
 ```mermaid
-flowchart TB
-    subgraph User ["User"]
-        Prompt["Natural Language Prompt"]
-        Dashboard["Dashboard Browser<br/>localhost:3000"]
+flowchart LR
+    subgraph Base ["base branch — skills accumulate"]
+        Skills["Skills + Framework"]
     end
 
-    subgraph Skills [".claude/skills/"]
-        AD["api-discovery<br/>Observe → Classify → Extract → Verify"]
-        DB["dashboard-builder<br/>Build pages from proxy APIs"]
-        VD["visual-dev<br/>Screenshot verification"]
+    Skills -->|"branch"| Build
+
+    subgraph Iteration ["test branch — disposable"]
+        Build["Observe → Build → Verify"]
+        Build -->|"fix"| Build
     end
 
-    subgraph Framework ["Framework"]
-        subgraph NextJS ["Next.js :3000"]
-            Rewrite["/api/* → :3001/api/*"]
-        end
-
-        subgraph Hono ["Hono API :3001"]
-            Proxy["Domain Proxy<br/>createDomainProxy()"]
-            WS["WebSocket Handler<br/>/browser/stream"]
-            Traffic["Traffic Buffer<br/>CDP Network.enable"]
-        end
-
-        subgraph Patchright ["Patchright Browser"]
-            Page["Browser Page<br/>Cookies + Auth"]
-        end
-    end
-
-    subgraph Target ["Target Website"]
-        API["JSON API"]
-        SSR["SSR Pages"]
-    end
-
-    Prompt --> AD
-    AD --> WS
-    WS --> Page
-    Page --> API & SSR
-    API & SSR --> Traffic
-    Traffic --> AD
-    AD -->|routes.ts| Proxy
-    Proxy --> Page
-    DB --> Dashboard
-    Dashboard --> Rewrite --> Proxy
-    VD --> Dashboard
+    Build -->|"learnings"| Skills
 ```
 
-## How It Works
+The outer loop improves the skills. The inner loop builds each app. Every test branch is disposable — only the skills grow.
+
+## Architecture
 
 ```mermaid
 sequenceDiagram
