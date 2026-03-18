@@ -237,6 +237,11 @@ FOR each prompt:
      ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
      capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
   1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
+     ⚠️  Classification is per-ENDPOINT, not per-site. Even a SINGLE PAGE can be hybrid:
+     the shell and metadata load via SSR while the primary data (prices, inventory,
+     listings) loads via XHR after the initial HTML. A page showing "Loading..." for its
+     main content is NOT SSR for that content. Verify EACH data type independently
+     before writing extraction code. See api-discovery SKILL.md Phase 2 gate.
   2. Build UI component → screenshot it → describe what you see → fix if wrong → re-screenshot → repeat until correct
   3. Wire interactions → click each button with Patchright → verify the response → fix if broken
   4. Full QA pass → screenshot every state (empty, loading, populated, error, detail, mobile 375px)
