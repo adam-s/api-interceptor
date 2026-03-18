@@ -1,3 +1,5 @@
+Use the api-discovery skill (`.claude/skills/api-discovery/SKILL.md`) in **Live Mode** to reverse-engineer LinkedIn's internal API. The API server is running on port 3001 with traffic capture at `/browser/traffic`. Follow the skill's workflow: clear buffer → navigate → wait → read traffic → analyze → schema → repeat.
+
 Build me a full LinkedIn automation platform. Create a `linkedin` domain plugin that captures every API endpoint LinkedIn uses — feed, profiles, messaging, jobs, posting, comments, reactions, search, connections, notifications. This is an API discovery project first, automation platform second.
 
 LinkedIn is auth-gated — cookies are already imported into the `generic` browser profile. Use that profile for all browser sessions. Go SLOW — LinkedIn aggressively rate-limits and flags automation. Add delays between every action (5-15 seconds randomized). Never burst requests.
