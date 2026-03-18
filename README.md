@@ -1,95 +1,56 @@
-# API Interceptor
+# Interceptor
 
-Stop downloading entire web pages to get a few KB of data. Discover the lean JSON APIs that websites use internally, then call them directly.
+Paste a natural-language prompt. Claude Code discovers the target site's API through browser traffic interception, generates a typed domain plugin with proxy routes, and builds a working dashboard — no manual work beyond the initial prompt.
 
-## What It Does
+```mermaid
+flowchart LR
+    A[Prompt] --> B[Browser Session]
+    B --> C[Traffic Capture]
+    C --> D[API Pattern Detection]
+    D --> E[Domain Plugin + Proxy Routes]
+    E --> F[Dashboard]
 
-1. **Discover**: Navigate a website in a headless browser. CDP captures every API call — including ones you'd never find in DevTools because they go to unexpected domains.
+    subgraph Discovery [".claude/skills/api-discovery"]
+        B
+        C
+        D
+    end
 
-2. **Extract**: The skill classifies how the site delivers data:
-   - **JSON APIs** → create proxy routes
-   - **SSR HTML** → parse embedded JSON from the page response
-   - **Hybrid** → SSR for page 1, pagination API for the rest
-
-3. **Proxy**: Expose discovered APIs as clean REST endpoints that route through the browser's authenticated session. Cookies and auth are automatic.
-
-## Real Example
-
-We pointed this at StubHub and extracted 36 ticket listings with sections, rows, seats, and prices — without writing a single line of API documentation:
-
-```
-Section 235, Row 7, Seats 18-20, Price: $886.54
-Section 223, Row 10, Seats 29-33, Price: $1,090.43
-Section Golden Circle, Price: $3,150.99
+    subgraph Build [".claude/skills/dashboard-builder"]
+        F
+    end
 ```
 
-The proxy endpoint: `POST /api/stubhub/event/158171526/listings`
-
-## For Claude Code Users
-
-This repo ships with skills that guide Claude Code through the entire process. Give it a prompt like:
-
-> Create domains for StubHub and Ticketmaster. Search for Bad Bunny events, get ticket prices, and build a dashboard comparing prices by section.
-
-The skills handle: domain scaffolding, API discovery, SSR extraction, route creation, dashboard building, and visual verification.
-
-See [docs/temp/DEVELOPER_PROMPTS.md](docs/temp/DEVELOPER_PROMPTS.md) for more test prompts.
+The browser IS the API client. Patchright drives a real browser session, captures network traffic via CDP, and reverse-engineers API endpoints — no documentation required. Proxy routes then serve that data through the browser's authenticated session, so cookies and auth are automatic.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/adam-s/api-interceptor
-cd api-interceptor
 pnpm install
-pnpm run dev
+pnpm dev          # API on :3001, Web on :3000
 ```
 
-API server: `http://localhost:3001`
-Dashboard: `http://localhost:3000`
-Browser: `http://localhost:3000/browser?profile=default&url=https://example.com`
+Give Claude Code a prompt like:
 
-## Project Structure
+> Search StubHub for Bad Bunny events, get ticket prices, and build a dashboard comparing prices by section.
+
+The skills handle domain scaffolding, API discovery, route creation, dashboard building, and visual verification.
+
+## Structure
 
 ```
-domains/            Domain plugins (one per website)
-  ticketmaster/     Reference: JSON API routes
-  robinhood/        Reference: full auth + API client
-  investing/        Reference: auth verification
-  minuteinbox/      Reference: no auth
+.claude/skills/       Skills that drive the whole process
+  api-discovery/      Discover APIs, create domain plugins
+  dashboard-builder/  Build Next.js pages from proxy APIs
+  visual-dev/         Screenshot-based UI iteration
+  debug-logs/         Runtime debugging with DEBUG()
 
-packages/
-  browser/          Framework: interceptor, handler, codegen, remote browser
-  shared/           Utilities: logging, validation
-
-apps/
-  api/              Hono server: browser WebSocket + proxy routes
-  web/              Next.js dashboard
-
-.claude/skills/     Skills for Claude Code
-  api-discovery/    Discover APIs, create domain plugins
-  dashboard-builder/ Build Next.js pages consuming proxy APIs
-  visual-dev/       Screenshot-based UI development
-  debug-logs/       Iterative debugging
-  systematic-testing/ Layer-by-layer validation
+domains/              Domain plugins (one per website)
+packages/browser/     Patchright browser automation
+packages/shared/      Types, validation, debug logging
+apps/api/             Hono server with WebSocket + proxy routes
+apps/web/             Next.js dashboard
 ```
-
-## How Domain Plugins Work
-
-Each domain is a standalone package in `domains/`:
-
-```typescript
-// domains/mysite/src/index.ts
-export const plugin: DomainPlugin = {
-  domainName: 'mysite',
-  config: { interceptPatterns: ['https://api.mysite.com/**'], ... },
-  routes: [
-    { method: 'GET', path: '/search', targetUrl: 'https://api.mysite.com/search' },
-  ],
-  createInterceptor: () => new MySiteInterceptor(),
-};
-```
-
-Register in `apps/api/src/register-domains.ts`, run `pnpm install`, and your routes are live at `/api/mysite/search`.
 
 ## Key Endpoints
 
@@ -99,15 +60,6 @@ Register in `apps/api/src/register-domains.ts`, run `pnpm install`, and your rou
 | `GET /browser/traffic` | Captured API traffic (CDP) |
 | `GET /api` | List all domains and routes |
 | `GET /api/<domain>/<path>` | Proxy through browser session |
-
-## Development
-
-```bash
-pnpm turbo typecheck    # Type checking
-pnpm turbo test         # Unit tests
-pnpm biome ci .         # Linting
-./scripts/ci-local.sh   # Full CI locally
-```
 
 ## License
 

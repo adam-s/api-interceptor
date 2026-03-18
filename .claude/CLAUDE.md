@@ -6,6 +6,31 @@
 
 Every improvement to base skills, utilities, or architecture should serve this mission: reduce the gap between pasting a prompt and getting a working application.
 
+## Inspection-First Development
+
+**Every new file and every bug fix MUST be validated through observation, not assumption.**
+
+Two tools make this possible:
+
+| Tool | Purpose | When to use |
+| --- | --- | --- |
+| `.claude/skills/debug-logs/SKILL.md` | See exactly what code produces at runtime — inputs, outputs, branch decisions | New code: verify it does what you think. Bug fixes: confirm the root cause before changing anything. |
+| `.claude/skills/visual-dev/SKILL.md` | See the actual visual output in a real browser | Any UI change: verify it renders correctly across states and viewports. |
+
+### New File Rule
+
+**Every new `.ts` / `.tsx` file MUST include a first-line comment pointing to the debug-logs skill:**
+
+```typescript
+// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
+```
+
+This comment is a permanent reminder — when something breaks in this file, the first action is to add `DEBUG()` calls and observe, not guess. Do not remove these comments during cleanup.
+
+### Bug Fix Rule
+
+Before changing code to fix a bug, **invoke the debug-logs skill first**. Add `DEBUG()` calls to observe the actual runtime state, confirm the root cause, then fix. If the bug is visual, **invoke the visual-dev skill** — screenshot the broken state, fix, re-screenshot, confirm zero issues. Never commit a fix without proof that it works.
+
 ---
 
 ## The Fundamental Rule: Base Accumulates All Learning
