@@ -2,97 +2,17 @@
 
 ## Mission
 
-**This framework's purpose:** A developer pastes any natural-language prompt describing a web application. Claude Code uses the skills to automatically discover the target website's API via browser traffic interception, create a typed domain plugin with proxy routes, and build a working dashboard — without manual intervention beyond the initial prompt. **The browser IS the API client. The skills are the product.**
+**A developer pastes a natural-language prompt. Claude Code discovers the target website's API via browser traffic interception, creates a typed domain plugin with proxy routes, and builds a working dashboard — without manual intervention beyond the initial prompt.** The browser IS the API client. The skills are the product.
 
-Every improvement to base skills, utilities, or architecture should serve this mission: reduce the gap between pasting a prompt and getting a working application.
+## Rules
 
-## Inspection-First Development
+Process rules live in `.claude/rules/` and are loaded automatically:
 
-**Every new file and every bug fix MUST be validated through observation, not assumption.**
-
-Two tools make this possible:
-
-| Tool | Purpose | When to use |
-| --- | --- | --- |
-| `.claude/skills/debug-logs/SKILL.md` | See exactly what code produces at runtime — inputs, outputs, branch decisions | New code: verify it does what you think. Bug fixes: confirm the root cause before changing anything. |
-| `.claude/skills/visual-dev/SKILL.md` | See the actual visual output in a real browser | Any UI change: verify it renders correctly across states and viewports. |
-
-### New File Rule
-
-**Every new `.ts` / `.tsx` file MUST include a first-line comment pointing to the debug-logs skill:**
-
-```typescript
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
-```
-
-This comment is permanent — do not remove it during cleanup. It reminds you to observe before guessing. The actual `DEBUG()` function calls you add during investigation are temporary — remove them after the fix (see debug-logs skill for the full lifecycle).
-
-### Bug Fix Rule
-
-Before changing code to fix a bug, **invoke the debug-logs skill first**. Add `DEBUG()` calls to observe the actual runtime state, confirm the root cause, then fix. If the bug is visual, **invoke the visual-dev skill** — screenshot the broken state, fix, re-screenshot, confirm zero issues. Never commit a fix without proof that it works.
-
-### Unexpected Output Is Information, Not Failure
-
-Data that exists in any form can be understood. When you observe unexpected output — wrong values, encoded strings, unfamiliar formats, empty-looking responses — that is information to investigate, not a reason to abandon the approach.
-
-Two investigation tools, depending on whose code you're looking at:
-- **Our code:** Add DEBUG() calls to trace what each layer actually produces.
-- **The website's code:** Download JS bundles, search for string anchors (data-testid, attribute values), and trace the transformation backwards from rendered output to raw API response. See api-discovery skill "Decoding Encoded API Responses" for the full technique.
-
-**When stuck, enumerate before abandoning.** List every possible explanation for the unexpected behavior (encoding, localization, unit conversion, indirect references, lazy loading, pagination, protocol differences). Test each with a targeted observation. Only abandon an approach after you have evidence that it *cannot* work — not just evidence that it doesn't work *yet*.
-
----
-
-## Prompt Compliance Gate
-
-**Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.**
-
-This is not a suggestion — it is a structural gate. The agent must produce a **Prompt Compliance Matrix** in the conversation before committing. The matrix makes gaps self-evident: any row without evidence is an undeniable signal that work remains.
-
-**Why this exists:** A screenshot can look correct while silently missing half the prompt's requirements. Visual QA verifies quality; the matrix verifies completeness. Without it, the agent feels "done" after screenshots and commits incomplete work.
-
-**The matrix format (produce this in the conversation before every commit):**
-
-```
-## Prompt Compliance Matrix
-| # | Requirement | Status | Evidence |
-|---|-------------|--------|----------|
-| 1 | [from prompt] | PASS/FAIL | [curl output, screenshot path, code path, or Patchright proof] |
-```
-
-- Extract requirements at the START of work (Step 0a in the iteration loop below)
-- Produce the matrix BEFORE committing (Step 5 in the iteration loop below)
-- ANY FAIL row = go back and fix, then re-produce the matrix
-- Evidence must be specific — not "implemented" or "done"
-
----
-
-## The Fundamental Rule: Base Accumulates All Learning
-
-**`base` is the product. Test branches are disposable experiments.**
-
-Every skill improvement, utility fix, documentation update, architectural insight, and framework capability MUST land on `base` — never only on a test branch. When you create a new test branch from `base`, it inherits every fix ever applied across every previous iteration. When a test branch is done, it is stripped and abandoned. Only `base` grows.
-
-| Lives on `base` (permanent) | Lives only on test branches (ephemeral) |
-| --- | --- |
-| `.claude/skills/` | `domains/<name>/` — domain plugins |
-| `CLAUDE.md` | Domain-specific route files |
-| `docs/temp/ROADMAP.md` | Domain-specific UI pages |
-| `prompts/` | `data/browser-profiles/<domain>/` |
-| Framework code in `packages/` | Nav entries for domain pages |
-| Shared utilities in `apps/api/src/` | `pnpm-lock.yaml` additions for domain deps |
-
-**The invariant:** If you delete every test branch, you lose nothing of lasting value. Everything that matters — every lesson from every iteration — is on `base`.
-
-**The consequence:** A skill or utility fix made on a test branch and NOT applied to `base` is permanently lost the moment you checkout `base` or another branch. This is the most common failure mode. Always apply fixes to `base` first, then branch.
-
-**Where to encode learnings:** When a fix lives in a specific file, put the guard **in the code as a comment** — not in a skill doc. A warning comment next to `ignoreDefaultArgs` in `service.ts` prevents the next iteration from removing it. A paragraph in SKILL.md about the same thing gets skimmed and forgotten. **Code comments guard implementations. Skills teach generalized principles.** If you find yourself writing a SKILL.md paragraph that names a specific file, variable, or config option, that knowledge belongs in that file as a comment instead.
-
-**Skills must be domain-agnostic.** Skills teach HOW (generalized patterns); prompts in `prompts/` teach WHAT (domain-specific details). If a skill names a specific website, API, or domain, extract that detail into the relevant prompt's "Discovery hints" section and replace with a one-line generalized statement.
-
----
-
-Monorepo for API interception and typed client generation using Patchright + WebSocket streaming.
+- `inspection-first.md` — observe before guessing, DEBUG comments on every new file
+- `prompt-compliance.md` — produce a compliance matrix before every commit
+- `base-branch.md` — base accumulates all learning, test branches are disposable
+- `workflow.md` — verification, git hygiene, test-to-base flow
+- `iteration-loop.md` — autonomous mode, the build loop, server startup, branch management
 
 ## Structure
 
@@ -108,264 +28,31 @@ Monorepo for API interception and typed client generation using Patchright + Web
 Default ports: API on 3001, Web on 3000. If ports differ, check with `lsof -iTCP -sTCP:LISTEN -P`.
 
 ```bash
-# Development
 pnpm dev                              # Start all services
 pnpm --filter @interceptor/web dev    # Run Next.js (port 3000)
 pnpm --filter @interceptor/api dev    # Run API (port 3001)
-
-# Checks
-./scripts/ci-local.sh                 # Full CI locally
+./scripts/ci-local.sh                 # Full CI locally (run before committing)
 pnpm biome ci .                       # Lint
 pnpm turbo typecheck                  # TypeScript
-pnpm turbo test                       # Tests
 pnpm turbo build                      # Build all
-
-# Docker
-docker build -f apps/api/Dockerfile .
-docker build -f apps/web/Dockerfile .
 ```
 
-## Architecture
+## Key Architecture
 
-### /browser WebSocket API
-
-Streams remote browser session via WebSocket:
-
-- Binary JPEG frames (CDP screencast)
-- JSON control messages (navigate, click, type, etc.)
-- Traffic capture for API discovery
-- Profile support for persistent sessions
-
-Endpoints:
-
-- `GET /browser/traffic` — Captured request/response entries
-- `GET /browser/traffic/summary` — Deduplicated endpoint patterns
-- `DELETE /browser/traffic` — Clear buffer
-- `GET /browser/health` — Browser status
-
-### /dashboard
-
-Real-time state synchronization via WebSocket + Python bridge:
-
-- Server-side state in `apps/api/src/state.ts`
-- Client receives updates on every state change
-- Python worker performs async computations (stats, analysis)
-- Example: multiplier panel with live Python-computed statistics
-
-## Debug Logging
-
-`import { DEBUG } from "@interceptor/shared"` — logs to `/tmp/interceptor-debug/debug-YYYY-MM-DD.log`. See debug-logs skill for full reference (call signatures, factory pattern, Python bridge, cleanup rules).
-
-## Authentication
-
-NextAuth v5 (Credentials provider, JWT strategy).
-
-- Config: `apps/web/src/auth.ts`
-- Server actions: `apps/web/src/lib/actions/auth.ts`
-- Routes:
-  - `/login` — Email + password
-  - `/register` — Create user
-  - `/api/auth/[...nextauth]` — NextAuth handler
-  - `/dashboard/*` — Protected (checks auth server-side)
-
-## Database (Optional)
-
-`packages/db/` provides Drizzle ORM + TimescaleDB. Not required for MVP.
-
-- Schema: `users` (auth), stocks, daily_bars (time-series)
-- Docker: `docker compose up postgres -d`
-- Migrations: `cd packages/db && pnpm run migrate`
-
-Connection: `PGPASSWORD=CHANGE_ME psql -U interceptor -h localhost -p 5433 -d interceptor`
-
-## Python Bridge
-
-IPC via stdin/stdout JSON-RPC. Worker at `services/python/worker.py`.
-
-- No HTTP, no ports
-- Spawned as child process
-- Request/response via JSON messages
-- Example: `compute` request → stats response
-
-## CI
-
-**Always run before committing:**
-
-```bash
-./scripts/ci-local.sh
-```
-
-GitHub Actions runs on push to `main` and PRs:
-
-- `pnpm install --frozen-lockfile`
-- `pnpm biome ci .`
-- `pnpm turbo build`
-- `pnpm turbo typecheck`
-- `pnpm turbo test`
-- `docker build` (both API and web)
-
-## Security
-
-⚠️ **Before publishing:**
-
-- [ ] No hardcoded API keys, credentials, or AWS account IDs
-- [ ] No private domain names (e.g., company URLs)
-- [ ] All examples use localhost or example.com
-- [ ] Review `.env.example` and `.env.production.example`
-- [ ] Scan git history: `git log --all --full-history -- [file]`
-
-## Workflow Rules
-
-- **Verify every step:** curl returns real data, screenshot shows real content — never move on without proof
-- **Debug skill for runtime bugs:** invoke `.claude/skills/debug-logs/SKILL.md` — don't guess, observe.
-- **Never quit half-way:** iterate until the prompt is fully solved and CI is green
-- **Commit base clean before cutting branches:** always commit `base` to a clean, passing state BEFORE creating test branches — the branch point is permanent and cannot be retroactively fixed without rebase
-- **Never `git add -A`:** stage specific files by name. `git add -A` catches `data/browser-profiles/` cache, `.env` files, and other local artifacts. Prefer dependency injection over hardcoded imports — framework code in `packages/` must be clean of domain-specific code.
-- **Document mistakes immediately:** when something goes wrong, append a one-line note to `base-fixes-needed.md` describing what happened and how to avoid it. Don't wait until the end of the iteration.
-- **Review skills after using them:** after completing work guided by a skill, review what went wrong and add gotchas/lessons to the skill's SKILL.md on the next base pass. Skills improve every iteration.
-- **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
-
-### Notes File Rule (Test -> Base)
-
-**On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.** Write discoveries to the persistent fix queue instead:
-
-```text
-~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/base-fixes-needed.md
-```
-
-On return to `base`: read the file, apply every item, clear it, run CI, commit. The next test branch inherits all learnings.
-
----
-
-## Autonomous Iteration Mode
-
-The user has granted full autonomous operation. You may:
-
-- Commit on `base` without asking (run `./scripts/ci-local.sh` first — must pass)
-- Create and switch between test branches without asking
-- Make architectural and implementation decisions without asking
-- Keep iterating until the prompt is fully solved (all phases verified)
-- **Skip `EnterPlanMode`** — don't wait for human approval to start coding. This does NOT mean skip self-verification gates in the skills. Those gates are mandatory checkpoints you enforce on yourself.
-- **Skipping plan mode does NOT mean skipping the Prompt Compliance Matrix.** The matrix in Step 5 is a self-verification gate, not a human review gate. You produce it for yourself as proof that you checked every requirement. Autonomous mode means you don't wait for human approval — it does NOT mean you skip proving to yourself that the prompt is fully solved.
-- **Skipping plan mode does NOT mean skipping observation.** The api-discovery skill's Phase 1 (Observe) is a MANDATORY gate — connect a browser via WebSocket, capture traffic, see what the site sends. Guessing DOM structure without observation is the #1 failure mode. If extracted data doesn't match the rendered DOM (wrong names, category labels instead of real names, prices off by 100x), see "Decoding Encoded API Responses" in api-discovery/SKILL.md.
-
-**You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
-
-### The Iteration Loop
-
-```text
-FOR each prompt:
-  0. READ THE PROMPT + OBSERVE
-     a. Read the prompt file. Extract every requirement into a numbered list:
-        features, views, interactions, data sources, layout specs, behaviors.
-        Paste this list into the conversation as "REQUIREMENTS EXTRACTED FROM PROMPT".
-        This list is your contract. You are done when every item has evidence, not before.
-     b. Connect browser via WebSocket
-        (ws://localhost:PORT/browser/stream?profile=<domain>&url=<target>).
-        Capture traffic. Screenshot the page with visual-dev skill to see ground truth.
-        ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
-        capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
-  1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
-     ⚠️  Classification is per-ENDPOINT, not per-site. Even a SINGLE PAGE can be hybrid:
-     the shell and metadata load via SSR while the primary data (prices, inventory,
-     listings) loads via XHR after the initial HTML. A page showing "Loading..." for its
-     main content is NOT SSR for that content. Verify EACH data type independently
-     before writing extraction code. See api-discovery SKILL.md Phase 2 gate.
-     CHECKPOINT: re-read the requirements list from Step 0a. Does every data requirement
-     have a working route? If not, build the missing routes before touching UI.
-  2. Build UI component → screenshot it → describe what you see → fix if wrong → re-screenshot → repeat until correct
-     CHECKPOINT: re-read the requirements list from Step 0a. Does every view and layout
-     requirement appear in the UI? If not, build missing views before wiring interactions.
-  3. Wire interactions → click each button with Patchright → verify the response → fix if broken
-  4. Full QA pass → screenshot every state (empty, loading, populated, error, detail, mobile 375px)
-     → walk every user journey end-to-end → fix everything → re-screenshot → zero issues = done
-  5. PROMPT COMPLIANCE MATRIX — produce the matrix (see "Prompt Compliance Gate" section above)
-     in the conversation. One row per requirement from Step 0a. Fill in Status and Evidence.
-     ANY FAIL row = go back to the step that would fix it. Re-do the matrix after fixing.
-     Loop until all rows are PASS with specific evidence.
-  6. Commit only after Step 5 matrix shows ALL PASS with zero FAIL rows.
-     If no matrix exists in the conversation above, STOP — you skipped Step 5.
-```
-
-**The prompt is fully solved when:** (1) every feature mentioned in the prompt is implemented, (2) every verification gate passes, and (3) the Definition of Done checklist passes.
-
-### The Rule That Makes This Work
-
-**Verification output is required input for the next step. You cannot skip it because the next step needs it.**
-
-- You cannot build UI until you have curl output proving the API returns real data
-- You cannot add the next component until you have a screenshot proving the current component renders correctly
-- You cannot commit until you have screenshots of every state showing zero visual/functional issues
-- You cannot call a button "done" until you have Patchright output showing you clicked it and it responded correctly
-
-**If something is wrong — use debug-logs skill immediately.** Invoke `.claude/skills/debug-logs/SKILL.md` — don't guess, observe. The runtime tells you exactly what's wrong.
-
-**If something looks wrong — use visual-dev skill immediately.** Screenshot it, read the screenshot, describe the problem in one sentence, fix it, re-screenshot. Repeat until the screenshot shows zero issues.
-
-The agent goes from GUESSING (without these tools) to KNOWING (with them). This is the single most important behavior change.
-
-Full details and checkpoint rules: `docs/temp/ROADMAP.md`
-
-### Server Startup
-
-```bash
-# Kill any existing servers first
-lsof -ti:3001 | xargs kill -9 2>/dev/null; lsof -ti:3000 | xargs kill -9 2>/dev/null
-# Start API (port 3001)
-pnpm --filter api dev > /tmp/api-server.log 2>&1 &
-# Start web (port 3000)
-pnpm --filter web dev > /tmp/web-server.log 2>&1 &
-# Wait and verify
-sleep 6 && curl -s http://localhost:3001/health && curl -s http://localhost:3000 | head -5
-```
-
-Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
-
-### Returning to Base After a Test Iteration
-
-1. On test branch: commit domain work, append all discoveries to `memory/base-fixes-needed.md`
-2. `git checkout base` -- strip domain artifacts (`rm -rf domains/<name>/`, revert `register-domains.ts`, `nav-main.tsx`, `pnpm-lock.yaml`, browser profiles, screenshots)
-3. Apply `memory/base-fixes-needed.md` to: skills, CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md
-4. Clear the file, run `./scripts/ci-local.sh`, commit
-5. `git branch -D test/<id>-v<n>` -- delete the old test branch (it has no lasting value)
-6. `git checkout -b test/<id>-v<n+1>` -- inherits all learnings
-
----
-
-## Current Iteration State
-
-Iteration state lives **outside git** in the project memory system so it never pollutes `base`:
-
-```
-~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/iteration_state.md
-```
-
-**Rules:**
-- **Before every `git checkout`:** update `iteration_state.md` with branch, phase, and notes.
-- **When resuming a session:** read `iteration_state.md` first — it is the source of truth.
-- **Before starting a new iteration from `base`:** check if `iteration_state.md` exists. If it contains stale state from a finished iteration, delete it. A clean start means no leftover state.
-- **After returning to `base` and committing fixes:** delete `iteration_state.md`. By this point all generalized learnings have already flowed through `base-fixes-needed.md` into committed skill files. The iteration state is purely navigational ("where am I, what phase") and has no value after the iteration ends.
-- **Never write iteration-specific content into this CLAUDE.md file.** This file is permanent on `base`; iteration state is ephemeral in memory.
+- **Browser WebSocket:** `ws://localhost:3001/browser/stream?profile=<domain>&url=<target>`
+- **Traffic capture:** `GET /browser/traffic` — captured request/response entries
+- **Domain proxy:** `GET /api/<domain>/<path>` — routes through browser session
+- **Debug logging:** `import { DEBUG } from "@interceptor/shared"` → `/tmp/interceptor-debug/`
+- **Python bridge:** IPC via stdin/stdout JSON-RPC at `services/python/worker.py`
+- **Auth:** NextAuth v5 (Credentials provider, JWT strategy) at `apps/web/src/auth.ts`
 
 ## Conventions
 
 - Import paths: `@interceptor/[package]`
 - Monorepo .env: Next.js loads from app dir; `next.config.ts` loads root `.env` via dotenv
-- TypeScript: Enable strict mode in all `tsconfig.json`
+- TypeScript: strict mode in all `tsconfig.json`
 - Tests: Vitest with workspace mode
-
-### Frontend API URLs
-
-Dashboard components MUST use **relative URLs** (`/api/...`), not `http://localhost:3001/api/...`. The Next.js rewrites proxy in `apps/web/next.config.ts` maps `/api/*` → `localhost:3001/api/*`. Relative URLs survive port changes and deployment — hardcoded localhost URLs don't.
-
-```typescript
-// CORRECT — relative, works through Next.js proxy
-const res = await fetch(`/api/boardshop/boards/${sku}`);
-
-// WRONG — breaks if port changes, doesn't work in production
-const res = await fetch(`http://localhost:3001/api/boardshop/boards/${sku}`);
-```
-
-### Rate-Limited Outbound Fetch
-
-For `browserRequired: false` routes, use `rateLimitedFetch` from `@interceptor/shared` instead of raw `fetch()`. See api-discovery skill "Rate-limited outbound fetch" section for registration and usage.
+- Frontend API URLs: use **relative URLs** (`/api/...`), not `http://localhost:3001/...`. Next.js rewrites proxy in `apps/web/next.config.ts`.
+- Rate-limited outbound fetch: use `rateLimitedFetch` from `@interceptor/shared` for `browserRequired: false` routes.
+- Never `git add -A` — stage specific files by name.
+- Always run `./scripts/ci-local.sh` before committing.
