@@ -55,7 +55,7 @@ If auth exists, search for credentials in this order:
 ### 3. Create the screenshot directory
 
 ```bash
-mkdir -p test-results/dev-screenshots
+mkdir -p /tmp/interceptor-dev-screenshots
 ```
 
 Verify this path is gitignored. If not, use another gitignored temp directory.
@@ -187,7 +187,7 @@ The full page is done when every enumerated state passes at desktop viewport (12
 
 ### Writing the Patchright Script
 
-Create `test-results/dev-screenshots/check.ts`. Use Patchright's **library API** (`chromium.launchPersistentContext`), not the test runner.
+Create `/tmp/interceptor-dev-screenshots/check.ts`. Use Patchright's **library API** (`chromium.launchPersistentContext`), not the test runner.
 
 **CRITICAL**: Always use Patchright (`import { chromium } from "patchright"`), NEVER `@playwright/test`. Patchright is an anti-detection fork that evades bot detection on sites like SEC.gov, Cloudflare-protected sites, etc. Plain Playwright gets blocked immediately.
 
@@ -260,7 +260,7 @@ async function main() {
   await page.goto(`${BASE_URL}/flow`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2000);
   await page.screenshot({
-    path: "test-results/dev-screenshots/flow-desktop-populated.png",
+    path: "/tmp/interceptor-dev-screenshots/flow-desktop-populated.png",
     fullPage: true,
   });
 
@@ -282,7 +282,7 @@ async function main() {
   await page.goto(`${BASE_URL}/flow`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2000);
   await page.screenshot({
-    path: "test-results/dev-screenshots/flow-desktop-empty.png",
+    path: "/tmp/interceptor-dev-screenshots/flow-desktop-empty.png",
     fullPage: true,
   });
   // Clear route intercepts for next state
@@ -295,7 +295,7 @@ async function main() {
   await page.goto(`${BASE_URL}/flow`, { waitUntil: "domcontentloaded" });
   await page.waitForTimeout(2000);
   await page.screenshot({
-    path: "test-results/dev-screenshots/flow-desktop-error.png",
+    path: "/tmp/interceptor-dev-screenshots/flow-desktop-error.png",
     fullPage: true,
   });
   await page.unrouteAll();
@@ -312,12 +312,12 @@ main().catch((e) => { console.error(e); process.exit(1); });
 Run from the **project root** (where `node_modules/` lives):
 
 ```bash
-./node_modules/.bin/tsx test-results/dev-screenshots/check.ts
+./node_modules/.bin/tsx /tmp/interceptor-dev-screenshots/check.ts
 ```
 
 **Do NOT use `npx tsx`** — it intermittently fails with "command not found" due to PATH resolution. Always use the explicit local binary path.
 
-If `tsx` isn't installed: try `bun test-results/dev-screenshots/check.ts` or `npx ts-node --esm`.
+If `tsx` isn't installed: try `bun /tmp/interceptor-dev-screenshots/check.ts` or `npx ts-node --esm`.
 
 ### Script Rules
 
@@ -325,7 +325,7 @@ If `tsx` isn't installed: try `bun test-results/dev-screenshots/check.ts` or `np
 2. **Always use Patchright** — `import { chromium } from "patchright"`, NEVER `@playwright/test`. Patchright evades bot detection; Playwright gets blocked.
 3. **Always use `launchPersistentContext`** — more stealthy than `launch()` + `newContext()`. Pass `""` for temp profile dir.
 4. **Always include stealth args and real UA** — `STEALTH_BROWSER_ARGS` + Chrome 134 `USER_AGENT`.
-5. **Screenshots in gitignored directory** — `test-results/dev-screenshots/` or similar.
+5. **Screenshots in gitignored directory** — `/tmp/interceptor-dev-screenshots/` or similar.
 6. **Descriptive filenames**: `{page}-{viewport}-{state}.png` (e.g., `flow-desktop-empty.png`).
 7. **Never use `networkidle`** — fragile everywhere. SSE, WebSockets, long-polling, and analytics all prevent it from resolving. Always use `waitUntil: "domcontentloaded"` + element-specific waits.
 8. **Always close the context** — `await ctx.close()` prevents orphan Chromium processes.
@@ -370,7 +370,7 @@ await page.route("**/api/trades*", async (route) => {
 // Navigate and immediately screenshot — page is in loading state
 await page.goto(`${BASE_URL}/flow`, { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(500); // just enough for the loading skeleton to render
-await page.screenshot({ path: "test-results/dev-screenshots/flow-desktop-loading.png" });
+await page.screenshot({ path: "/tmp/interceptor-dev-screenshots/flow-desktop-loading.png" });
 ```
 
 ### Error state — API failure
@@ -393,7 +393,7 @@ await page.route("**/api/signal", (route) =>
 ```typescript
 await page.getByRole("button", { name: "Run Now" }).click();
 await page.waitForTimeout(2000); // wait for WS progress events
-await page.screenshot({ path: "test-results/dev-screenshots/flow-desktop-running.png" });
+await page.screenshot({ path: "/tmp/interceptor-dev-screenshots/flow-desktop-running.png" });
 ```
 
 ### Always clean up mocks between states
@@ -522,12 +522,12 @@ Then script the verification:
 
 ```typescript
 // Expectation: clicking "+" increments the multiplier from +1 to +2
-await page.screenshot({ path: "test-results/dev-screenshots/before-increment.png" });
+await page.screenshot({ path: "/tmp/interceptor-dev-screenshots/before-increment.png" });
 
 await page.getByRole("button", { name: "+" }).click();
 await page.waitForTimeout(1500); // SSE update cycle
 
-await page.screenshot({ path: "test-results/dev-screenshots/after-increment.png" });
+await page.screenshot({ path: "/tmp/interceptor-dev-screenshots/after-increment.png" });
 ```
 
 Read both screenshots and compare the value that your action specifically targets (e.g., multiplier text). If it didn't change, the issue is in the data flow you traced in Phase 1 — check the API route, then the SSE handler, then the component state.
@@ -557,7 +557,7 @@ for (const vp of viewports) {
   await page.setViewportSize({ width: vp.width, height: vp.height });
   await page.waitForTimeout(300);
   await page.screenshot({
-    path: `test-results/dev-screenshots/${pageName}-${vp.name}.png`,
+    path: `/tmp/interceptor-dev-screenshots/${pageName}-${vp.name}.png`,
     fullPage: true,
   });
 }
@@ -587,7 +587,7 @@ Run cleanup only at the very end, after all states pass. Do NOT delete screensho
 Delete the entire directory — this removes both the screenshots **and any scripts** (e.g., `check.ts`, `sheet.ts`) you created there during this session.
 
 ```bash
-rm -rf test-results/dev-screenshots/
+rm -rf /tmp/interceptor-dev-screenshots/
 ```
 
 **Do this before committing or switching branches.** Never leave Patchright scripts in the repo.

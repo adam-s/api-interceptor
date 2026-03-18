@@ -30,7 +30,7 @@ await page.goto("http://localhost:3002/dashboard", {
   timeout: 15_000,
 });
 await page.screenshot({
-  path: "test-results/dev-screenshots/dashboard.png",
+  path: "/tmp/interceptor-dev-screenshots/dashboard.png",
   fullPage: true,
 });
 await browser.close();
