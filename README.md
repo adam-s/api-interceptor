@@ -124,7 +124,7 @@ pnpm dev          # API on :3001, Web on :3000
 
 Give Claude Code a prompt like:
 
-> Search BoardShop for Element decks, get prices by size, and build a dashboard comparing prices across sellers.
+> Search both BoardShop and DeckMarket for Element 8.0" decks. Match listings across platforms by brand, size, and colorway. Build a dashboard that shows a side-by-side price comparison — rows are products, columns are platforms, cheapest option highlighted in green.
 
 The skills handle domain scaffolding, API discovery, route creation, dashboard building, and visual verification.
 
