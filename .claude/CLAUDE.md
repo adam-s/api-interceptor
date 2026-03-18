@@ -292,18 +292,18 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 
 ## Current Iteration State
 
-**ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
+Iteration state lives **outside git** in the project memory system so it never pollutes `base`:
 
-```text
-Branch:        base — SKILLS CONVERGED
-
-Skills converged across 8 prompt archetypes (2 passes, zero new base
-fixes on Pass 2). The skills are self-sufficient for guiding Claude Code
-through building any domain plugin + dashboard from a natural language prompt.
-
-New prompt archetypes or edge cases may surface gaps. Always log
-potential improvements to `memory/base-fixes-needed.md`.
 ```
+~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/iteration_state.md
+```
+
+**Rules:**
+- **Before every `git checkout`:** update `iteration_state.md` with branch, phase, and notes.
+- **When resuming a session:** read `iteration_state.md` first — it is the source of truth.
+- **Before starting a new iteration from `base`:** check if `iteration_state.md` exists. If it contains stale state from a finished iteration, delete it. A clean start means no leftover state.
+- **After returning to `base` and committing fixes:** delete `iteration_state.md`. By this point all generalized learnings have already flowed through `base-fixes-needed.md` into committed skill files. The iteration state is purely navigational ("where am I, what phase") and has no value after the iteration ends.
+- **Never write iteration-specific content into this CLAUDE.md file.** This file is permanent on `base`; iteration state is ephemeral in memory.
 
 ## Conventions
 
