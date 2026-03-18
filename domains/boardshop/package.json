@@ -1,5 +1,5 @@
 {
-	"name": "@interceptor/domain-stubhub",
+	"name": "@interceptor/domain-boardshop",
 	"version": "0.0.1",
 	"type": "module",
 	"main": "./src/index.ts",
@@ -8,6 +8,7 @@
 	},
 	"dependencies": {
 		"@interceptor/browser": "workspace:*",
+		"@interceptor/shared": "workspace:*",
 		"zod": "4.3.6"
 	},
 	"devDependencies": {

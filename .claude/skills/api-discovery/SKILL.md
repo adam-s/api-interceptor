@@ -50,12 +50,12 @@ Before launching a browser, check if the target site has a documented public RES
 3. Some sites expose a `.json` suffix on regular URLs for read-only JSON (no key needed) — fastest path to `browserRequired: false` routes
 4. When the primary source requires paid auth or CAPTCHA, look for **free open-source mirrors**
 
-### If the API requires a key — use minuteinbox for dev
+### If the API requires a key — use a disposable email for dev
 
-1. `GET /api/minuteinbox/inbox` → temp email
-2. Register on the target service's signup page
-3. `GET /api/minuteinbox/inbox` → read verification email, extract confirmation link
-4. Navigate to link → API key issued. Dev only — production uses `.env` credentials.
+1. Get a temp email address (disposable email service or domain plugin)
+2. Register on the target service's signup page with the temp email
+3. Read the verification email, extract the confirmation link
+4. Navigate to the link → API key issued. Dev only — production uses `.env` credentials.
 
 ### Public API route pattern
 

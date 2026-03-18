@@ -11,12 +11,3 @@ The flow should work like this:
 Think about pagination — don't just grab page 1 of ticket listings. Get as many tickets as the site will give you so the comparison is comprehensive.
 
 Dashboard at `/tickets`. If a platform's browser isn't connected, show that cleanly without breaking the other one.
-
-## Hints
-
-- StubHub is pure SSR — CDP traffic buffer will be empty. All data is in the DOM via `a[href*="/event/"]` and `[data-listing-id]` elements. Use `innerText` split by `\n` for section/row/quantity parsing.
-- Ticketmaster uses a hybrid model: search results may be SSR, but ticket availability comes from an internal API (`services.ticketmaster.com` ISMDS endpoints) that is CORS-blocked — use Type B2 traffic capture.
-- Ticketmaster event IDs are alphanumeric hex — use `[A-Z0-9]+` not `\d+` in regex.
-- Performer pages on both sites include "Recommended" / "You may also like" sections. Filter extracted URLs to only those containing the performer name slug.
-- `data-price` attributes on StubHub may differ from displayed text in non-USD geolocations. Read prices from displayed text.
-- TM geolocks to regional domains based on browser IP. Ensure event URLs use the correct domain.

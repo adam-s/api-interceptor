@@ -11,16 +11,16 @@
  */
 
 import { registerDomain } from '@interceptor/browser/handler/domain-loader';
-import { plugin as minuteinbox } from '@interceptor/domain-minuteinbox';
+import { registerRateLimit } from '@interceptor/shared';
+import { plugin as boardshop } from '@interceptor/domain-boardshop';
 
 // ─── Domain plugins ──────────────────────────────────────────────────
-// Only framework utilities are registered on base.
-// Domain-specific plugins are imported on test branches.
+// boardshop is the reference example on base. Real domain plugins are
+// imported on test branches (e.g., test/tickets-v1, test/jobs-v1).
 
-registerDomain(minuteinbox);
+registerDomain(boardshop);
 
 // ─── Outbound rate limits (per-hostname) ─────────────────────────────
 // Register per-host limits here when domain plugins use rateLimitedFetch().
-// Example:
-// import { registerRateLimit } from '@interceptor/shared';
-// registerRateLimit('api.example.com', { maxPerMinute: 10, retryOn429: 2 });
+
+registerRateLimit('api.boardshop.example.com', { maxPerMinute: 30, retryOn429: 2 });
