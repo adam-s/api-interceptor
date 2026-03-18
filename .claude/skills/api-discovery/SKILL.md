@@ -11,6 +11,17 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
 
+## ⚠️ DO NOT SKIP PHASES
+
+Phase 1 (Observe) is **NOT optional**. You MUST:
+1. Connect a browser via WebSocket: `ws://localhost:3001/browser/stream?profile=<domain>&url=<target>`
+2. Capture traffic: `curl -s http://localhost:3001/browser/traffic | jq '.entries | length'`
+3. Screenshot the page with visual-dev skill to see what data is visible
+
+**Auto-start browser ≠ WS-connected browser.** The server auto-starts a headless browser for simple proxy routes, but it has **NO CDP traffic capture**. Traffic capture ONLY works when you connect via the WebSocket endpoint above. If you skip WebSocket connection, `/browser/traffic` will always return 0 entries and you will be forced to guess DOM structure — the #1 cause of failed iterations.
+
+**If you have not connected a browser via WS and captured traffic, you are guessing. Stop and observe.**
+
 ## Quick Check: Does the Domain Plugin Already Exist?
 
 ```bash
@@ -196,14 +207,14 @@ For all `browserRequired: false` routes, use `rateLimitedFetch` from `@intercept
 ```typescript
 import { rateLimitedFetch } from '@interceptor/shared';
 
-const res = await rateLimitedFetch('https://api.semanticscholar.org/...');
+const res = await rateLimitedFetch('https://api.example-research.org/...');
 ```
 
 Register host limits in `apps/api/src/register-domains.ts`:
 
 ```typescript
 import { registerRateLimit } from '@interceptor/shared';
-registerRateLimit('api.semanticscholar.org', { maxPerMinute: 10, retryOn429: 2 });
+registerRateLimit('api.example-research.org', { maxPerMinute: 10, retryOn429: 2 });
 ```
 
 Unregistered hosts pass through with no delay. Add a `@interceptor/shared` workspace dependency to any domain package that uses it.
@@ -347,6 +358,10 @@ If the response is empty, wrong, or an error:
 
 Re-read the original prompt. List every data requirement. Verify you have a route for each one. If any are missing, go back to Phase 1 for those specific needs.
 
+### Trigger: Extracted Data Doesn't Match Rendered DOM
+
+If `curl` returns data but values don't match what the browser renders (wrong names, category labels instead of actual names, prices off by 100x, cryptic IDs instead of readable text) — this is the trigger for the **Decoding Encoded API Responses** technique above. Do NOT hack around the mismatch (e.g., extracting names from URL slugs). Trace the real data source through the site's JavaScript to understand the actual data model.
+
 ## Phase 5: Create Domain Plugin
 
 ```bash
@@ -356,6 +371,14 @@ bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>
 1. Populate `domains/<name>/src/routes.ts` with discovered routes
 2. Register in `apps/api/src/register-domains.ts` and `apps/api/package.json`
 3. `pnpm install` then **test every route end-to-end with curl + debug logs before building any UI.** The API layer must be rock-solid before the dashboard layer begins. If a route returns wrong data, the dashboard will display wrong data and you'll waste time debugging the wrong layer.
+
+### Domain Registration Checklist
+
+After scaffolding, verify BOTH steps are complete:
+- [ ] `apps/api/src/register-domains.ts` — `import { plugin } from '@interceptor/domain-<name>';` and `registerDomain(plugin);`
+- [ ] `apps/api/package.json` — `"@interceptor/domain-<name>": "workspace:*"` added to dependencies
+
+Missing either step causes silent failure: TypeScript error TS2307 (can't find module) even though `pnpm-workspace.yaml` resolves the package. Both are required.
 
 ## SSR Extraction Patterns
 
@@ -464,6 +487,8 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | ID regex misses alphanumeric IDs | Use `[A-Z0-9]+` not `\d+` |
 | `data-*` attr != displayed value | Always read from displayed text |
 | `browserRequired: false` gets 503 | Guard must be `if (!browser && route.browserRequired !== false)` |
+| Domain switch returns stale/empty data | Navigate to `about:blank` + 500ms wait before navigating to the new domain. Use `page.waitForSelector('a[href*="/expected/"]', { timeout: 15000 })` instead of fixed `setTimeout` — handles both cold starts (slow) and warm navigations (fast). |
+| `innerText` returns category labels not names | Check the URL slug — `/boards/element-8-0-midnight/` often contains the clean entity name split by hyphens. Also check `__NEXT_DATA__` for structured props. |
 | `page.evaluate` throws `__name is not defined` | tsx/esbuild injects `__name` decorators — use string-based evaluate: `page.evaluate('document.cookie')` not `page.evaluate(() => document.cookie)` |
 | `browserFetch` POST returns "Unable to parse" | Default `Accept: application/json` header rejected — use `page.evaluate` with direct `fetch()` for POST mutations |
 | `URLSearchParams` breaks Rest-li syntax | Rest-li uses raw `(key:value)` — build query strings manually, don't use `URLSearchParams` which encodes parens/colons |
