@@ -146,12 +146,23 @@ handler: async (c, browser) => {
 
 For structured cards, split `innerText` by `\n` and regex-match labeled values.
 
-### Cleaning messy SSR text
+### Parsing: escalate complexity, don't write fragile regex
 
-`innerText` concatenates text differently depending on CSS layout. A listing card might render as `"Powell PeraltaRipper8.0"Midnight BlueSan Francisco, CA$89.99"` — no whitespace between brand, model, and location. Regex breaks on these edge cases. Two better approaches:
+**If your parsing logic exceeds ~5 lines of regex, stop.** You're building a fragile one-off parser that will break on the next edge case. Escalate to a real parser instead.
+
+**Escalation ladder:**
+
+| Complexity | Tool | When |
+|-----------|------|------|
+| Simple | `innerText` + split by `\n` | Clean card layout, one value per line |
+| Moderate | `cheerio` (TS) or `beautifulsoup4` (Python) | HTML has structure but `innerText` concatenates fields |
+| Complex | Python NLP via bridge (`dateutil`, `usaddress`, `thefuzz`) | Flat unstructured text — dates, addresses, fuzzy matching |
+| Very complex | Dedicated TypeScript service or Python worker method | Multi-step pipelines, entity extraction, cross-field normalization |
+
+**The rule:** if you're writing more than one regex to parse the same block of text, use a parser. `cheerio.load(html)` with CSS selectors is always more reliable than `innerText` + regex chains. For text that has no HTML structure at all, use Python NLP via the bridge — it handles date formats, address parsing, and fuzzy matching that would take dozens of per-site regex patterns.
 
 **HTML parsers (preferred when structure exists):**
-- **Node.js:** `cheerio` — jQuery-like, runs server-side. `cheerio.load(html)` then CSS selectors. Far more reliable than splitting `innerText` by `\n`.
+- **Node.js:** `cheerio` — jQuery-like, runs server-side. `cheerio.load(html)` then CSS selectors. Add as a dependency to the domain package.
 - **Python:** `beautifulsoup4` or `lxml` — HTML/XML scraping standard. Use via the Python bridge for complex parsing that would require fragile regex chains in TypeScript.
 
 Use `innerText` only when the HTML structure is too dynamic or the data isn't in distinct elements.
