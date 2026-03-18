@@ -221,6 +221,7 @@ The user has granted full autonomous operation. You may:
 - Make architectural and implementation decisions without asking
 - Keep iterating until the prompt is fully solved (all phases verified)
 - **Skip `EnterPlanMode`** — don't wait for human approval to start coding. This does NOT mean skip self-verification gates in the skills. Those gates are mandatory checkpoints you enforce on yourself.
+- **Skipping plan mode does NOT mean skipping observation.** The api-discovery skill's Phase 1 (Observe) is a MANDATORY gate — connect a browser via WebSocket, capture traffic, see what the site sends. Guessing DOM structure without observation is the #1 failure mode. If extracted data doesn't match the rendered DOM (wrong names, category labels instead of real names, prices off by 100x), see "Decoding Encoded API Responses" in api-discovery/SKILL.md.
 
 **You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
 
@@ -228,6 +229,12 @@ The user has granted full autonomous operation. You may:
 
 ```text
 FOR each prompt:
+  0. OBSERVE FIRST — Connect browser via WebSocket
+     (ws://localhost:3001/browser/stream?profile=<domain>&url=<target>).
+     Capture traffic: curl http://localhost:3001/browser/traffic | jq '.entries | length'.
+     Screenshot the page with visual-dev skill to see ground truth.
+     ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
+     capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
   1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
   2. Build UI component → screenshot it → describe what you see → fix if wrong → re-screenshot → repeat until correct
   3. Wire interactions → click each button with Patchright → verify the response → fix if broken
@@ -288,28 +295,14 @@ Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
 **ALWAYS update this block before `git checkout`.** This is the source of truth when resuming.
 
 ```text
-Branch:        base — Pass 2 COMPLETE — SKILLS CONVERGED
+Branch:        base — SKILLS CONVERGED
 
-Pass 1 (Phase B) COMPLETE — all 8 prompts, base at 52 commits (8a2c7bb)
-
-Pass 2 COMPLETE — ALL 8 prompts, ZERO new base fixes:
-  P1 StubHub/Ticketmaster — test/pass2-p1-v1 — ZERO fixes
-  P2 Yahoo Finance — test/pass2-p2-v1 — ZERO fixes
-  P3 Vacation Rentals — test/pass2-p3-v1 — ZERO fixes
-  P4 Job Search — test/pass2-p4-v1 — ZERO fixes
-  P5 Academic Research — test/pass2-p5-v1 — ZERO fixes
-  P6 Gov Records — test/pass2-p6-v1 — ZERO fixes
-  P7 Reddit — test/pass2-p7-v1 — ZERO fixes
-  P8 YouTube — test/pass2-p8-v1 — ZERO fixes
-
-SKILLS CONVERGED: All 8 prompts across every archetype produced zero new
-base fixes. The skills (api-discovery, dashboard-builder, visual-dev,
-debug-logs) are complete and self-sufficient for guiding Claude Code
+Skills converged across 8 prompt archetypes (2 passes, zero new base
+fixes on Pass 2). The skills are self-sufficient for guiding Claude Code
 through building any domain plugin + dashboard from a natural language prompt.
 
-NOTE: Skills converged for the 8 tested prompts. New prompt archetypes
-or edge cases may surface gaps. Always log potential improvements to
-`base-fixes-needed.md`.
+New prompt archetypes or edge cases may surface gaps. Always log
+potential improvements to `memory/base-fixes-needed.md`.
 ```
 
 ## Conventions
@@ -325,10 +318,10 @@ Dashboard components MUST use **relative URLs** (`/api/...`), not `http://localh
 
 ```typescript
 // CORRECT — relative, works through Next.js proxy
-const res = await fetch(`/api/yahoo-finance/quote/${symbol}`);
+const res = await fetch(`/api/boardshop/boards/${sku}`);
 
 // WRONG — breaks if port changes, doesn't work in production
-const res = await fetch(`http://localhost:3001/api/yahoo-finance/quote/${symbol}`);
+const res = await fetch(`http://localhost:3001/api/boardshop/boards/${sku}`);
 ```
 
 ### Rate-Limited Outbound Fetch
