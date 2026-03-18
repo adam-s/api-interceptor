@@ -11,6 +11,15 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
 
+**Decision rules** (internalize these — detailed sections below explain each):
+
+- Intercepted JSON > DOM extraction. Always prefer the site's internal API over scraping HTML.
+- If parsing takes more than ~5 lines of regex, use a real parser (cheerio, beautifulsoup, or Python NLP via bridge).
+- If extracted data doesn't match what the browser renders, trace the decoder — don't hack around the mismatch.
+- Auto-start browser has no traffic capture. Connect via WebSocket for discovery.
+- One browser, sequential calls. Never `Promise.all` across browser-dependent domains.
+- Every route must return real data from curl before you touch the dashboard.
+
 ## ⚠️ DO NOT SKIP PHASES
 
 Phase 1 (Observe) is **NOT optional**. You MUST:
