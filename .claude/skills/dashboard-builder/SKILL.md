@@ -290,6 +290,8 @@ All endpoints: `http://localhost:3001/api/<domain>/<path>`. Browser must be conn
 | Empty results | `curl` the endpoint directly first |
 | Hydration error | Add `'use client'` at top |
 | Page not found | Directory name must match URL path |
+| Fetch timeout on browser-dependent routes | `browserFetch` can take 20-30s — use `AbortSignal.timeout(45000)` in dashboard fetch calls |
+| `page.evaluate` throws `__name` error | esbuild decorates functions — use string-based evaluate in route handlers |
 
 ## Guiding Principles
 

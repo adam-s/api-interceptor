@@ -464,6 +464,10 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | ID regex misses alphanumeric IDs | Use `[A-Z0-9]+` not `\d+` |
 | `data-*` attr != displayed value | Always read from displayed text |
 | `browserRequired: false` gets 503 | Guard must be `if (!browser && route.browserRequired !== false)` |
+| `page.evaluate` throws `__name is not defined` | tsx/esbuild injects `__name` decorators — use string-based evaluate: `page.evaluate('document.cookie')` not `page.evaluate(() => document.cookie)` |
+| `browserFetch` POST returns "Unable to parse" | Default `Accept: application/json` header rejected — use `page.evaluate` with direct `fetch()` for POST mutations |
+| `URLSearchParams` breaks Rest-li syntax | Rest-li uses raw `(key:value)` — build query strings manually, don't use `URLSearchParams` which encodes parens/colons |
+| Write operations return empty/binary | Site uses React Server Components (RSC) — look for `rsc-action` in traffic; fall back to browser automation (navigate + click + type) |
 | Public API returns XML | Parse with regex: `/<item>([\s\S]*?)<\/item>/g` for RSS |
 | Public API returns `total: 0` with 200 | Soft rate limit — retry after a few seconds |
 
