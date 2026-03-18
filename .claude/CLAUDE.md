@@ -25,11 +25,21 @@ Two tools make this possible:
 // DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 ```
 
-This comment is a permanent reminder — when something breaks in this file, the first action is to add `DEBUG()` calls and observe, not guess. Do not remove these comments during cleanup.
+This comment is permanent — do not remove it during cleanup. It reminds you to observe before guessing. The actual `DEBUG()` function calls you add during investigation are temporary — remove them after the fix (see debug-logs skill for the full lifecycle).
 
 ### Bug Fix Rule
 
 Before changing code to fix a bug, **invoke the debug-logs skill first**. Add `DEBUG()` calls to observe the actual runtime state, confirm the root cause, then fix. If the bug is visual, **invoke the visual-dev skill** — screenshot the broken state, fix, re-screenshot, confirm zero issues. Never commit a fix without proof that it works.
+
+### Unexpected Output Is Information, Not Failure
+
+Data that exists in any form can be understood. When you observe unexpected output — wrong values, encoded strings, unfamiliar formats, empty-looking responses — that is information to investigate, not a reason to abandon the approach.
+
+Two investigation tools, depending on whose code you're looking at:
+- **Our code:** Add DEBUG() calls to trace what each layer actually produces.
+- **The website's code:** Download JS bundles, search for string anchors (data-testid, attribute values), and trace the transformation backwards from rendered output to raw API response. See api-discovery skill "Decoding Encoded API Responses" for the full technique.
+
+**When stuck, enumerate before abandoning.** List every possible explanation for the unexpected behavior (encoding, localization, unit conversion, indirect references, lazy loading, pagination, protocol differences). Test each with a targeted observation. Only abandon an approach after you have evidence that it *cannot* work — not just evidence that it doesn't work *yet*.
 
 ---
 
@@ -120,18 +130,7 @@ Real-time state synchronization via WebSocket + Python bridge:
 
 ## Debug Logging
 
-Unified `DEBUG()` function (TypeScript + Python) logs to `/tmp/interceptor-debug/debug-YYYY-MM-DD.log`.
-
-- **TypeScript**: `import { DEBUG } from "@interceptor/shared"`
-- **Python**: `DEBUG()` in `services/python/worker.py`
-- **Disabled in**: test, production (override with `DEBUG_LOGGING=true`)
-
-Usage:
-
-```typescript
-DEBUG("event", () => ({ detail: value })); // Factory (lazy eval)
-DEBUG("step-name");                        // Simple message
-```
+`import { DEBUG } from "@interceptor/shared"` — logs to `/tmp/interceptor-debug/debug-YYYY-MM-DD.log`. See debug-logs skill for full reference (call signatures, factory pattern, Python bridge, cleanup rules).
 
 ## Authentication
 
@@ -328,13 +327,4 @@ const res = await fetch(`http://localhost:3001/api/boardshop/boards/${sku}`);
 
 ### Rate-Limited Outbound Fetch
 
-For direct HTTP calls to external APIs (`browserRequired: false` routes), use `rateLimitedFetch` from `@interceptor/shared` instead of raw `fetch()`. Register host limits in `apps/api/src/register-domains.ts` alongside domain registration.
-
-```typescript
-import { rateLimitedFetch } from '@interceptor/shared';
-
-// Drop-in fetch replacement — respects registered per-host rate limits
-const res = await rateLimitedFetch('https://api.semanticscholar.org/...');
-```
-
-Unregistered hosts pass through with no delay. 429 responses are retried automatically with exponential backoff.
+For `browserRequired: false` routes, use `rateLimitedFetch` from `@interceptor/shared` instead of raw `fetch()`. See api-discovery skill "Rate-limited outbound fetch" section for registration and usage.

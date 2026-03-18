@@ -7,16 +7,9 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
-**Development principle:** Use debug-logs and visual-dev skills at EVERY step — not just at the end. Build a component → screenshot it → see that it's wrong → fix it → screenshot again. Wire up a fetch → add DEBUG() to the handler → see what's actually returned → fix the data flow. This is how you go from guessing to knowing. The build loop IS the screenshot + debug-log loop. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
+**Development principle:** The build loop IS the debug-log + screenshot loop. Build a component → add DEBUG() to verify data flow → screenshot it → fix what's wrong → re-screenshot. **Verification output is required input for the next step** (see CLAUDE.md "The Rule That Makes This Work").
 
-## Critical: Single Browser Singleton
-
-One shared browser instance. For browser-dependent routes, **NEVER** use `Promise.all` or `Promise.allSettled` — call sequentially because both navigate the same browser. For `browserRequired: false` routes (independent HTTP calls), `Promise.allSettled` is fine.
-
-```typescript
-const sourceA = await fetchA(q).catch(() => null);  // sequential
-const sourceB = await fetchB(q).catch(() => null);  // waits for A
-```
+**Single browser instance — sequential calls only.** See api-discovery skill "Gotchas" section for details and code patterns.
 
 ## Visual Quality Standard
 
@@ -31,15 +24,9 @@ const sourceB = await fetchB(q).catch(() => null);  // waits for A
 
 Domain plugins registered, `pnpm run dev` (ports 3000/3001).
 
-**You must have curl output showing real data from every API endpoint before writing any UI code.** Run each endpoint, read the response, confirm it contains real titles/prices/names/dates. If any endpoint returns empty or errors, stop and fix the API layer using debug-logs skill. Do NOT start building UI until every endpoint is proven.
+**Verify the data layer returns real data before building UI.** For HTTP routes: curl. For WebSocket streams: connect and observe messages. For any protocol: the verification must produce observable output proving real data flows end-to-end. If you can't verify it, you can't build on it.
 
-```bash
-# Run each endpoint and verify real data
-curl -s http://localhost:3001/api/<domain>/search?q=test | jq '.items | length'
-curl -s http://localhost:3001/api/<domain>/detail/123 | jq '.title'
-```
-
-The curl output from this step is what you use to build the UI. You know exactly what fields exist, what the data looks like, and what edge cases to handle.
+If any endpoint returns empty or errors, stop and fix the API layer using debug-logs skill. If data looks wrong or encoded, see CLAUDE.md "Unexpected Output Is Information, Not Failure" — investigate the transformation before concluding something is broken.
 
 ## Steps 1-3: Plan + Create Route
 
@@ -52,7 +39,7 @@ The curl output from this step is what you use to build the UI. You know exactly
 Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `'use client'`. Use shadcn/ui components — not raw divs. Standard search page pattern:
 
 - State: `query`, `results`, `loading`, `searched`
-- Fetch: `http://localhost:3001/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}`
+- Fetch: `/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}` (relative URL — see CLAUDE.md "Frontend API URLs")
 - Layout: `flex flex-1 flex-col gap-4 p-6 max-w-4xl mx-auto w-full`
 - Search bar: `Input` + `Button` with `onKeyDown Enter` handler
 - Four render states: loading (`Skeleton` cards), empty ("No results for..."), idle ("Search above to get started"), populated (result `Card` list with hover)
@@ -131,7 +118,7 @@ Write a Patchright script that tests every user journey and captures every state
 
 **For each screenshot:** Read it. Describe what you see in one sentence. If ANYTHING is wrong (broken layout, missing data, dead button, overlapping text, vague error message, content touching edges) — fix it, re-screenshot, confirm the fix.
 
-**Iterate until the screenshots show zero issues.** Not "looks okay" — genuinely zero. If you catch yourself thinking "this is probably fine," it's not done. Name the specific thing and decide: is it correct or not?
+**Iterate until screenshots show zero issues.** See visual-dev skill "Stopping Criteria" for the judgment framework.
 
 **Only commit after this step produces zero-issue screenshots across all states and viewports.**
 
@@ -279,7 +266,7 @@ if (range) {
 
 ## API Call Pattern
 
-All endpoints: `http://localhost:3001/api/<domain>/<path>`. Browser must be connected or proxy returns 503. POST endpoints need `Content-Type: application/json`.
+Dashboard components use relative URLs: `/api/<domain>/<path>` (see CLAUDE.md "Frontend API URLs"). Browser must be connected or proxy returns 503. POST endpoints need `Content-Type: application/json`.
 
 ## Gotchas
 
@@ -290,8 +277,7 @@ All endpoints: `http://localhost:3001/api/<domain>/<path>`. Browser must be conn
 | Empty results | `curl` the endpoint directly first |
 | Hydration error | Add `'use client'` at top |
 | Page not found | Directory name must match URL path |
-| Fetch timeout on browser-dependent routes | `browserFetch` can take 20-30s — use `AbortSignal.timeout(45000)` in dashboard fetch calls |
-| `page.evaluate` throws `__name` error | esbuild decorates functions — use string-based evaluate in route handlers |
+| Fetch timeout on browser-dependent routes | `browserFetch` default is 20s — use `AbortSignal.timeout(45000)` on the dashboard fetch wrapper |
 
 ## Guiding Principles
 

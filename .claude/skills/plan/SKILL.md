@@ -1,11 +1,13 @@
 ---
 name: plan
-description: Use at the start of ANY coding task before writing code. Guides you through explore → design → plan file → user approval. ALWAYS invoke before implementing. Use when the user gives you a task that involves creating files, modifying code, or running commands.
+description: Guided planning for coding tasks. Use when the user asks you to plan, or when working in a non-autonomous context. In autonomous mode (see CLAUDE.md), skip this skill and self-enforce verification gates instead.
 ---
 
 # Planning Phase
 
-Run this before any implementation. Do not write code until `ExitPlanMode` is approved.
+Use this when the user explicitly asks for a plan, or when operating without autonomous mode. In autonomous mode (granted in CLAUDE.md), you skip this skill — but you still enforce all verification gates from the iteration loop.
+
+Do not write code until `ExitPlanMode` is approved.
 
 ## Phase 1: Explore (parallel agents)
 
