@@ -11,6 +11,8 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Development principle:** Use debug-logs and visual-dev skills at every step — not just at the end. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. A route that returns data you haven't visually verified is a route that might be returning garbage. **GATE: You may NOT write the next component until you have screenshotted the current one. If you find yourself writing component B, check: did you screenshot component A? If not, stop and screenshot it now.**
 
+**Prompt compliance gate:** Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
+
 **Decision rules** (internalize these — detailed sections below explain each):
 
 - Intercepted JSON > DOM extraction. Always prefer the site's internal API over scraping HTML.
@@ -404,7 +406,7 @@ If the response is empty, wrong, or an error:
 
 ### Prompt Compliance Check (between Phase 4 and Phase 5)
 
-Re-read the original prompt. List every data requirement. Verify you have a route for each one. If any are missing, go back to Phase 1 for those specific needs.
+Re-read the original prompt AND the requirements list you extracted at the start. For each data requirement, verify you have a route that returns real data from curl. Mark each as PASS (with curl evidence) or FAIL (missing route or empty response). Any FAIL = go back to the appropriate Phase. Do NOT proceed to Phase 5 until every data requirement has a working, verified route.
 
 ### Trigger: Extracted Data Doesn't Match Rendered DOM
 

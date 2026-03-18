@@ -11,6 +11,8 @@ Create Next.js dashboard pages that consume domain proxy API endpoints. Each pag
 
 **Single browser instance — sequential calls only.** See api-discovery skill "Gotchas" section for details and code patterns.
 
+**Prompt compliance gate:** Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
+
 ## Visual Quality Standard
 
 - **Spacing**: `gap-4`/`gap-6` between sections; `p-4` inside cards — no arbitrary pixels
@@ -306,4 +308,4 @@ These principles override the implementation patterns in this skill file. They d
 - [ ] Zero console errors on load and after each interaction
 - [ ] Zero-setup first visit shows useful content or clear actionable guidance
 - [ ] Padding, affordance, Enter key, error messages all pass the 13 principles above
-- [ ] Re-read the original prompt. Every named feature, view, and interaction is implemented.
+- [ ] Produce the Prompt Compliance Matrix: one row per prompt requirement, PASS/FAIL with specific evidence. All rows PASS before committing.

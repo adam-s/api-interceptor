@@ -124,6 +124,37 @@ apps/web/             Next.js dashboard
 | `GET /api` | List all domains and routes |
 | `GET /api/<domain>/<path>` | Proxy through browser session |
 
+## Autonomous Mode Setup
+
+If using Claude Code autonomously (no human reviewing each step), add the prompt compliance gate to your project memory so it loads into every conversation:
+
+1. Create `feedback_prompt_compliance.md` in your Claude Code memory directory:
+
+```markdown
+---
+name: prompt_compliance_gate
+description: Before committing, list every prompt requirement with evidence. Any without evidence = not done.
+type: feedback
+---
+
+Before committing: list every prompt requirement, state evidence for each (curl output, screenshot,
+Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
+
+**Why:** An agent can build something that looks correct in screenshots but silently misses half the
+prompt's requirements. Visual QA verifies quality; the compliance matrix verifies completeness.
+
+**How to apply:** At the start of work, extract requirements from the prompt into a numbered list.
+Before committing, produce a Prompt Compliance Matrix with PASS/FAIL and evidence for each row.
+```
+
+2. Add a pointer in your `MEMORY.md`:
+
+```
+- [Prompt compliance gate](feedback_prompt_compliance.md) — BEFORE COMMITTING: list every prompt requirement, state evidence for each. Any without evidence = not done.
+```
+
+This is a third layer of enforcement (alongside CLAUDE.md and skill files) ensuring the agent verifies completeness before committing.
+
 ## License
 
 MIT
