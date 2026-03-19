@@ -16,10 +16,12 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 **Decision rules:**
 
 - Intercepted JSON > DOM extraction. Always prefer the site's internal API over scraping HTML.
-- If parsing takes more than ~5 lines of regex, use a real parser (cheerio, beautifulsoup, or Python NLP via bridge).
+- If parsing takes more than ~5 lines of regex, escalate to a real parser. The Python bridge with NLP libraries (`dateutil`, `spacy`, `thefuzz`) is the right tool for complex text extraction — use it rather than building fragile regex chains.
 - If extracted data doesn't match what the browser renders, trace the decoder — don't hack around the mismatch. See [reference/decoding.md](reference/decoding.md).
 - Auto-start browser has no traffic capture. Connect via WebSocket for discovery.
 - One browser, sequential calls. Never `Promise.all` across browser-dependent domains.
+- Multi-domain prompts: create new pages via `page.context().newPage()`, don't navigate one page back and forth. See [reference/multi-domain.md](reference/multi-domain.md).
+- Never hardcode API keys or Bearer tokens in route files. The interceptor captures them from traffic automatically. See Phase 3 "Authentication" section.
 - Every route must return real data from curl before you touch the dashboard.
 
 ## ⚠️ DO NOT SKIP PHASES
@@ -32,6 +34,22 @@ Phase 1 (Observe) is **NOT optional**. You MUST:
 **Auto-start browser ≠ WS-connected browser.** The server auto-starts a headless browser for simple proxy routes, but it has **NO CDP traffic capture**. If you skip WebSocket connection, `/browser/traffic` will always return 0 entries and you will be forced to guess.
 
 **If you have not connected a browser via WS and captured traffic, you are guessing. Stop and observe.**
+
+## Traffic Capture Pipeline
+
+CDP (`Network.enable`) is the ONLY reliable capture method. `page.route()` only intercepts URL patterns you specify — it misses API calls to unexpected subdomains (e.g., StubHub's APIs go to `stubhub.net` and `viagogo.net`, not `stubhub.com`).
+
+```
+Browser navigation → CDP Network.enable → captures ALL XHR/Fetch
+    → setupNetworkCapture() filters to JSON, skips analytics
+    → onNetworkCapture() callback → addTrafficEntry() → trafficBuffer[]
+    → GET /browser/traffic returns captured entries
+    → Analyze → classify endpoints → build routes
+```
+
+**Why the auto-start browser returns empty traffic:** `startScreencast()` calls `setupNetworkCapture()` which registers CDP listeners. But those listeners check `if (!this.networkCaptureCallback) return` — without the callback, events are silently discarded. The callback is wired ONLY inside `handleBrowserWebSocket()` when a WebSocket client connects. The auto-start browser never wires it.
+
+**After discovery:** Once you know the endpoints, `page.route()` is fine for targeted interception in domain plugins. CDP is for the discovery phase; `page.route()` is for the production interception.
 
 ## Quick Check: Does the Domain Plugin Already Exist?
 

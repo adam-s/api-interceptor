@@ -25,6 +25,8 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | `data-*` attr != displayed value | Always read from displayed text |
 | `browserRequired: false` gets 503 | Guard must be `if (!browser && route.browserRequired !== false)` |
 | Domain switch returns stale/empty data | Navigate to `about:blank` + 500ms wait before new domain. Use `page.waitForSelector` instead of `setTimeout`. |
+| Multi-domain needs both sites' data | Create second page via `page.context().newPage()`. Don't navigate back and forth. See [multi-domain.md](multi-domain.md). |
+| `page.evaluate(fetch())` returns `{}` or empty | Site may rate-limit POSTs per page load (one-shot pattern). Also: `page.on('response')` with `response.text()` consumes body for page JS. Use `response.body()` (Buffer) instead. |
 | `innerText` returns category labels not names | Check URL slug or `__NEXT_DATA__` for structured props |
 | `page.evaluate` throws `__name is not defined` | tsx/esbuild injects `__name` — use string-based evaluate |
 | `browserFetch` POST returns "Unable to parse" | Default `Accept: application/json` rejected — use `page.evaluate` with direct `fetch()` |

@@ -342,6 +342,10 @@ export class RemoteBrowserService {
 			'--disable-background-timer-throttling',
 			'--disable-backgrounding-occluded-windows',
 			'--disable-renderer-backgrounding',
+			// Prevents GPU process crash loop in headless/container environments without
+			// GPU hardware. Falls back to Skia CPU rendering (sufficient for screenshots
+			// and CDP screencasting). Harmless on macOS where real GPU is available.
+			'--disable-gpu',
 		];
 
 		// SwiftShader provides software WebGL on Linux/Docker without a real GPU.

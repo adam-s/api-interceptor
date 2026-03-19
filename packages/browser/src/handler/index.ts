@@ -91,12 +91,11 @@ export async function autoStartHeadlessBrowser(profile?: string): Promise<void> 
 			if (profilePath) userDataDir = profilePath;
 		}
 
-		// ⚠️  DEFAULT: headed (headless: false). DO NOT change to headless: true.
-		// Bot detectors (Cloudflare Turnstile, Feb 2025+) detect headless mode regardless
-		// of flag spoofing, user-agent overrides, or stealth scripts. Headed mode is the
-		// only reliable bypass. On macOS this opens a background Chrome window.
-		// On Linux, use xvfb. Override with BROWSER_HEADLESS=true ONLY for CI/testing.
-		const headless = process.env.BROWSER_HEADLESS === 'true';
+		// ⚠️  DEFAULT: headless (true). Matches handleBrowserWebSocket behavior (line ~539).
+		// Override with BROWSER_HEADLESS=false for one-time manual login through Cloudflare
+		// Turnstile via /browser UI (requires display: macOS window or Linux xvfb).
+		// Once auth cookies are saved to the browser profile, headless works for all proxy routes.
+		const headless = process.env.BROWSER_HEADLESS !== 'false';
 		activeBrowser = new RemoteBrowserService({
 			fps: 1,
 			quality: 30,

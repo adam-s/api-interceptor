@@ -82,6 +82,8 @@ Cookies, CSRF tokens, and session state are automatic — no manual header manag
 5. `GET /browser/traffic` returns captured entries
 6. `GET /browser/traffic/summary` returns deduplicated endpoint patterns
 
+**Implementation detail:** `setupNetworkCapture()` in `service.ts` registers CDP event handlers (`Network.requestWillBeSent`, `Network.responseReceived`, `Network.loadingFinished`). The handlers filter for XHR/Fetch, skip analytics domains, and parse response bodies via `Network.getResponseBody`. But they guard with `if (!this.networkCaptureCallback) return` — so without calling `browser.onNetworkCapture(callback)`, all events are silently dropped. The callback is wired only in `handleBrowserWebSocket()` (`handler/index.ts` line ~637), not in `autoStartHeadlessBrowser()`.
+
 ## Proxy Flow
 
 1. Domain plugin registers routes via `DomainPlugin.routes`
