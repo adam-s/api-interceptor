@@ -19,10 +19,12 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 - If parsing takes more than ~5 lines of regex, escalate to a real parser. The Python bridge with NLP libraries (`dateutil`, `spacy`, `thefuzz`) is the right tool for complex text extraction — use it rather than building fragile regex chains.
 - If extracted data doesn't match what the browser renders, trace the decoder — don't hack around the mismatch. See [reference/decoding.md](reference/decoding.md).
 - Auto-start browser has no traffic capture. Connect via WebSocket for discovery.
-- One browser, sequential calls. Never `Promise.all` across browser-dependent domains.
-- Multi-domain prompts: create new pages via `page.context().newPage()`, don't navigate one page back and forth. See [reference/multi-domain.md](reference/multi-domain.md).
+- Multi-domain: use `browser.getOrCreatePage('domain-name')` to give each domain its own page. This enables `Promise.all` across domains — each page navigates independently in the same browser context.
+- Domain routes should use `page.goto(url, { waitUntil: 'commit', timeout: 30000 })` directly instead of `browser.navigate()`. Wrap in try/catch — sites may redirect (ERR_ABORTED).
+- Anti-bot escalation: if the persistent browser's cookies/history cause blocks (401, captcha), try a fresh `chromium.launch()`. Some sites require browsing history (use warmup); others block persistent sessions on high-value pages. Test both approaches. Use a real Chrome channel (`channel: 'chrome'`) when headless detection is active. See Phase 2 Type E.
 - Never hardcode API keys or Bearer tokens in route files. The interceptor captures them from traffic automatically. See Phase 3 "Authentication" section.
 - Every route must return real data from curl before you touch the dashboard.
+- Pagination: always check extracted count vs total. If the API or DOM indicates more data exists, document the pagination type. See Phase 2 "Pagination Awareness".
 
 ## ⚠️ DO NOT SKIP PHASES
 
@@ -37,7 +39,7 @@ Phase 1 (Observe) is **NOT optional**. You MUST:
 
 ## Traffic Capture Pipeline
 
-CDP (`Network.enable`) is the ONLY reliable capture method. `page.route()` only intercepts URL patterns you specify — it misses API calls to unexpected subdomains (e.g., StubHub's APIs go to `stubhub.net` and `viagogo.net`, not `stubhub.com`).
+CDP (`Network.enable`) is the ONLY reliable capture method. `page.route()` only intercepts URL patterns you specify — it misses API calls to unexpected subdomains. Many sites split their API across multiple domains (e.g., `api.example.net`, `cdn.example.io`) that don't match the main site's domain.
 
 ```
 Browser navigation → CDP Network.enable → captures ALL XHR/Fetch

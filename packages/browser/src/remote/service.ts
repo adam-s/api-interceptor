@@ -140,6 +140,17 @@ export class RemoteBrowserService {
 	private userDataDir: string | null = null;
 	private interceptors: Map<string, (route: Route) => Promise<void>> = new Map();
 
+	/**
+	 * Named pages for domain-specific parallel browsing.
+	 * Each domain (e.g., 'stubhub', 'ticketmaster') gets its own page in the same context,
+	 * enabling parallel navigation without clobbering. The main streaming page (this.page)
+	 * remains separate — named pages are headless workers with no screencast.
+	 */
+	private namedPages: Map<string, Page> = new Map();
+
+	/** Cached anti-detection script — set during start(), used by getOrCreatePage() */
+	private antiDetectionScript: string | null = null;
+
 	/** Callback for CDP-captured network traffic (XHR/Fetch JSON responses) */
 	private networkCaptureCallback:
 		| ((
@@ -273,6 +284,35 @@ export class RemoteBrowserService {
 	}
 
 	/**
+	 * Get or create a named page for a specific domain.
+	 * Named pages run in the same browser context (shared cookies, anti-detection)
+	 * but navigate independently — enabling parallel browsing across domains.
+	 * Pages persist between calls so the same domain reuses its tab.
+	 */
+	async getOrCreatePage(id: string): Promise<Page> {
+		const existing = this.namedPages.get(id);
+		if (existing && !existing.isClosed()) return existing;
+
+		if (!this.context) throw new Error('Browser not running — connect via WebSocket first');
+		const newPage = await this.context.newPage();
+
+		// Apply same anti-detection as main page (context-level addInitScript
+		// only applies to pages created AFTER the call, so we need page-level too)
+		if (this.antiDetectionScript) {
+			await newPage.addInitScript(this.antiDetectionScript);
+		}
+
+		// Enable ad blocking on the new page
+		if (this.config.enableAdBlocking) {
+			const blockerManager = BlockerManager.getInstance();
+			await blockerManager.enableBlockingSilent(newPage);
+		}
+
+		this.namedPages.set(id, newPage);
+		return newPage;
+	}
+
+	/**
 	 * Check if the browser is currently running.
 	 */
 	getIsRunning(): boolean {
@@ -401,8 +441,14 @@ export class RemoteBrowserService {
 		// Only use the path if the binary actually exists — avoids crash when both env vars
 		// are set but only one binary is installed (e.g., arm64 has Chromium but not Chrome).
 		const { existsSync } = await import('node:fs');
-		const chromePath = process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH) ? process.env.CHROME_PATH : undefined;
-		const chromiumPath = process.env.CHROMIUM_PATH && existsSync(process.env.CHROMIUM_PATH) ? process.env.CHROMIUM_PATH : undefined;
+		const chromePath =
+			process.env.CHROME_PATH && existsSync(process.env.CHROME_PATH)
+				? process.env.CHROME_PATH
+				: undefined;
+		const chromiumPath =
+			process.env.CHROMIUM_PATH && existsSync(process.env.CHROMIUM_PATH)
+				? process.env.CHROMIUM_PATH
+				: undefined;
 		const executablePath = chromePath || chromiumPath || undefined;
 
 		// Use consistent Mac User-Agent across all platforms to avoid bot detection
@@ -588,6 +634,7 @@ export class RemoteBrowserService {
 
 		// Add anti-detection script BEFORE getting/creating pages
 		await this.context.addInitScript(antiDetectionScript);
+		this.antiDetectionScript = antiDetectionScript;
 
 		const pages = this.context.pages();
 		this.page = pages.length > 0 ? pages[0] : await this.context.newPage();
@@ -794,6 +841,9 @@ export class RemoteBrowserService {
 
 		await this.stopScreencast();
 
+		// Clear named pages map (pages themselves closed below with context.pages())
+		this.namedPages.clear();
+
 		// Clear CDP session first
 		if (this.cdp) {
 			try {
@@ -948,18 +998,24 @@ export class RemoteBrowserService {
 
 				await this.cdp.send('Input.dispatchMouseEvent', {
 					type: 'mousePressed',
-					x: clampedX, y: clampedY,
-					button: cdpButton, clickCount,
+					x: clampedX,
+					y: clampedY,
+					button: cdpButton,
+					clickCount,
 					// @ts-expect-error -- CDP accepts these but Playwright types don't include them
-					screenX, screenY,
+					screenX,
+					screenY,
 				});
 				await new Promise((r) => setTimeout(r, 50 + Math.random() * 80));
 				await this.cdp.send('Input.dispatchMouseEvent', {
 					type: 'mouseReleased',
-					x: clampedX, y: clampedY,
-					button: cdpButton, clickCount,
+					x: clampedX,
+					y: clampedY,
+					button: cdpButton,
+					clickCount,
 					// @ts-expect-error -- CDP accepts these but Playwright types don't include them
-					screenX, screenY,
+					screenX,
+					screenY,
 				});
 			} else {
 				await this.page.mouse.click(clampedX, clampedY, { button });
@@ -972,7 +1028,11 @@ export class RemoteBrowserService {
 	/**
 	 * Press mouse button down (without releasing) — required for press-and-hold interactions.
 	 */
-	async mouseDown(x: number, y: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
+	async mouseDown(
+		x: number,
+		y: number,
+		button: 'left' | 'right' | 'middle' = 'left',
+	): Promise<void> {
 		if (!this.page) return;
 		const clampedX = Math.max(0, Math.min(x, this.config.viewportWidth));
 		const clampedY = Math.max(0, Math.min(y, this.config.viewportHeight));
@@ -983,10 +1043,13 @@ export class RemoteBrowserService {
 				const screenY = clampedY + 200 + Math.floor(Math.random() * 100);
 				await this.cdp.send('Input.dispatchMouseEvent', {
 					type: 'mousePressed',
-					x: clampedX, y: clampedY,
-					button: cdpButton, clickCount: 1,
+					x: clampedX,
+					y: clampedY,
+					button: cdpButton,
+					clickCount: 1,
 					// @ts-expect-error -- CDP accepts screenX/screenY
-					screenX, screenY,
+					screenX,
+					screenY,
 				});
 			} else {
 				await this.page.mouse.move(clampedX, clampedY);
@@ -1011,10 +1074,13 @@ export class RemoteBrowserService {
 				const screenY = clampedY + 200 + Math.floor(Math.random() * 100);
 				await this.cdp.send('Input.dispatchMouseEvent', {
 					type: 'mouseReleased',
-					x: clampedX, y: clampedY,
-					button: cdpButton, clickCount: 1,
+					x: clampedX,
+					y: clampedY,
+					button: cdpButton,
+					clickCount: 1,
 					// @ts-expect-error -- CDP accepts screenX/screenY
-					screenX, screenY,
+					screenX,
+					screenY,
 				});
 			} else {
 				await this.page.mouse.up({ button });
@@ -1187,7 +1253,10 @@ export class RemoteBrowserService {
 
 		// Wrap the entire operation in a timeout so callers never hang
 		const timeoutPromise = new Promise<never>((_, reject) => {
-			setTimeout(() => reject(new Error(`browserFetch timed out after ${timeoutMs}ms: ${url}`)), timeoutMs);
+			setTimeout(
+				() => reject(new Error(`browserFetch timed out after ${timeoutMs}ms: ${url}`)),
+				timeoutMs,
+			);
 		});
 
 		const fetchPromise = this._browserFetchInner<T>(url, options);
@@ -1219,9 +1288,7 @@ export class RemoteBrowserService {
 		// navigateTo is used when the API subdomain has CORS enabled from the main site —
 		// staying on the main site avoids navigating to a raw API endpoint that may 429
 		// or lack the session context needed for credentialed requests.
-		const navigationOrigin = options.navigateTo
-			? new URL(options.navigateTo).origin
-			: targetOrigin;
+		const navigationOrigin = options.navigateTo ? new URL(options.navigateTo).origin : targetOrigin;
 
 		// Navigate to the target origin if we're not already there
 		if (currentOrigin !== navigationOrigin) {
@@ -1428,7 +1495,13 @@ export class RemoteBrowserService {
 
 			// Skip responses that are clearly not API data (HTML pages, images, CSS)
 			const ct = res.contentType.toLowerCase();
-			if (ct.includes('text/html') || ct.includes('text/css') || ct.includes('image/') || ct.includes('font/')) return;
+			if (
+				ct.includes('text/html') ||
+				ct.includes('text/css') ||
+				ct.includes('image/') ||
+				ct.includes('font/')
+			)
+				return;
 			// Keep: JSON, no content-type (many APIs don't set it), text/plain, etc.
 
 			// Skip analytics/tracking

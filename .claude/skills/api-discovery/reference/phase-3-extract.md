@@ -88,7 +88,7 @@ handler: async (c, browser) => {
 
 The framework's `GenericSessionManager` and `GenericInterceptor` (in `packages/browser/src/shared/`) implement this pattern. The interceptor config specifies `requiredHeaders` and `interceptPatterns`; the interceptor captures matching headers from live traffic; the session manager persists them to disk per profile.
 
-**What about embedded API keys in JS bundles?** Some sites embed public API keys in their JavaScript (e.g., Ticketmaster's `apikey`/`apisecret` in offeradapter URLs). Even these should be captured from traffic, not hardcoded — they rotate without notice and differ between environments.
+**What about embedded API keys in JS bundles?** Some sites embed public API keys in their JavaScript (e.g., `apikey`/`apisecret` params in internal API adapter URLs). Even these should be captured from traffic, not hardcoded — they rotate without notice and differ between environments.
 
 ## Rate-limited outbound fetch
 

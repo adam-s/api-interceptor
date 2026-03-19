@@ -79,3 +79,11 @@ function parseRssXml(xml: string) {
 ### Unix timestamps
 
 Many APIs use unix epoch seconds (10 digits). `Math.floor(Date.now() / 1000)` for current time.
+
+## Text parsing: use the Python bridge instead of regex chains
+
+If extraction requires more than ~3 lines of regex, stop and use the Python bridge with proper NLP/parsing libraries (`dateutil`, `usaddress`, `thefuzz`, `spacy`). Fragile regex chains break on the next text variation. The Python bridge exists for exactly this case.
+
+## Verify extraction with diverse inputs
+
+Test every route with at least 3 different entities before declaring it complete.

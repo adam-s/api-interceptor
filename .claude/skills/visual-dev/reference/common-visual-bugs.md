@@ -9,6 +9,7 @@ Check for these during every screenshot iteration. Add new bugs as they're disco
 - [ ] Cards/panels have inconsistent heights in a grid
 - [ ] Empty state shows blank area instead of a message
 - [ ] Loading state missing — content pops in without skeleton/spinner
+- [ ] List inside card grows unbounded — always cap with `max-h-[Npx] overflow-y-auto`
 - [ ] Sidebar overlaps main content on narrow viewports
 - [ ] Footer overlaps content or floats in middle of page
 
@@ -50,6 +51,7 @@ Check for these during every screenshot iteration. Add new bugs as they're disco
 - [ ] Error breaks the entire page instead of being contained
 - [ ] Network error shows stack trace instead of user-friendly message
 - [ ] 503 from proxy doesn't explain that browser needs to be connected
+- [ ] Raw HTTP status codes shown to users instead of actionable messages
 
 ## Multi-Domain Specific
 
@@ -57,3 +59,5 @@ Check for these during every screenshot iteration. Add new bugs as they're disco
 - [ ] Domain cards have inconsistent structure when data shapes differ
 - [ ] Missing domain name label — can't tell which site data came from
 - [ ] No visual indicator of which domain has the best price/value
+- [ ] Matched vs single-source rows not visually distinct in comparison tables
+- [ ] No per-platform loading/error feedback — user can't tell which source is working

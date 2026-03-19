@@ -299,6 +299,23 @@ These principles override the implementation patterns in this skill file. They d
 12. **Normalize before merging.** Different formats of the same entity must produce the same key. `"Austin, TX"` and `"Austin TX"` must match. Trim, lowercase, strip punctuation.
 13. **Mobile is a different product.** Test at 375px for: overlapping text, truncated inputs, hidden hover-only elements, 44px minimum touch targets, single-column layout.
 
+## Loading & Error Patterns
+
+- **Per-platform state:** Track each data source independently: `{ data: T, loading: boolean, error: string | null }`. One source failing must not block or lose the other's results.
+- **3-tier loading feedback:** (1) spinner icon on the trigger button, (2) `Skeleton` placeholders in the result container, (3) status text showing which source is active.
+- **Retry with backoff:** Wrap fetches in a retry helper (2 retries, exponential backoff). On permanent failure, show a per-source "Retry" button — don't make the user redo the entire flow.
+- **Error messages:** Map HTTP status codes to actionable strings. Never show raw status codes to users.
+- **Caching:** Store fetched results in state so navigating between views doesn't re-fetch. Only re-fetch on explicit user action.
+
+## Verification with Diverse Data
+
+After building a dashboard, verify it works with **at least 3 different inputs** that exercise different data shapes:
+- Different entities (different names, categories)
+- Different result counts (0 results, 1 result, many results)
+- Different matching outcomes (all sources match, partial match, no match)
+
+If the dashboard only works for the first input you tested, it's not done.
+
 ## Definition of Done
 
 **Use visual-dev skill + debug-logs skill. Every page must pass before committing.**

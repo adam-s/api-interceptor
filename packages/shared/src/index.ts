@@ -1,4 +1,6 @@
 export { appendDebugLog, DEBUG, DEBUG_DIR } from './debug';
+export type { RetryOptions } from './fetch-retry';
+export { fetchWithRetry, friendlyHttpError } from './fetch-retry';
 export type {
 	BridgeReadyMessage,
 	BridgeRequest,
