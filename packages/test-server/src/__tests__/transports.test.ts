@@ -292,3 +292,102 @@ describe('(d) SSE', () => {
 		expect(update.newPrice).toBeDefined();
 	});
 });
+
+describe('JSON with Crumb/Cookie Auth (Yahoo Finance pattern)', () => {
+	it('requires session → crumb → data handshake', async () => {
+		// Step 1: Get session cookie
+		const sessionRes = await fetch(`${server.url}/api/crumb/session`);
+		expect(sessionRes.status).toBe(200);
+		const setCookie = sessionRes.headers.get('set-cookie');
+		expect(setCookie).toContain('session=');
+
+		// Extract cookie for subsequent requests
+		const cookie = setCookie!.split(';')[0];
+
+		// Step 2: Get crumb token
+		const crumbRes = await fetch(`${server.url}/api/crumb/token`, {
+			headers: { cookie },
+		});
+		expect(crumbRes.status).toBe(200);
+		const crumb = await crumbRes.text();
+		expect(crumb.length).toBeGreaterThan(0);
+
+		// Step 3: Get data with cookie + crumb
+		const dataRes = await fetch(
+			`${server.url}/api/crumb/performers?q=swift&crumb=${crumb}`,
+			{ headers: { cookie } },
+		);
+		expect(dataRes.status).toBe(200);
+		const data = (await dataRes.json()) as { performers: typeof PERFORMERS };
+		expect(data.performers.length).toBe(1);
+		expect(data.performers[0].name).toBe('Taylor Swift');
+	});
+
+	it('rejects requests without session cookie', async () => {
+		const res = await fetch(`${server.url}/api/crumb/token`);
+		expect(res.status).toBe(401);
+	});
+
+	it('rejects requests with wrong crumb', async () => {
+		const sessionRes = await fetch(`${server.url}/api/crumb/session`);
+		const cookie = sessionRes.headers.get('set-cookie')!.split(';')[0];
+
+		const res = await fetch(
+			`${server.url}/api/crumb/performers?q=swift&crumb=wrong`,
+			{ headers: { cookie } },
+		);
+		expect(res.status).toBe(403);
+	});
+});
+
+describe('GraphQL Persisted Queries (Airbnb/Zillow pattern)', () => {
+	it('returns data for known hash', async () => {
+		const res = await fetch(`${server.url}/api/v3/SearchPerformers/abc123def456`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ variables: { query: 'swift' } }),
+		});
+		expect(res.status).toBe(200);
+		const data = (await res.json()) as {
+			data: { presentation: { search: { results: Array<{ listing: { name: string } }> } } };
+		};
+		expect(data.data.presentation.search.results.length).toBe(1);
+		expect(data.data.presentation.search.results[0].listing.name).toBe('Taylor Swift');
+	});
+
+	it('returns PersistedQueryNotFound for unknown hash', async () => {
+		const res = await fetch(`${server.url}/api/v3/Unknown/unknownhash`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ variables: {} }),
+		});
+		const data = (await res.json()) as { errors: Array<{ extensions: { code: string } }> };
+		expect(data.errors[0].extensions.code).toBe('PERSISTED_QUERY_NOT_FOUND');
+	});
+
+	it('learns hash when full query is provided', async () => {
+		const newHash = 'newhash123';
+
+		// First request with full query → should succeed and learn the hash
+		const res1 = await fetch(`${server.url}/api/v3/SearchPerformers/${newHash}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				query: '{ performers(query: $q) { id name } }',
+				variables: { query: 'taylor' },
+				extensions: { persistedQuery: { version: 1, sha256Hash: newHash } },
+			}),
+		});
+		expect(res1.status).toBe(200);
+
+		// Second request with just hash → should work now
+		const res2 = await fetch(`${server.url}/api/v3/SearchPerformers/${newHash}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ variables: { query: 'taylor' } }),
+		});
+		expect(res2.status).toBe(200);
+		const data = (await res2.json()) as { data: unknown };
+		expect(data.data).toBeDefined();
+	});
+});

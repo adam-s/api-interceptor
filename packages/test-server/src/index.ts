@@ -37,6 +37,8 @@ import { createGrpcWebRoutes } from './transports/grpc-web.js';
 import { createSSRRoutes } from './transports/ssr-pure.js';
 import { createHybridSSRRoutes } from './transports/ssr-hybrid.js';
 import { setupWebSocketTransport } from './transports/websocket.js';
+import { createCrumbRoutes } from './transports/json-crumb.js';
+import { createPersistedGraphQLRoutes } from './transports/graphql-persisted.js';
 import { EVENTS, PERFORMERS } from './data.js';
 
 export interface TestServerOptions {
@@ -87,6 +89,8 @@ export async function createTestServer(
 	app.route('/', createGrpcWebRoutes());
 	app.route('/', createSSRRoutes());
 	app.route('/', createHybridSSRRoutes());
+	app.route('/', createCrumbRoutes());
+	app.route('/', createPersistedGraphQLRoutes());
 
 	// Create HTTP server with proper Hono-to-Node adapter
 	const server = createServer(async (req, res) => {
@@ -242,6 +246,25 @@ const TRANSPORT_LIST = [
 		type: 'SSR_HYBRID',
 		endpoints: ['GET /hybrid/search?q=', 'GET /hybrid/event/:eventId'],
 		description: 'SSR shell + deferred XHR data loading',
+	},
+	{
+		priority: 'e',
+		type: 'JSON_CRUMB_AUTH',
+		endpoints: [
+			'GET /api/crumb/session',
+			'GET /api/crumb/token',
+			'GET /api/crumb/performers?crumb=&q=',
+			'GET /api/crumb/events/:performerId?crumb=',
+		],
+		description: 'JSON API with crumb/cookie auth handshake (Yahoo Finance pattern)',
+	},
+	{
+		priority: 'b',
+		type: 'GRAPHQL_PERSISTED',
+		endpoints: [
+			'POST /api/v3/:operationName/:hash',
+		],
+		description: 'GraphQL with persisted query hashes (Airbnb/Zillow pattern)',
 	},
 ];
 
