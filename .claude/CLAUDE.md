@@ -19,10 +19,12 @@ Process rules live in `.claude/rules/` and are loaded automatically:
 
 - `apps/api/` — Hono API server with WebSocket + browser streaming (`@interceptor/api`)
 - `apps/web/` — Next.js frontend with authentication (`@interceptor/web`)
-- `packages/browser/` — Patchright-based browser automation (`@interceptor/browser`)
+- `packages/browser/` — Patchright-based browser automation + transport classifier (`@interceptor/browser`)
 - `packages/shared/` — Shared types, validation, debug logging (`@interceptor/shared`)
+- `packages/test-server/` — Multi-transport test server for validating the discovery protocol (`@interceptor/test-server`)
 - `packages/db/` — Database layer (Drizzle ORM + TimescaleDB) — optional
 - `services/python/` — Python worker for IPC bridge
+- `docs/testing/site-transport-audit.md` — researched transport types for all websites in `prompts/`
 
 ## Quick Commands
 
@@ -42,7 +44,9 @@ pnpm turbo build                      # Build all
 
 - **Browser WebSocket:** `ws://localhost:3001/browser/stream?profile=<domain>&url=<target>`
 - **Traffic capture:** `GET /browser/traffic` — captured request/response entries
+- **Transport classifier:** `classifyEntry()` / `classifyPage()` from `@interceptor/browser/shared` — automates the data transport decision tree
 - **Domain proxy:** `GET /api/<domain>/<path>` — routes through browser session
+- **Test server:** `pnpm --filter @interceptor/test-server start` — serves canonical data via 12 transport types on port 4444
 - **Debug logging:** `import { DEBUG } from "@interceptor/shared"` → `/tmp/interceptor-debug/`
 - **Python bridge:** IPC via stdin/stdout JSON-RPC at `services/python/worker.py`
 - **Auth:** NextAuth v5 (Credentials provider, JWT strategy) at `apps/web/src/auth.ts`

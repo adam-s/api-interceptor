@@ -47,8 +47,12 @@ sequenceDiagram
     Skill->>Traffic: GET /browser/traffic
     Traffic-->>Skill: Endpoint patterns + response shapes
 
-    Note over Dev,UI: Phase 2-3 — Classify & Extract
-    Skill->>Skill: Type A (JSON API) or Type B (SSR) or Hybrid?
+    Note over Dev,UI: Phase 1.5 — Classify Transport
+    Skill->>Skill: Run Data Transport Discovery Protocol
+    Skill->>Skill: WebSocket? GraphQL? gRPC? SSE? JSON? Encoded? SSR?
+    Skill->>Skill: If encoded → DECODE, never fall back to DOM
+
+    Note over Dev,UI: Phase 2-3 — Extract Routes
     Skill->>Skill: Write DomainRoute[] (targetUrl or handler)
 
     Note over Dev,UI: Phase 4 — Verify
@@ -68,6 +72,28 @@ sequenceDiagram
     Browser-->>Proxy: Response
     Proxy-->>UI: Render results
 ```
+
+## Data Transport Discovery
+
+**The most important capability in the project.** Before writing any route, the agent must classify how the target site serves each data type. The full protocol is at `.claude/rules/data-transport-discovery.md`.
+
+```
+Priority order — check in this exact sequence:
+  (a) WebSocket frames?         → intercept WS
+  (b) GraphQL requests?         → proxy GraphQL query
+  (c) gRPC-Web?                 → decode protobuf, proxy RPC
+  (d) Server-Sent Events?       → relay event stream
+  (e) XHR/Fetch JSON?           → Type A proxy (browserFetch)
+  (f) Encoded XHR (non-JSON)?   → ⚠️  DECODE IT — never skip to DOM
+  (g) Zero network requests?    → SSR (last resort, must prove a-f empty)
+```
+
+**The golden rule:** If ANY network request carries the data — even encoded, even obfuscated — the route MUST intercept it. DOM extraction is the absolute last resort.
+
+The framework includes:
+- **`classifyTransport()`** utility in `packages/browser/` — automates this decision tree on captured traffic
+- **`packages/test-server/`** — serves canonical data via all 12 transport types for development and testing
+- **Site transport audit** at `docs/testing/site-transport-audit.md` — researched classifications for all websites in `prompts/`
 
 ## Proxy Request Flow
 
@@ -99,30 +125,79 @@ Give Claude Code a prompt like:
 
 The skills handle domain scaffolding, API discovery, route creation, dashboard building, and visual verification.
 
+### Test Server
+
+```bash
+pnpm --filter @interceptor/test-server start   # Port 4444
+curl http://localhost:4444/                      # List all transport endpoints
+curl http://localhost:4444/api/json/performers?q=taylor   # JSON
+curl http://localhost:4444/graphql -X POST -d '{"query":"{ performers(query: \"taylor\") { name } }"}'  # GraphQL
+curl http://localhost:4444/ssr/search?q=taylor   # SSR HTML
+```
+
 ## Structure
 
 ```
-.claude/skills/       Skills that drive the whole process
-  api-discovery/      Discover APIs, create domain plugins
-  dashboard-builder/  Build Next.js pages from proxy APIs
-  visual-dev/         Screenshot-based UI iteration
-  debug-logs/         Runtime debugging with DEBUG()
+.claude/
+  CLAUDE.md               Agent instructions (loaded every session)
+  rules/                  Process rules (loaded automatically)
+    data-transport-discovery.md   THE core rule — transport classification protocol
+    inspection-first.md           Observe before guessing
+    prompt-compliance.md          Compliance matrix before every commit
+    base-branch.md                Base accumulates learning
+    workflow.md                   Verification, git hygiene
+    iteration-loop.md             Autonomous mode, build loop
+  skills/                 Skills that drive the whole process
+    api-discovery/        Discover APIs, create domain plugins
+    dashboard-builder/    Build Next.js pages from proxy APIs
+    visual-dev/           Screenshot-based UI iteration
+    debug-logs/           Runtime debugging with DEBUG()
 
-domains/              Domain plugins (one per website)
-packages/browser/     Patchright browser automation
-packages/shared/      Types, validation, debug logging
-apps/api/             Hono server with WebSocket + proxy routes
-apps/web/             Next.js dashboard
+prompts/                  Natural-language prompts (one per domain iteration)
+docs/
+  testing/
+    site-transport-audit.md   Researched transport types for all prompt websites
+
+domains/                  Domain plugins (one per website)
+packages/
+  browser/                Patchright browser automation + transport classifier
+  shared/                 Types, validation, debug logging
+  test-server/            Multi-transport test server (12 transport types)
+apps/
+  api/                    Hono server with WebSocket + proxy routes
+  web/                    Next.js dashboard
+services/
+  python/                 Python worker for IPC bridge
 ```
 
 ## Key Endpoints
 
 | Endpoint | Purpose |
 |----------|---------|
+| `GET /health` | Server health |
 | `GET /browser/health` | Browser connection status |
 | `GET /browser/traffic` | Captured API traffic (CDP, WS browser only) |
 | `GET /api` | List all domains and routes |
 | `GET /api/<domain>/<path>` | Proxy through browser session |
+
+## Test Server Transports
+
+The test server at `packages/test-server/` serves identical canonical data (5 events, 3 performers) via every transport type, enabling development and testing of the capture + classification pipeline without external sites.
+
+| Priority | Transport | Test Endpoint |
+|----------|-----------|--------------|
+| (a) | WebSocket | `WS /ws/prices` |
+| (b) | GraphQL | `POST /graphql` |
+| (b) | GraphQL Persisted | `POST /api/v3/:op/:hash` |
+| (c) | gRPC-Web | `POST /grpc/testserver.EventService/*` |
+| (d) | SSE | `GET /sse/prices` |
+| (e) | JSON API | `GET /api/json/*` |
+| (e) | JSON + Crumb Auth | `GET /api/crumb/*` |
+| (f) | Base64 Encoded | `GET /api/encoded/b64/*` |
+| (f) | Protobuf | `GET /api/encoded/proto/*` |
+| (f) | MessagePack | `GET /api/encoded/msgpack/*` |
+| (g) | Pure SSR | `GET /ssr/*` |
+| (g) | Hybrid SSR | `GET /hybrid/*` |
 
 ## Autonomous Mode Setup
 
