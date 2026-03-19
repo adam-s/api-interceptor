@@ -293,7 +293,7 @@ describe('(d) SSE', () => {
 	});
 });
 
-describe('JSON with Crumb/Cookie Auth (Yahoo Finance pattern)', () => {
+describe('JSON with Crumb/Cookie Auth', () => {
 	it('requires session → crumb → data handshake', async () => {
 		// Step 1: Get session cookie
 		const sessionRes = await fetch(`${server.url}/api/crumb/session`);
@@ -340,7 +340,7 @@ describe('JSON with Crumb/Cookie Auth (Yahoo Finance pattern)', () => {
 	});
 });
 
-describe('GraphQL Persisted Queries (Airbnb/Zillow pattern)', () => {
+describe('GraphQL Persisted Queries', () => {
 	it('returns data for known hash', async () => {
 		const res = await fetch(`${server.url}/api/v3/SearchPerformers/abc123def456`, {
 			method: 'POST',

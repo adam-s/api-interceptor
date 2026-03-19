@@ -4,7 +4,7 @@
  * Priority (a) in the decision tree.
  *
  * Client connects to /ws/prices, receives JSON frames with price updates.
- * Simulates how sites like StubHub stream live price changes.
+ * Simulates how sites stream live price changes via WebSocket.
  */
 
 import type { WebSocket, WebSocketServer } from 'ws';

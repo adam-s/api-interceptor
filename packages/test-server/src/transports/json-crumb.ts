@@ -1,6 +1,6 @@
 // DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
- * JSON API with Crumb/Cookie Auth — simulates Yahoo Finance pattern.
+ * JSON API with Crumb/Cookie Auth — simulates crumb-based CSRF pattern.
  * Priority (e) in the decision tree, but with auth handshake.
  *
  * Pattern:

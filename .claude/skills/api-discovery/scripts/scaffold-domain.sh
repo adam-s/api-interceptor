@@ -4,19 +4,19 @@ set -euo pipefail
 # Scaffold a new domain plugin from templates.
 #
 # Usage: bash scaffold-domain.sh <domain-name> <root-domain>
-# Example: bash scaffold-domain.sh ticketmaster ticketmaster.com
+# Example: bash scaffold-domain.sh my-domain my-domain.com
 #
 # Creates: domains/<domain-name>/ with package.json, config.ts, interceptor.ts, routes.ts, index.ts
 
 DOMAIN_NAME="${1:?Usage: scaffold-domain.sh <domain-name> <root-domain>}"
 ROOT_DOMAIN="${2:?Usage: scaffold-domain.sh <domain-name> <root-domain>}"
 
-# Derive identifiers — handles hyphenated names like yahoo-finance
-# PascalCase: yahoo-finance → YahooFinance
+# Derive identifiers — handles hyphenated names like deck-market
+# PascalCase: deck-market → DeckMarket
 DOMAIN_CLASS="$(python3 -c "print(''.join(w.capitalize() for w in '${DOMAIN_NAME}'.split('-')))")"
-# camelCase: yahoo-finance → yahooFinance
+# camelCase: deck-market → deckMarket
 DOMAIN_CAMEL="$(python3 -c "p='${DOMAIN_NAME}'.split('-'); print(p[0]+''.join(w.capitalize() for w in p[1:]))")"
-# Display: yahoo-finance → Yahoo Finance
+# Display: deck-market → Deck Market
 DOMAIN_DISPLAY="$(python3 -c "print(' '.join(w.capitalize() for w in '${DOMAIN_NAME}'.split('-')))")"
 
 SKILL_DIR="$(dirname "$0")/.."

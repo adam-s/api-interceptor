@@ -3,8 +3,8 @@
  * Protobuf-Encoded Transport — XHR returns protocol buffer binary.
  * Priority (f) in the decision tree — ENCODED API.
  *
- * Simulates sites like YouTube (InnerTube) and Ticketmaster that use
- * Protocol Buffers for compact, typed binary serialization.
+ * Simulates sites that use Protocol Buffers for compact, typed
+ * binary serialization.
  *
  * Uses protobufjs to define schemas and encode responses.
  * The test also provides a .proto file that tests can use to decode.

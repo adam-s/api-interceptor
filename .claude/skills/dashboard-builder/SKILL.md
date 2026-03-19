@@ -293,11 +293,11 @@ These principles override the implementation patterns in this skill file. They d
 4. **Silent failure is the worst failure.** Empty `catch {}` = user stares at a spinner forever. Every catch must surface a message.
 5. **Clickable things must look clickable. Non-clickable things must not.** No hover-only affordance — mobile has no hover. `cursor-pointer`, color, underline, or icon must be visible by default.
 6. **Pass values, not state.** Never `setState(x)` then call a function that reads state — it sees the old value. Pass `x` as a parameter. `fetchResults(suggestion)` not `setQuery(s); handleSearch()`
-7. **Error messages answer three questions: what, why, what now.** "Unavailable" fails. "Dice unavailable — connect browser at /browser to enable" passes.
+7. **Error messages answer three questions: what, why, what now.** "Unavailable" fails. "Source unavailable — connect browser at /browser to enable" passes.
 8. **Text never touches its container edge.** `p-4` minimum for cards, `p-6` for sheets. If text touches the border, spacing is broken.
 9. **Every list item earns its click.** Title alone is never enough. Show title + subtitle + one metric. `"Kendrick Lamar"` fails. `"Kendrick Lamar · Jun 15 · Allegiant Stadium · from $89"` passes.
 10. **Every input responds to Enter.** If you can type in it and there's a submit action, Enter triggers it.
-11. **Sequential fetches need progress narration.** Show which source is being queried. `"Searching Airbnb... (2 of 3)"` not a generic spinner for 30 seconds.
+11. **Sequential fetches need progress narration.** Show which source is being queried. `"Searching Source B... (2 of 3)"` not a generic spinner for 30 seconds.
 12. **Normalize before merging.** Different formats of the same entity must produce the same key. `"Austin, TX"` and `"Austin TX"` must match. Trim, lowercase, strip punctuation.
 13. **Mobile is a different product.** Test at 375px for: overlapping text, truncated inputs, hidden hover-only elements, 44px minimum touch targets, single-column layout.
 

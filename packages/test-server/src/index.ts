@@ -256,7 +256,7 @@ const TRANSPORT_LIST = [
 			'GET /api/crumb/performers?crumb=&q=',
 			'GET /api/crumb/events/:performerId?crumb=',
 		],
-		description: 'JSON API with crumb/cookie auth handshake (Yahoo Finance pattern)',
+		description: 'JSON API with crumb/cookie auth handshake',
 	},
 	{
 		priority: 'b',
@@ -264,7 +264,7 @@ const TRANSPORT_LIST = [
 		endpoints: [
 			'POST /api/v3/:operationName/:hash',
 		],
-		description: 'GraphQL with persisted query hashes (Airbnb/Zillow pattern)',
+		description: 'GraphQL with persisted query hashes',
 	},
 ];
 

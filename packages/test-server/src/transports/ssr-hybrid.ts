@@ -3,7 +3,7 @@
  * Hybrid SSR Transport — HTML shell with deferred XHR data loading.
  * This is the TRICKIEST case in the decision tree.
  *
- * Simulates sites like Ticketmaster where:
+ * Simulates hybrid sites where:
  * - The page shell (header, layout, metadata) is SSR
  * - The actual data (prices, listings) loads via XHR AFTER hydration
  * - The page briefly shows "Loading..." before data appears

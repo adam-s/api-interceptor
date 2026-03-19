@@ -3,7 +3,7 @@
  * Pure SSR Transport — full HTML page with all data embedded, zero XHR.
  * Priority (g) in the decision tree — the LAST resort.
  *
- * Simulates sites like StubHub that render all data server-side.
+ * Simulates sites that render all data server-side with zero XHR.
  * Includes __NEXT_DATA__ script tag (Next.js SSR pattern).
  * The agent should see ZERO XHR traffic and must use DOM extraction.
  */

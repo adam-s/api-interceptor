@@ -1,6 +1,6 @@
 // DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
- * GraphQL with Persisted Queries — simulates Airbnb/Zillow pattern.
+ * GraphQL with Persisted Queries — simulates hash-based query caching pattern.
  * Priority (b) in the decision tree.
  *
  * Pattern:
