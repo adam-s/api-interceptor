@@ -108,7 +108,78 @@ Example: boardshop.example.com JS bundle search
 
 Find decoders and transformers: search for `atob`, `JSON.parse`, `decode`, `decompress`, `protobuf`, `msgpack` near data field names. Sites that encode their API responses have decoder functions in the JS bundles.
 
-## 5. Discover WebSocket Streams
+## 5. Discover GraphQL APIs
+
+Many modern sites use GraphQL as their primary API. GraphQL uses a single endpoint for all queries, making it both easy to find and rich to explore.
+
+How to identify GraphQL:
+
+- **Check traffic** for `POST` requests to URLs containing `graphql` or `gql`
+- **Read request bodies** — GraphQL requests have `operationName`, `query` or `extensions.persistedQuery`, and `variables`
+- **Check request headers** — look for `Client-ID`, `Authorization`, custom auth headers. These are the required tokens to replay queries.
+
+Two query styles:
+
+1. **Inline queries** — the full GraphQL query string is in the request body's `query` field. You can modify and replay these freely.
+2. **Persisted queries** — the request sends a `sha256Hash` instead of the full query. You can only replay with known hashes. To discover more operations, search the JS bundles for `sha256Hash` or `operationName` strings.
+
+Key discovery steps:
+
+- Capture several GQL requests from normal page navigation — each reveals operations the site uses
+- Note ALL request headers (auth tokens, session IDs, device IDs) — you need these to replay
+- GQL requests are often **batched** — a single POST with a JSON array of multiple operations
+- Search JS bundles for `operationName` to find all available queries, even ones not triggered during navigation
+
+```
+Example: boardshop.example.com GraphQL API
+  Endpoint: POST https://gql.boardshop.example.com/graphql
+  Auth: Client-ID header (public, hardcoded in page source)
+
+  Operations found:
+    ProductSearch(query: "deck", limit: 20)     → products with prices, images
+    ProductDetail(sku: "DECK-001")              → full product info, reviews
+    UserCart(userId: "...")                       → cart contents
+    StoreInventory(storeId: "NYC-01")           → stock levels
+
+  Persisted query: extensions.persistedQuery.sha256Hash = "a1b2c3..."
+  Found 47 more operation hashes by searching JS bundles for "sha256Hash"
+```
+
+## 6. Discover Media Streams (HLS, WebRTC, DASH)
+
+Sites that deliver video or audio use specialized protocols. These are NOT captured by XHR/Fetch traffic — they use their own delivery mechanisms.
+
+How to find media streams:
+
+- **Search HTML/JS for** `.m3u8` (HLS), `.mpd` (DASH), `MediaSource`, `RTCPeerConnection` (WebRTC), `getUserMedia`
+- **Check `<link rel="preconnect">` tags** — these reveal CDN domains for media delivery
+- **Look for access token endpoints** — most streams require a token before you can access the playlist. The token is usually obtained from a REST or GraphQL API.
+
+Common media delivery chain:
+
+1. **Get access token** — via API call (REST or GraphQL), returns a signed token + signature
+2. **Request master playlist** — send token to a playlist service (e.g., `usher.domain.com/hls/{channel}.m3u8?sig=...&token=...`)
+3. **Master playlist lists quality variants** — 1080p60, 720p, 360p, audio-only, each with its own playlist URL
+4. **Variant playlists list video segments** — `.ts` files, typically 2-4 seconds each, on a CDN
+
+```
+Example: boardshop.example.com live product demo stream
+  Token: POST /api/stream/access → {signature: "abc...", token: "{channel_id:1,expires:...}"}
+  Master playlist: GET https://video.boardshop.example.com/hls/live-demo.m3u8?sig=abc&token=...
+  Returns:
+    #EXT-X-STREAM-INF:BANDWIDTH=6000000,RESOLUTION=1920x1080
+    https://cdn.boardshop.example.com/v1/playlist/1080p.m3u8
+    #EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720
+    https://cdn.boardshop.example.com/v1/playlist/720p.m3u8
+    #EXT-X-STREAM-INF:BANDWIDTH=160000,CODECS="mp4a.40.2"
+    https://cdn.boardshop.example.com/v1/playlist/audio.m3u8
+
+  Discovery chain: API token → usher/playlist service → CDN segments
+```
+
+**Multi-protocol sites are common.** A single page may use GraphQL for data, WebSocket for chat/events, and HLS for video — all simultaneously. Run the full discovery process for each transport independently. The same auth tokens (Client-ID, session cookies) often apply across all protocols.
+
+## 7. Discover WebSocket Streams
 
 Many sites use WebSocket connections for real-time data — prices, scores, notifications, chat, live counts. WebSocket discovery requires a different approach than REST because **CDP traffic capture only captures XHR/Fetch — it does NOT capture WebSocket frames.**
 
@@ -145,7 +216,7 @@ Example: boardshop.example.com real-time inventory WebSocket
 
 **Key limitation:** Our `/browser/traffic` endpoint does NOT capture WebSocket frames. You must connect directly to the WebSocket endpoint or intercept via `page.on('websocket')` in Patchright. Always check for WebSocket URLs in the JS bundles even when traffic capture shows nothing interesting.
 
-## 6. Document the DOM
+## 8. Document the DOM
 
 Map every data-bearing DOM element alongside the JSON structures and API endpoints. The DOM is part of the API — it's where tokens live, where data renders, and where you can triangulate that your extracted data matches what the user sees.
 
@@ -193,7 +264,7 @@ Example: boardshop.example.com DOM map
 
 This DOM map serves three purposes: (1) confirms the data model by triangulation, (2) identifies token sources for request construction, (3) provides stable selectors if DOM extraction is ever needed as a fallback.
 
-## 7. Follow Every Trail
+## 9. Follow Every Trail
 
 Each discovery raises the next question. Follow it.
 
@@ -205,7 +276,7 @@ Each discovery raises the next question. Follow it.
 
 **Don't stop until you can construct any request from scratch.** If there's a parameter you don't understand, trace it. If a response has a field you haven't seen used, note it — it may be needed later for a different endpoint.
 
-## 8. Document as You Go
+## 10. Document as You Go
 
 Every finding gets logged immediately. The discovery output is a complete map:
 
