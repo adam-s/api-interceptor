@@ -18,3 +18,12 @@ export type {
 	InterceptionCallback,
 	SessionStatus,
 } from './types';
+export {
+	classifyEntry,
+	classifyPage,
+	type TransportType,
+	type EncodingType,
+	type TrafficClassification,
+	type TrafficEntry,
+	type PageClassification,
+} from './classify-transport';

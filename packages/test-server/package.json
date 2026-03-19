@@ -1,0 +1,30 @@
+{
+	"name": "@interceptor/test-server",
+	"version": "0.0.1",
+	"type": "module",
+	"main": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": "./src/index.ts",
+		"./data": "./src/data.ts"
+	},
+	"scripts": {
+		"build": "tsc",
+		"dev": "tsx --watch src/serve.ts",
+		"start": "tsx src/serve.ts",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"hono": "^4.12.8",
+		"ws": "^8.19.0",
+		"@msgpack/msgpack": "^3.0.0-beta2",
+		"protobufjs": "^7.4.0"
+	},
+	"devDependencies": {
+		"@types/node": "25.5.0",
+		"@types/ws": "^8.18.1",
+		"tsx": "^4.21.0",
+		"typescript": "5.9.3"
+	}
+}
