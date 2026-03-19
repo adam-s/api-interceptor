@@ -142,7 +142,7 @@ export class RemoteBrowserService {
 
 	/**
 	 * Named pages for domain-specific parallel browsing.
-	 * Each domain (e.g., 'stubhub', 'ticketmaster') gets its own page in the same context,
+	 * Each domain (e.g., 'domain-a', 'domain-b') gets its own page in the same context,
 	 * enabling parallel navigation without clobbering. The main streaming page (this.page)
 	 * remains separate — named pages are headless workers with no screencast.
 	 */
@@ -608,7 +608,7 @@ export class RemoteBrowserService {
 			args: commonArgs,
 			// ⚠️  DO NOT REMOVE. --enable-automation sets navigator.webdriver=true and shows
 			// an automation infobar — both are primary bot detection signals. Without this
-			// line, every bot-protected site (Ticketmaster, Cloudflare, etc.) blocks the browser.
+			// line, every bot-protected site (Cloudflare, PerimeterX, etc.) blocks the browser.
 			// DO NOT add --disable-extensions here — Ghostery extension needs it.
 			ignoreDefaultArgs: ['--enable-automation'],
 			// Add proxy config if specified
