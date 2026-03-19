@@ -1,4 +1,4 @@
-I want to compare ticket prices across StubHub and Ticketmaster. Build domain plugins for both sites using browser interception — discover how they serve their data by navigating as a real user and capturing traffic. Even if a public API exists, prefer the browser interception approach for this prompt — this is exploratory and I want to understand how these sites work internally.
+I want to compare ticket prices across two major ticket marketplace sites. Build domain plugins for both using browser interception — discover how they serve their data by navigating as a real user and capturing traffic. Even if a public API exists, prefer the browser interception approach for this prompt — this is exploratory and I want to understand how these sites work internally.
 
 The flow should work like this:
 

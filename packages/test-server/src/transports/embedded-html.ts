@@ -1,6 +1,6 @@
 /**
  * Embedded HTML transport — generates HTML pages with JSON data islands.
- * Used by boardshop (StubHub-like) and liveboard (Yahoo Finance-like) sites.
+ * Used by boardshop and liveboard sites.
  */
 
 export interface EmbeddedPageOptions {

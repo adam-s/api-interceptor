@@ -59,7 +59,7 @@ function handleProtobufWS(ws: WebSocket): void {
 			changePercent: update.changePercent,
 			volume: update.volume,
 		});
-		// Wrap in JSON with base64 message (like Yahoo Finance)
+		// Wrap in JSON with base64-encoded protobuf message field
 		const frame = JSON.stringify({
 			type: 'pricing',
 			message: Buffer.from(encoded).toString('base64'),

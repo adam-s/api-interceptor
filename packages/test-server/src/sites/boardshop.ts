@@ -1,7 +1,7 @@
 /**
  * Boardshop Site — E-commerce fake website.
  *
- * Simulates StubHub-like patterns:
+ * Simulates e-commerce ticket/listing patterns:
  * - Embedded JSON in <script id="catalog-data" type="application/json">
  * - POST pagination to same URL with CSRF + filterSessionId
  * - Silent page size limit (pageSize > 20 returns empty)

@@ -1,6 +1,6 @@
 /**
  * GraphQL transport — supports inline queries, persisted queries, and batched operations.
- * Used by streamshop (Twitch-like) and databoard sites.
+ * Used by streamshop and databoard sites.
  */
 
 import { Hono } from 'hono';

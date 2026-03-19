@@ -1,7 +1,7 @@
 /**
  * Streamshop Site — Media streaming fake website.
  *
- * Simulates Twitch-like patterns:
+ * Simulates live media streaming patterns:
  * - GraphQL with persisted queries, batched operations, Client-ID auth
  * - HLS video stream (token → master playlist → variant → segments)
  * - IRC-like chat WebSocket

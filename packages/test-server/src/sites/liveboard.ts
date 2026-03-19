@@ -1,7 +1,7 @@
 /**
  * Liveboard Site — Real-time data fake website.
  *
- * Simulates Yahoo Finance-like patterns:
+ * Simulates real-time financial data patterns:
  * - Embedded JSON snapshot with price data + crumb token
  * - WebSocket with protobuf-encoded price updates (base64 wrapped)
  * - REST API requiring crumb token as query param
@@ -98,7 +98,7 @@ export function createLiveboardSite(): Hono {
 		});
 	});
 
-	// ─── Crumb endpoint (like Yahoo's /v1/test/getcrumb) ────────────
+	// ─── Crumb endpoint (anti-CSRF token via separate request) ──────
 	app.get('/api/crumb', (c) => {
 		const sessionCookie = c.req.header('cookie')?.match(/session=([^;]+)/)?.[1];
 		if (!sessionCookie || !crumbs.has(sessionCookie)) {

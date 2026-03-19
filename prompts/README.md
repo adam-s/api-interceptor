@@ -13,7 +13,7 @@ Each file is a self-contained prompt you can paste into Claude Code after clonin
 
 | # | File | App | Key challenge |
 |---|------|-----|---------------|
-| 1 | `01-ticket-comparison.md` | `/tickets` | Browser interception, SSR extraction, multi-source merging |
+| 1 | `01-ticket-comparison.md` | `/tickets` | Browser interception, embedded JSON, multi-source merging |
 | 2 | `02-market-intelligence.md` | `/market` | Background polling, WebSocket push, sentiment analysis |
 | 3 | `03-vacation-rentals.md` | `/rentals` | Bot detection, cross-listing by coordinates, Python scoring |
 | 4 | `04-job-search.md` | `/jobs` | Entity dedup, CRUD state, salary normalization |
@@ -21,3 +21,4 @@ Each file is a self-contained prompt you can paste into Claude Code after clonin
 | 6 | `06-government-records.md` | `/records` | Government APIs, timeline visualization |
 | 7 | `07-reddit-client.md` | `/reddit` | .json suffix API, mobile-first dark UI, nested comments |
 | 8 | `08-youtube.md` | `/youtube` | yt-dlp Python bridge, background downloads, video player |
+| 9 | `09-professional-network.md` | `/network` | Auth-gated API discovery, rate limiting, full platform automation |
