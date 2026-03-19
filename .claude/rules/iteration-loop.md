@@ -1,5 +1,9 @@
 ---
 description: Autonomous iteration mode — the build loop, verification gates, server startup, and branch management
+paths:
+  - "domains/**"
+  - "prompts/**"
+  - "apps/web/src/app/(dashboard)/**"
 ---
 
 # Autonomous Iteration Mode

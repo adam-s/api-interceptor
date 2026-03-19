@@ -1,3 +1,7 @@
+---
+description: "THE MOST IMPORTANT RULE — systematic protocol to classify data transport (WebSocket, GraphQL, gRPC, SSE, JSON, Encoded, SSR). Interception ALWAYS over extraction."
+---
+
 # Data Transport Discovery Protocol
 
 **This is the most important rule in the project.** The entire point of api-interceptor is to intercept the real APIs that websites use internally — not to scrape HTML. Every route must use the correct extraction technique, and the only way to determine the correct technique is systematic observation.

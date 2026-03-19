@@ -65,24 +65,24 @@ Always sequential, catch per source. If a source returns null, mark offline — 
 
 ### Multi-domain comparison views — browser sequencing
 
-When comparing data from two browser-dependent domains (e.g. two skateboard marketplaces showing the same board), the **singleton browser** navigates to each domain's page in turn. Each navigation clobbers the previous page state. This means:
+When comparing data from two browser-dependent domains (e.g. two platforms showing the same product), the **singleton browser** navigates to each domain's page in turn. Each navigation clobbers the previous page state. This means:
 
 1. **Frontend must call domains sequentially** — never `Promise.all`. Source A navigates, extracts data, returns. Then source B navigates, extracts, returns. The data from A is safe because it was already extracted and returned as JSON before B's navigation started.
 
-2. **Show progress during sequential fetches** — tell the user which source is loading. `"Loading BoardShop... (1 of 2)"` then `"Loading DeckMarket... (2 of 2)"`. Without this, the user sees a spinner for 20+ seconds with no indication of progress.
+2. **Show progress during sequential fetches** — tell the user which source is loading. `"Searching <domain-a>... (1 of 2)"` then `"Searching <domain-b>... (2 of 2)"`. Without this, the user sees a spinner for 20+ seconds with no indication of progress.
 
 3. **Each source's route must fully extract before returning** — don't rely on the browser still being on the same page after the route handler returns. Navigate, wait, extract, return JSON. The next domain route will navigate away.
 
 ```typescript
 // CORRECT — sequential, with progress updates
-setLoadingMessage('Searching BoardShop...');
-const shopA = await fetch(`${API}/api/boardshop/search?q=${q}`).then(r => r.json()).catch(() => null);
+setLoadingMessage(`Searching ${sources[0].name}...`);
+const resultA = await fetch(`/api/${sources[0].domain}/search?q=${q}`).then(r => r.json()).catch(() => null);
 
-setLoadingMessage('Searching DeckMarket...');
-const shopB = await fetch(`${API}/api/deckmarket/search?q=${q}`).then(r => r.json()).catch(() => null);
+setLoadingMessage(`Searching ${sources[1].name}...`);
+const resultB = await fetch(`/api/${sources[1].domain}/search?q=${q}`).then(r => r.json()).catch(() => null);
 
 // Now merge — both datasets are in memory, browser state doesn't matter
-const merged = mergeResults(shopA?.items ?? [], shopB?.items ?? []);
+const merged = mergeResults(resultA?.items ?? [], resultB?.items ?? []);
 ```
 
 ## Multi-Source Entity Merging
