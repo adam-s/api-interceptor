@@ -111,7 +111,6 @@ flowchart TD
 The framework includes:
 - **`classifyTransport()`** utility in `packages/browser/` — automates this decision tree on captured traffic
 - **`packages/test-server/`** — serves canonical data via all 12 transport types for development and testing
-- **Site transport audit** at `docs/testing/site-transport-audit.md` — researched classifications for all websites in `prompts/`
 
 ## Proxy Request Flow
 
@@ -174,7 +173,6 @@ curl http://localhost:4444/ssr/search?q=taylor   # SSR HTML
 prompts/                  Natural-language prompts (one per domain iteration)
 docs/
   testing/
-    site-transport-audit.md   Researched transport types for all prompt websites
 
 domains/                  Domain plugins (one per website)
 packages/

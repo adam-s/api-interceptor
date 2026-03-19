@@ -24,7 +24,6 @@ Process rules live in `.claude/rules/` and are loaded automatically:
 - `packages/test-server/` — Multi-transport test server for validating the discovery protocol (`@interceptor/test-server`)
 - `packages/db/` — Database layer (Drizzle ORM + TimescaleDB) — optional
 - `services/python/` — Python worker for IPC bridge
-- `docs/testing/site-transport-audit.md` — researched transport types for all websites in `prompts/`
 
 ## Quick Commands
 
