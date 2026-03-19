@@ -24,12 +24,16 @@ The user has granted full autonomous operation. You may:
 
 ```text
 FOR each prompt:
-  0. READ THE PROMPT + OBSERVE
+  0. READ THE PROMPT + VALIDATE + OBSERVE
      a. Read the prompt file. Extract every requirement into a numbered list:
         features, views, interactions, data sources, layout specs, behaviors.
         Paste this list into the conversation as "REQUIREMENTS EXTRACTED FROM PROMPT".
         This list is your contract. You are done when every item has evidence, not before.
-     b. Connect browser via WebSocket
+     b. Validate discovery approach against the test server first (port 4444).
+        Pick the test server site that matches the prompt's likely transport pattern
+        (boardshop for embedded JSON, liveboard for WebSocket, streamshop for GraphQL,
+        databoard for encoded). Run your discovery process there. If it works, proceed.
+     c. Connect browser via WebSocket
         (ws://localhost:PORT/browser/stream?profile=<domain>&url=<target>).
         Follow the full discovery process in `.claude/rules/discovery-process.md` — read the page
         source, catalog tokens, interact and watch traffic, check JS bundles for WebSocket/GraphQL

@@ -9,7 +9,11 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions. **Before writing ANY route, run the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`).** Interception ALWAYS over extraction — if the data exists in any network response, intercept it; DOM extraction is the absolute last resort.
 
+**Validate against the test server first.** Before targeting a real site, run your discovery process against the test server (port 4444). Pick the site that matches the likely transport: `boardshop` (embedded JSON + pagination), `liveboard` (WebSocket + protobuf), `streamshop` (GraphQL + HLS), `databoard` (encoded responses). If your approach works there, it works on real sites.
+
 **Discovery process:** Before writing ANY route, follow the investigative process in `.claude/rules/discovery-process.md` — read the page source for embedded JSON, catalog every token and auth value, interact with the page and watch network traffic, read the site's JavaScript to trace values backwards, follow every trail until you can construct any request from scratch.
+
+**Don't stop at the first data source.** Finding embedded JSON in the page is step 1, not the end. You must also discover: how pagination works (click Load More, scroll, check for cursor params), where auth tokens come from (trace backwards through page source, cookies, previous responses, JS globals), whether additional transports exist (WebSocket for real-time data, GraphQL alongside REST), and what the complete request signature looks like (every header, every token, every parameter). Each finding raises the next question — follow it until you can construct any request from scratch.
 
 **Development principle:** Use debug-logs and visual-dev skills at every step. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. **GATE: You may NOT write the next component until you have screenshotted the current one.**
 

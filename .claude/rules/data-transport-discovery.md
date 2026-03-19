@@ -27,14 +27,16 @@ Fetch /browser/traffic — inspect ALL entries.
 
 The order matters. Higher-priority transports are checked first. **Never skip to (g) without proving (a)–(f) are empty.**
 
+**Each check requires real investigation, not a glance.** "Check for JSON API" means read the full HTML source, search every `<script>` tag, search for data values visible on the page, and read the response bodies of every XHR. Don't just skim traffic entries — read the actual payloads.
+
 | Priority | Check | Transport Type | Route Approach |
 |----------|-------|---------------|----------------|
-| **(a)** | WebSocket frames in traffic? (`ws://` or `wss://` connections) | **WebSocket** | Intercept WS frames, replay subscription |
+| **(a)** | WebSocket frames in traffic? (`ws://` or `wss://` connections). **CDP does NOT capture WebSocket frames** — search JS bundles for `wss://`, `new WebSocket(`, `WebSocket(` | **WebSocket** | Intercept WS frames, replay subscription |
 | **(b)** | Requests to `/graphql` or body contains `query`/`mutation`? | **GraphQL** | Proxy the GraphQL query with captured variables |
 | **(c)** | Content-Type `application/grpc-web`? | **gRPC-Web** | Decode protobuf, proxy the RPC call |
 | **(d)** | Content-Type `text/event-stream`? | **Server-Sent Events** | Subscribe and relay the event stream |
 | **(e)** | XHR/Fetch with `application/json` response containing the data? | **JSON API** | Type A proxy — `browserFetch()` or `targetUrl` |
-| **(e2)** | HTML response contains `<script type="application/json">` or `__NEXT_DATA__` with the data? | **Embedded JSON** | Parse JSON from HTML, proxy pagination POST if applicable |
+| **(e2)** | HTML response contains `<script type="application/json">`, `<script id="...">`, `__NEXT_DATA__`, or inline JSON blobs with the data? **This is the most common transport on modern sites** (React, Next.js, SSR frameworks). Search the full page source for actual data values visible on the page. | **Embedded JSON** | Parse JSON from HTML, proxy pagination POST if applicable |
 | **(f)** | XHR/Fetch with non-JSON body (binary, base64, encoded, compressed, or unfamiliar format)? | **Encoded API** | ⚠️ **DECODE IT** — see Step 3 below. **NEVER skip to (g).** |
 | **(g)** | ZERO relevant network requests after 15s wait | **SSR / Document** | Type B — DOM extraction via `page.evaluate()` |
 
@@ -90,6 +92,19 @@ Before writing any route, produce this log in the conversation:
 ```
 
 **This table is a MANDATORY gate. No routes without it. Any row with transport=SSR must have evidence confirming Steps 2g validation.**
+
+## Validate Against the Test Server
+
+Before targeting a real site, validate your discovery approach against the test server (`pnpm --filter @interceptor/test-server start` on port 4444). Each site demonstrates a different transport pattern:
+
+| Test Server Site | Transport Pattern | What It Validates |
+|-----------------|-------------------|-------------------|
+| `/boardshop` | Embedded JSON + POST pagination | (e2) classification, CSRF tokens, silent page size limits |
+| `/liveboard` | WebSocket + protobuf (base64) | (a) classification, binary decode, crumb token auth |
+| `/streamshop` | GraphQL + HLS + IRC WebSocket | (b) classification, persisted queries, media chain |
+| `/databoard` | gRPC-Web + encoded responses | (c) and (f) classification, protobuf/msgpack/base64 decode |
+
+If your discovery process works against the test server, it will work against real sites. If it fails on the test server, fix it before wasting time on a real site.
 
 ## Common Mistakes This Protocol Prevents
 

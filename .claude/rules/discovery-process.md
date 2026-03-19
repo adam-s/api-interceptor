@@ -8,6 +8,10 @@ description: "The investigative process for reverse-engineering how a website se
 
 **Do this for every new domain.** Every step builds on the previous. Each discovery raises the next question. Don't stop until you can construct any request the site makes, from scratch.
 
+**Validate against the test server first.** Before targeting a real site, run this process against the test server (`port 4444`). Each fake site — `boardshop`, `liveboard`, `streamshop`, `databoard` — uses different transports. If your approach works there, it works on real sites.
+
+**The #1 failure mode is stopping too early.** Finding one data source is not done. You must also find: how pagination works, where auth tokens come from, what happens when you interact with the page, whether there are additional data sources (WebSocket, GraphQL) alongside the initial one. Each discovery leads to the next question — follow it.
+
 ## 1. Read the Page Source
 
 Get the full HTML — not DOM text, the actual response body.
