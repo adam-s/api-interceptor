@@ -12,6 +12,7 @@ description: Workflow rules — verification, git hygiene, mistake logging, test
 - **Document mistakes immediately:** when something goes wrong, append a one-line note to `base-fixes-needed.md` describing what happened and how to avoid it. Don't wait until the end of the iteration.
 - **Review skills after using them:** after completing work guided by a skill, review what went wrong and add gotchas/lessons to the skill's SKILL.md on the next base pass. Skills improve every iteration.
 - **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
+- **Track multi-attempt difficulties:** when a problem requires 5+ different approaches, document it in `base-fixes-needed.md` with: the problem, what was tried, and the resolution. The user reviews these after prompt completion to understand where complexity lives.
 
 ## Notes File Rule (Test -> Base)
 

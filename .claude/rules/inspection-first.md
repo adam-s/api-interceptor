@@ -36,3 +36,18 @@ Two investigation tools, depending on whose code you're looking at:
 - **The website's code:** Download JS bundles, search for string anchors (data-testid, attribute values), and trace the transformation backwards from rendered output to raw API response. See api-discovery skill "Decoding Encoded API Responses" for the full technique.
 
 **When stuck, enumerate before abandoning.** List every possible explanation for the unexpected behavior (encoding, localization, unit conversion, indirect references, lazy loading, pagination, protocol differences). Test each with a targeted observation. Only abandon an approach after you have evidence that it *cannot* work — not just evidence that it doesn't work *yet*.
+
+## Agent Failure Modes — Mandatory Guards
+
+These failure modes have caused repeated iteration failures. They are structural gates, not suggestions.
+
+1. **Never write extraction code without observing traffic first.** Run `/browser/traffic` or add DEBUG logs to see what data the site actually sends. DOM scraping is the LAST resort — sites use React with dynamic class names, not static HTML tables. The api-discovery skill Phase 1 (Observe) is mandatory.
+
+2. **Never declare "done" without end-to-end proof.** "Done" means: real data flows from the source website through the API to the dashboard UI, verified by curl output or screenshots showing real data. If any step in the user journey shows empty/error results, it's NOT done.
+
+3. **When an API returns empty/zero results, STOP and debug.** Do not guess. Do not tweak CSS selectors. Add DEBUG logs, read the output, understand WHY it's empty, then fix based on observed evidence.
+
+4. **Use the skills — they encode lessons from previous failures.** Every skill represents a lesson learned. Skipping them guarantees repeating the same failure. Specifically:
+   - **api-discovery** Phase 1 before ANY extraction code
+   - **debug-logs** before ANY bug fix
+   - **visual-dev** before declaring ANY UI work complete (screenshot every state with real data)

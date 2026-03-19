@@ -277,6 +277,8 @@ Dashboard components use relative URLs: `/api/<domain>/<path>` (see CLAUDE.md "F
 | CORS error | Server has CORS enabled — check port |
 | 503 from proxy | Connect browser at `/browser?profile=<domain>` |
 | Empty results | `curl` the endpoint directly first |
+| Unbounded list/table | Wrap in `max-h-[300px] overflow-y-auto` (lists) or `max-h-[600px] overflow-y-auto` (tables) — never let content grow unbounded inside a card |
+| JSX comment in ternary | `{/* comment */}` inside `? :` breaks the parser — put comments outside the ternary or wrap in `<>` fragment |
 | Hydration error | Add `'use client'` at top |
 | Page not found | Directory name must match URL path |
 | Fetch timeout on browser-dependent routes | `browserFetch` default is 20s — use `AbortSignal.timeout(45000)` on the dashboard fetch wrapper |
