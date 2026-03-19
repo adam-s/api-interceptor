@@ -231,6 +231,40 @@ export class RemoteBrowserService {
 	}
 
 	/**
+	 * Dynamically change the JPEG compression quality.
+	 * Higher = better image, larger frames. Browserless defaults to 70.
+	 * @param quality - JPEG quality (0–100)
+	 */
+	setQuality(quality: number): void {
+		this.config.quality = Math.max(0, Math.min(100, quality));
+		// Restart screencast with new quality
+		void this.nudgeScreencast();
+	}
+
+	/**
+	 * Capture a single screenshot and send it as a frame.
+	 * Useful for guaranteeing the client sees something immediately —
+	 * CDP screencast is event-driven and won't fire if the page hasn't changed.
+	 */
+	async captureAndSendFrame(): Promise<void> {
+		if (!this.cdp || !this.frameCallback) return;
+		try {
+			const result = await this.cdp.send('Page.captureScreenshot', {
+				format: 'jpeg',
+				quality: this.config.quality,
+			});
+			const bytes = Buffer.from((result as { data: string }).data, 'base64');
+			this.frameCallback({
+				frameId: Date.now(),
+				bytes,
+				timestamp: Date.now(),
+			});
+		} catch {
+			// Best-effort — don't crash if screenshot fails
+		}
+	}
+
+	/**
 	 * Get the current page instance for direct manipulation.
 	 * Useful for attaching interceptors or running custom scripts.
 	 */

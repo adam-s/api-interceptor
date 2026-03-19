@@ -482,10 +482,13 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			browserLogger.lifecycle('reusing_browser', { profile: currentProfile || 'unknown' });
 
 			// Update frame callback so this new WS client actually receives frames.
-			// Without this, the old (now-closed) callback keeps being called silently.
 			activeBrowser!.setFrameCallback((frame: FrameData) => {
 				wsSend(ws, frame.bytes as Uint8Array<ArrayBuffer>);
 			});
+
+			// Boost FPS and quality for interactive viewing (auto-start runs at 1fps/q30)
+			activeBrowser!.setFps(4);
+			activeBrowser!.setQuality(60);
 
 			wsSendJson(ws, {
 				type: 'ready',
@@ -493,6 +496,10 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 				profile: profile || null,
 				reused: true,
 			});
+
+			// Force an immediate screenshot so client sees something right away.
+			// CDP screencast is event-driven — no visual change = no frame.
+			await activeBrowser!.captureAndSendFrame();
 
 			if (url) {
 				browserLogger.debug(`Navigating existing browser to: ${url}`);
@@ -503,7 +510,11 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 
 			ws.on('close', () => {
 				browserLogger.connection('close', { profile: currentProfile || 'unknown', reused: true });
-				// Don't stop browser on close when reusing — it stays alive for proxy
+				// Reset to low FPS for background proxy operation
+				if (activeBrowser) {
+					activeBrowser.setFps(1);
+					activeBrowser.setQuality(30);
+				}
 			});
 
 			return; // Skip the rest of the setup
@@ -528,13 +539,10 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 		}
 
 		activeBrowser = new RemoteBrowserService({
-			fps: 1,
-			quality: 30,
+			fps: 4, // Interactive viewing — WS client is connected
+			quality: 60, // Better image quality for human viewing
 			viewportWidth: VIEWPORT_WIDTH,
 			viewportHeight: VIEWPORT_HEIGHT,
-			// BROWSER_HEADLESS=false runs with a visible window (best bot evasion, requires display).
-			// Default: true (headless) for server/CI environments.
-			// Note: sec-ch-ua HeadlessChrome is fixed separately via setExtraHTTPHeaders in service.ts.
 			headless: process.env.BROWSER_HEADLESS !== 'false',
 			userDataDir,
 		});
@@ -690,6 +698,10 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 				profile: profile || null,
 			});
 
+			// Force an immediate screenshot so client sees something right away.
+			// CDP screencast is event-driven on visual changes — blank page = no frame.
+			await activeBrowser.captureAndSendFrame();
+
 			// Auto-navigate if URL was provided
 			if (url) {
 				browserLogger.debug(`Auto-navigating to: ${url}`);
@@ -718,8 +730,10 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			browserKeptAlive: true,
 		});
 		// DO NOT stop the browser — it stays alive for proxy API calls.
-		// The browser will be stopped when:
-		// - A new connection with a DIFFERENT profile arrives (cleanup in handleBrowserWebSocket)
-		// - The server shuts down
+		// Reset to low FPS/quality for background proxy operation.
+		if (activeBrowser) {
+			activeBrowser.setFps(1);
+			activeBrowser.setQuality(30);
+		}
 	});
 }
