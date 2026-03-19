@@ -2,12 +2,10 @@ I want to compare ticket prices across StubHub and Ticketmaster. Build domain pl
 
 The flow should work like this:
 
-**Step 1: Search and disambiguate.** I type an artist or team name like "Knicks" or "Kendrick Lamar" and get a list of matching performers/teams from both platforms. I pick the one I actually want. Don't auto-select — Ticketmaster often lists the soonest event first which might be a tribute band or a different artist. Let me choose.
+**Step 1: Search and disambiguate.** I type an artist or team name and get a list of matching performers from both platforms. Let me pick the one I want from each side — don't auto-select.
 
-**Step 2: Event calendar.** After I pick the artist, show me a two-column table — Ticketmaster events on the left, StubHub events on the right. Match rows by date and venue — same venue + date + time = same parent event, even if event names differ between platforms (abbreviated vs full names, different VIP/package labeling). Match by the venue+date+time tuple, not by event name string. If TM has a show on March 22 at Madison Square Garden and StubHub has the same show, they should be on the same row. If one platform has an event the other doesn't, show it with the other column empty. VIP and regular events at the same venue/date/time should be separate rows. I want to scan this table and see at a glance where both platforms have the same event.
+**Step 2: Event matching.** After I pick performers, fetch events from both platforms and match them behind the scenes before showing anything. Match by normalized date + venue — same venue and date = same event, regardless of how each platform names it. Cache all matched events so clicking into one doesn't re-fetch. Show me an event calendar where matched events (both platforms) are visually distinct from single-platform events. I should see at a glance which events I can compare.
 
-**Step 3: Compare tickets.** On rows where both platforms have the event, show a "Compare" button. When I click it, fetch all available tickets from both platforms. Match them by section — normalize section names aggressively ("Section 101" = "Sec 101" = "101"). Show a comparison table: rows are sections, columns are StubHub and Ticketmaster. Each cell shows the price range and number of available tickets for that section. Highlight the cheaper option per section in green. Sections only available on one platform still show with the other column as a dash.
-
-Think about pagination — don't just grab page 1 of ticket listings. Get as many tickets as the site will give you so the comparison is comprehensive.
+**Step 3: Compare tickets.** On matched events, let me click to compare. Both platforms' tickets should already be fetched (or fetch in parallel on click). Match tickets by normalized section name. Show a comparison table: sections as rows, platforms as columns, price range and quantity per cell, cheaper option highlighted. Handle pagination — get all available tickets, not just page 1.
 
 Dashboard at `/tickets`. If a platform's browser isn't connected, show that cleanly without breaking the other one.
