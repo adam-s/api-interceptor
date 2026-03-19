@@ -36,7 +36,9 @@ export const plugin: DomainPlugin = {
 	// On success, store the account info in the session manager.
 	// On failure, the browser handler emits onVerificationFailed so the UI can show an error.
 	async verifyCredentials(headers) {
-		const result = await verifyCredentials(headers as Record<string, string> & { Authorization: string; 'X-Shop-Session': string });
+		const result = await verifyCredentials(
+			headers as Record<string, string> & { Authorization: string; 'X-Shop-Session': string },
+		);
 		if (result.valid && result.accountId) {
 			const manager = BoardShopSessionManager.getInstance();
 			manager.markVerified('boardshop', result.accountId);
@@ -62,5 +64,5 @@ export const plugin: DomainPlugin = {
 
 export { boardShopInterceptorConfig } from './config';
 export { BoardShopInterceptor } from './interceptor';
-export { BoardShopSessionManager } from './session-manager';
 export { routes } from './routes';
+export { BoardShopSessionManager } from './session-manager';

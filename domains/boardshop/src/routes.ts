@@ -21,7 +21,6 @@ import type { DomainRoute } from '@interceptor/browser/handler/domain-loader';
 import { rateLimitedFetch } from '@interceptor/shared';
 import { createOrder } from './api-client';
 import { BoardShopSessionManager } from './session-manager';
-import type { BoardShopHeaders } from './types';
 
 export const routes: DomainRoute[] = [
 	// ─── Route 1: SSR DOM Extraction (Type B) ─────────────────────────────

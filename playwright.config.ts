@@ -11,7 +11,9 @@ export default defineConfig({
 	retries: IS_CI ? 2 : 0,
 	workers: IS_CI ? 1 : 2,
 	// CRITICAL: HTML reporter blocks on failure (opens web server). Use 'list' in CI.
-	reporter: IS_CI ? 'list' : [['html', { open: 'never', outputFolder: '/tmp/interceptor-playwright-report' }]],
+	reporter: IS_CI
+		? 'list'
+		: [['html', { open: 'never', outputFolder: '/tmp/interceptor-playwright-report' }]],
 	timeout: 30_000,
 	globalTimeout: IS_CI ? 10 * 60 * 1000 : 5 * 60 * 1000,
 

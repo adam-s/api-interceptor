@@ -81,7 +81,7 @@ describe('liveboard site', () => {
 	});
 
 	test('WebSocket sends protobuf-encoded price updates', async () => {
-		const wsUrl = server.url.replace('http', 'ws') + '/sites/liveboard/stream';
+		const wsUrl = `${server.url.replace('http', 'ws')}/sites/liveboard/stream`;
 
 		const messages: string[] = [];
 		await new Promise<void>((resolve, reject) => {

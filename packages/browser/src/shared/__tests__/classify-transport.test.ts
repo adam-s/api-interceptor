@@ -4,12 +4,8 @@
  * Pure function tests — no browser, no server. Just traffic entries → classification.
  */
 
-import { describe, it, expect } from 'vitest';
-import {
-	classifyEntry,
-	classifyPage,
-	type TrafficEntry,
-} from '../classify-transport';
+import { describe, expect, it } from 'vitest';
+import { classifyEntry, classifyPage, type TrafficEntry } from '../classify-transport';
 
 // Helper to create traffic entries
 function entry(overrides: Partial<TrafficEntry> & { url: string }): TrafficEntry {

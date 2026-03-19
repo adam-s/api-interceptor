@@ -35,12 +35,7 @@ export type TransportType =
 /**
  * Encoding subtypes for ENCODED_API transport.
  */
-export type EncodingType =
-	| 'base64'
-	| 'protobuf'
-	| 'msgpack'
-	| 'binary'
-	| 'unknown';
+export type EncodingType = 'base64' | 'protobuf' | 'msgpack' | 'binary' | 'unknown';
 
 /**
  * A single classified traffic entry.
@@ -215,15 +210,15 @@ export function classifyPage(
 		if (options.hasLoadingState) {
 			warnings.push(
 				'CRITICAL: Page showed a loading state but no XHR traffic was captured. ' +
-				'The data likely loaded via XHR but the capture window was too short. ' +
-				'Increase wait time and re-capture. DO NOT classify as SSR.',
+					'The data likely loaded via XHR but the capture window was too short. ' +
+					'Increase wait time and re-capture. DO NOT classify as SSR.',
 			);
 		}
 
 		if ((options.waitTimeMs ?? 0) < 15000) {
 			warnings.push(
 				`Wait time was ${options.waitTimeMs ?? 0}ms (< 15s recommended). ` +
-				'Some sites defer data loading. Increase wait time before classifying as SSR.',
+					'Some sites defer data loading. Increase wait time before classifying as SSR.',
 			);
 		}
 
@@ -250,11 +245,7 @@ export function classifyPage(
 
 function getContentType(entry: TrafficEntry): string {
 	const headers = entry.responseHeaders ?? {};
-	return (
-		headers['content-type'] ??
-		headers['Content-Type'] ??
-		''
-	).toLowerCase();
+	return (headers['content-type'] ?? headers['Content-Type'] ?? '').toLowerCase();
 }
 
 function isGraphQL(entry: TrafficEntry): boolean {
@@ -267,9 +258,7 @@ function isGraphQL(entry: TrafficEntry): boolean {
 		const body = entry.requestBody as Record<string, unknown>;
 		if (typeof body.query === 'string') {
 			return (
-				body.query.includes('{') ||
-				body.query.includes('query') ||
-				body.query.includes('mutation')
+				body.query.includes('{') || body.query.includes('query') || body.query.includes('mutation')
 			);
 		}
 	}
@@ -376,7 +365,19 @@ function filterDataEntries(entries: TrafficEntry[]): TrafficEntry[] {
 		'awswaf.com',
 	];
 
-	const skipExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.woff', '.woff2', '.ttf', '.ico'];
+	const skipExtensions = [
+		'.js',
+		'.css',
+		'.png',
+		'.jpg',
+		'.jpeg',
+		'.gif',
+		'.svg',
+		'.woff',
+		'.woff2',
+		'.ttf',
+		'.ico',
+	];
 
 	return entries.filter((e) => {
 		const url = e.url.toLowerCase();

@@ -299,10 +299,7 @@ function wsSendJson(ws: WebSocket, obj: unknown): void {
  * Handle a parsed WebSocket message by dispatching to the active browser.
  * Shared between the fresh-browser and reuse-browser code paths.
  */
-async function handleWsMessage(
-	message: Record<string, unknown>,
-	ws: WebSocket,
-): Promise<void> {
+async function handleWsMessage(message: Record<string, unknown>, ws: WebSocket): Promise<void> {
 	if (!activeBrowser || !browserReady) return;
 
 	switch (message.type) {
@@ -402,7 +399,14 @@ function wireWsMessageHandler(ws: WebSocket): void {
 			const str = data.toString();
 			const message = JSON.parse(str) as Record<string, unknown>;
 			if (message.type !== 'mousemove') {
-				console.log('[BrowserWS] msg:', message.type, 'activeBrowser:', !!activeBrowser, 'ready:', browserReady);
+				console.log(
+					'[BrowserWS] msg:',
+					message.type,
+					'activeBrowser:',
+					!!activeBrowser,
+					'ready:',
+					browserReady,
+				);
 			}
 			await handleWsMessage(message, ws);
 		} catch (err) {
@@ -423,7 +427,7 @@ function wireWsMessageHandler(ws: WebSocket): void {
 export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Promise<void> {
 	const profile = requestUrl.searchParams.get('profile') || undefined;
 	const url = requestUrl.searchParams.get('url') || undefined;
-	const captureDomainsParam = requestUrl.searchParams.get('capture') || undefined;
+	const _captureDomainsParam = requestUrl.searchParams.get('capture') || undefined;
 
 	// Wire message handler FIRST — before any async work.
 	// Messages from the frontend can arrive immediately after WS upgrade.
@@ -482,13 +486,13 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 			browserLogger.lifecycle('reusing_browser', { profile: currentProfile || 'unknown' });
 
 			// Update frame callback so this new WS client actually receives frames.
-			activeBrowser!.setFrameCallback((frame: FrameData) => {
+			activeBrowser?.setFrameCallback((frame: FrameData) => {
 				wsSend(ws, frame.bytes as Uint8Array<ArrayBuffer>);
 			});
 
 			// Boost FPS and quality for interactive viewing (auto-start runs at 1fps/q30)
-			activeBrowser!.setFps(4);
-			activeBrowser!.setQuality(60);
+			activeBrowser?.setFps(4);
+			activeBrowser?.setQuality(60);
 
 			wsSendJson(ws, {
 				type: 'ready',
@@ -499,11 +503,11 @@ export async function handleBrowserWebSocket(ws: WebSocket, requestUrl: URL): Pr
 
 			// Force an immediate screenshot so client sees something right away.
 			// CDP screencast is event-driven — no visual change = no frame.
-			await activeBrowser!.captureAndSendFrame();
+			await activeBrowser?.captureAndSendFrame();
 
 			if (url) {
 				browserLogger.debug(`Navigating existing browser to: ${url}`);
-				await activeBrowser!.navigate(url);
+				await activeBrowser?.navigate(url);
 			}
 
 			lifecycleManager.releaseLock();

@@ -4,7 +4,10 @@ import { BoardShopHeadersSchema, REQUIRED_HEADER_NAMES } from './types';
 
 export const boardShopInterceptorConfig: InterceptorConfig = {
 	domainName: 'boardshop',
-	interceptPatterns: ['https://www.boardshop.example.com/**', 'https://api.boardshop.example.com/**'],
+	interceptPatterns: [
+		'https://www.boardshop.example.com/**',
+		'https://api.boardshop.example.com/**',
+	],
 	requiredHeaders: [...REQUIRED_HEADER_NAMES],
 	headerSchema: BoardShopHeadersSchema,
 	baseUrls: ['https://www.boardshop.example.com'],

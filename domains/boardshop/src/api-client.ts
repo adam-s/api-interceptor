@@ -17,11 +17,11 @@
 
 import {
 	type Board,
+	type BoardShopHeaders,
 	type Order,
 	OrderResponseSchema,
 	type PaginatedBoards,
 	PaginatedBoardsSchema,
-	type BoardShopHeaders,
 } from './types';
 
 const API_BASE = 'https://api.boardshop.example.com/v1';
@@ -66,9 +66,7 @@ export interface VerificationResult {
 	error?: string;
 }
 
-export async function verifyCredentials(
-	headers: BoardShopHeaders,
-): Promise<VerificationResult> {
+export async function verifyCredentials(headers: BoardShopHeaders): Promise<VerificationResult> {
 	try {
 		const res = await fetch(`${API_BASE}/account/profile`, {
 			headers: buildHeaders(headers),
@@ -105,10 +103,7 @@ export async function listBoards(
  * Cache hit returns immediately. Cache miss fetches, stores, returns.
  * Cache is module-level Map — resets on server restart (intentional).
  */
-export async function getBoard(
-	headers: BoardShopHeaders,
-	sku: string,
-): Promise<Board> {
+export async function getBoard(headers: BoardShopHeaders, sku: string): Promise<Board> {
 	const cached = boardCache.get(sku);
 	if (cached) return cached;
 
@@ -134,15 +129,10 @@ export async function createOrder(
 	headers: BoardShopHeaders,
 	params: { sku: string; quantity: number },
 ): Promise<Order> {
-	const result = await apiFetch(
-		`${API_BASE}/orders`,
-		buildHeaders(headers),
-		OrderResponseSchema,
-		{
-			method: 'POST',
-			body: JSON.stringify(params),
-		},
-	);
+	const result = await apiFetch(`${API_BASE}/orders`, buildHeaders(headers), OrderResponseSchema, {
+		method: 'POST',
+		body: JSON.stringify(params),
+	});
 	return result.order;
 }
 

@@ -2,7 +2,7 @@
  * WebSocket transport — supports JSON frames, protobuf frames, and IRC-like text frames.
  */
 
-import type { WebSocket, WebSocketServer } from 'ws';
+import type { WebSocket } from 'ws';
 import { CHAT_MESSAGES } from '../data/media';
 import { generatePriceUpdate } from '../data/prices';
 import { encodePriceUpdate } from './protobuf';

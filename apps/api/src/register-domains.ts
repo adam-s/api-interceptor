@@ -11,8 +11,8 @@
  */
 
 import { registerDomain } from '@interceptor/browser/handler/domain-loader';
-import { registerRateLimit } from '@interceptor/shared';
 import { plugin as boardshop } from '@interceptor/domain-boardshop';
+import { registerRateLimit } from '@interceptor/shared';
 
 // ─── Domain plugins ──────────────────────────────────────────────────
 // boardshop is the reference example on base. Real domain plugins are

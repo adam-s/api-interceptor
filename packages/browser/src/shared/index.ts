@@ -9,6 +9,15 @@
  * @module browser/shared
  */
 
+export {
+	classifyEntry,
+	classifyPage,
+	type EncodingType,
+	type PageClassification,
+	type TrafficClassification,
+	type TrafficEntry,
+	type TransportType,
+} from './classify-transport';
 export type { InterceptorConfig, VerificationResult } from './config';
 export { GenericInterceptor } from './interceptor';
 export { GenericSessionManager } from './session-manager';
@@ -18,12 +27,3 @@ export type {
 	InterceptionCallback,
 	SessionStatus,
 } from './types';
-export {
-	classifyEntry,
-	classifyPage,
-	type TransportType,
-	type EncodingType,
-	type TrafficClassification,
-	type TrafficEntry,
-	type PageClassification,
-} from './classify-transport';

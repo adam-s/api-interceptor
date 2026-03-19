@@ -115,7 +115,7 @@ describe('streamshop site', () => {
 	});
 
 	test('chat WebSocket sends IRC-formatted text frames', async () => {
-		const wsUrl = server.url.replace('http', 'ws') + '/sites/streamshop/chat';
+		const wsUrl = `${server.url.replace('http', 'ws')}/sites/streamshop/chat`;
 
 		const messages: string[] = [];
 		await new Promise<void>((resolve, reject) => {

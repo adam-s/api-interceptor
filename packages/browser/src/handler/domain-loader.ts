@@ -23,9 +23,9 @@
  */
 
 import type { Context } from 'hono';
+import type { RemoteBrowserService } from '../remote/service.js';
 import type { InterceptorConfig, VerificationResult } from '../shared/config.js';
 import type { GenericInterceptor } from '../shared/interceptor.js';
-import type { RemoteBrowserService } from '../remote/service.js';
 
 /**
  * A single API route that can be proxied through the browser.
