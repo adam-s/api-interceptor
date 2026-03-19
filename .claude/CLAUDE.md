@@ -8,7 +8,8 @@
 
 Process rules live in `.claude/rules/` and are loaded automatically:
 
-- **`data-transport-discovery.md` — THE MOST IMPORTANT RULE. Systematic protocol to classify how every site serves data (WebSocket, GraphQL, gRPC, JSON API, Encoded API, SSR). Interception ALWAYS over extraction. Never DOM-scrape when the data exists in any network response — decode it instead.**
+- **`data-transport-discovery.md` — Classify data transport type (WebSocket, GraphQL, JSON API, Embedded JSON, Encoded API, SSR). Interception ALWAYS over extraction.**
+- **`discovery-process.md` — The investigative process for finding data and tokens. Read the source, catalog auth values, interact and watch the network, read the JS, follow every trail. Companion to the classification protocol.**
 - `inspection-first.md` — observe before guessing, DEBUG comments on every new file
 - `prompt-compliance.md` — produce a compliance matrix before every commit
 - `base-branch.md` — base accumulates all learning, test branches are disposable

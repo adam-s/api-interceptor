@@ -9,6 +9,8 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions. **Before writing ANY route, run the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`).** Interception ALWAYS over extraction — if the data exists in any network response, intercept it; DOM extraction is the absolute last resort.
 
+**Discovery process:** Before writing ANY route, follow the investigative process in `.claude/rules/discovery-process.md` — read the page source for embedded JSON, catalog every token and auth value, interact with the page and watch network traffic, read the site's JavaScript to trace values backwards, follow every trail until you can construct any request from scratch.
+
 **Development principle:** Use debug-logs and visual-dev skills at every step. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. **GATE: You may NOT write the next component until you have screenshotted the current one.**
 
 **Prompt compliance gate:** Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.

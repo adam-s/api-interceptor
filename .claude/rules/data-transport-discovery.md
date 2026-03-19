@@ -8,6 +8,8 @@ description: "THE MOST IMPORTANT RULE — systematic protocol to classify data t
 
 **The Golden Rule:** If ANY network request carries the data — even encoded, even obfuscated, even binary — the route MUST intercept that request. DOM extraction is the absolute last resort, only for data that literally does not exist in any network response.
 
+**Before classifying, you must investigate.** The decision tree below tells you what transport type the data uses. But first you must FIND the data. See `.claude/rules/discovery-process.md` for the investigative process — read the source, catalog tokens, interact with the page, trace values backwards.
+
 ## The Decision Tree
 
 **Run this protocol FOR EACH data type on a page** (prices, listings, search results, availability, etc.). A single page can use multiple transports — prices via WebSocket, listings via XHR, metadata via SSR.
@@ -32,6 +34,7 @@ The order matters. Higher-priority transports are checked first. **Never skip to
 | **(c)** | Content-Type `application/grpc-web`? | **gRPC-Web** | Decode protobuf, proxy the RPC call |
 | **(d)** | Content-Type `text/event-stream`? | **Server-Sent Events** | Subscribe and relay the event stream |
 | **(e)** | XHR/Fetch with `application/json` response containing the data? | **JSON API** | Type A proxy — `browserFetch()` or `targetUrl` |
+| **(e2)** | HTML response contains `<script type="application/json">` or `__NEXT_DATA__` with the data? | **Embedded JSON** | Parse JSON from HTML, proxy pagination POST if applicable |
 | **(f)** | XHR/Fetch with non-JSON body (binary, base64, encoded, compressed, or unfamiliar format)? | **Encoded API** | ⚠️ **DECODE IT** — see Step 3 below. **NEVER skip to (g).** |
 | **(g)** | ZERO relevant network requests after 15s wait | **SSR / Document** | Type B — DOM extraction via `page.evaluate()` |
 
