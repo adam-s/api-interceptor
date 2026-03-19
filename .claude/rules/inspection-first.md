@@ -33,7 +33,7 @@ Data that exists in any form can be understood. When you observe unexpected outp
 
 Two investigation tools, depending on whose code you're looking at:
 - **Our code:** Add DEBUG() calls to trace what each layer actually produces.
-- **The website's code:** Download JS bundles, search for string anchors (data-testid, attribute values), and trace the transformation backwards from rendered output to raw API response. See api-discovery skill "Decoding Encoded API Responses" for the full technique.
+- **The website's code:** Follow the discovery process in `.claude/rules/discovery-process.md` — read the page source for embedded JSON, catalog tokens, interact with the page and watch traffic, read JS bundles and trace values backwards, check for WebSocket streams, map the DOM. Every step produces observable evidence.
 
 **When stuck, enumerate before abandoning.** List every possible explanation for the unexpected behavior (encoding, localization, unit conversion, indirect references, lazy loading, pagination, protocol differences). Test each with a targeted observation. Only abandon an approach after you have evidence that it *cannot* work — not just evidence that it doesn't work *yet*.
 
@@ -41,7 +41,7 @@ Two investigation tools, depending on whose code you're looking at:
 
 These failure modes have caused repeated iteration failures. They are structural gates, not suggestions.
 
-1. **Never write extraction code without observing traffic first.** Run `/browser/traffic` or add DEBUG logs to see what data the site actually sends. DOM scraping is the LAST resort — sites use React with dynamic class names, not static HTML tables. The api-discovery skill Phase 1 (Observe) is mandatory.
+1. **Never write extraction code without observing first.** Read the page source for embedded JSON. Check `/browser/traffic` for API calls. Check JS bundles for WebSocket endpoints. Map the DOM for custom elements and data attributes. Follow `.claude/rules/discovery-process.md`. DOM scraping is the LAST resort — sites use React with dynamic class names, not static HTML tables.
 
 2. **Never declare "done" without end-to-end proof.** "Done" means: real data flows from the source website through the API to the dashboard UI, verified by curl output or screenshots showing real data. If any step in the user journey shows empty/error results, it's NOT done.
 

@@ -108,7 +108,92 @@ Example: boardshop.example.com JS bundle search
 
 Find decoders and transformers: search for `atob`, `JSON.parse`, `decode`, `decompress`, `protobuf`, `msgpack` near data field names. Sites that encode their API responses have decoder functions in the JS bundles.
 
-## 5. Follow Every Trail
+## 5. Discover WebSocket Streams
+
+Many sites use WebSocket connections for real-time data — prices, scores, notifications, chat, live counts. WebSocket discovery requires a different approach than REST because **CDP traffic capture only captures XHR/Fetch — it does NOT capture WebSocket frames.**
+
+How to find WebSocket endpoints:
+
+- **Read the JS bundles** — search for `wss://`, `new WebSocket(`, `WebSocket(`. The endpoint URL is in the code.
+- **Check for protobuf** — if the page loads `protobufjs` or similar, the WebSocket likely uses binary protobuf frames, not JSON. Search the JS for `.decode(`, `.encode(`, `protobuf.roots`.
+- **Check for custom elements** — sites that stream data often have custom DOM elements that receive updates (e.g., `<live-price>`, `<stream-value>`). Find them with `document.querySelectorAll('[data-field]')` or similar attribute queries.
+- **Connect directly** — once you find the `wss://` URL, connect with a plain WebSocket client. Send a subscription message (found in the JS bundle). Read the frames.
+
+Decoding WebSocket messages:
+
+1. If frames are JSON text — read them directly
+2. If frames are binary — check the JS bundles for protobuf schema names (e.g., `protobuf.roots.default.quotefeeder`)
+3. If the outer frame is JSON wrapping base64 — decode the base64 to get the inner binary, then decode protobuf
+4. For quick protobuf exploration without a schema: field 0 = wire type tells you the format (0=varint, 2=string/bytes, 5=float32). Readable strings in the binary often reveal the symbol/ID.
+
+```
+Example: boardshop.example.com real-time inventory WebSocket
+
+  Found in JS bundle: new WebSocket("wss://stream.boardshop.example.com/inventory")
+  Protobuf loaded: <script src="protobuf.min.js">
+  Schema in bundle: protobuf.roots.default.inventoryUpdate
+
+  Subscription: ws.send(JSON.stringify({subscribe: ["DECK-001", "DECK-002"]}))
+
+  Frames received: {"type":"inventory","message":"CghERUNLLTAwMRUAAMhB..."}
+  Decoded: {field_1: "DECK-001", field_2_float: 25.0, field_3: 1711234567}
+  Meaning: SKU "DECK-001", 25 units in stock, timestamp
+
+  DOM target: <live-inventory data-sku="DECK-001" data-field="stockCount">25</live-inventory>
+  The WebSocket updates these elements in real time.
+```
+
+**Key limitation:** Our `/browser/traffic` endpoint does NOT capture WebSocket frames. You must connect directly to the WebSocket endpoint or intercept via `page.on('websocket')` in Patchright. Always check for WebSocket URLs in the JS bundles even when traffic capture shows nothing interesting.
+
+## 6. Document the DOM
+
+Map every data-bearing DOM element alongside the JSON structures and API endpoints. The DOM is part of the API — it's where tokens live, where data renders, and where you can triangulate that your extracted data matches what the user sees.
+
+What to map:
+
+- **Custom elements** — sites use custom tags for live data (e.g., `<live-price data-field="price" data-sku="DECK-001">`). Query: `document.querySelectorAll('[data-field]')`. Group by `data-field` to see all tracked data types.
+- **Data-testid attributes** — `[data-testid]` elements mark stable, testable UI sections. These are reliable selectors that survive CSS class changes.
+- **Hidden inputs** — token sources: `document.querySelectorAll('input[type=hidden]')`
+- **Data attributes on containers** — `data-symbol`, `data-id`, `data-category` etc. reveal the relationship between DOM sections and data entities.
+
+For each element, document:
+
+| Property | Why it matters |
+|----------|---------------|
+| **Selector** | How to find it: `[data-testid="price"]`, `[data-field="stockCount"]` |
+| **Tag name** | Standard (`span`, `div`) or custom (`live-price`, `fin-streamer`) |
+| **Data attributes** | `data-field`, `data-sku`, `data-value`, `data-symbol` — maps element to data |
+| **Text content** | The rendered value the user sees |
+| **Parent context** | What section/container it belongs to |
+
+```
+Example: boardshop.example.com DOM map
+
+  Custom elements (live-inventory): 48 elements
+    data-field="stockCount": 24 elements, skus: [DECK-001, DECK-002, ...]
+    data-field="price":      24 elements, skus: [DECK-001, DECK-002, ...]
+    Sample: <live-inventory data-sku="DECK-001" data-field="price" data-value="64.99">$64.99</live-inventory>
+
+  Data-testid elements:
+    "product-grid"     → <section> — main product listing container
+    "product-card"     → <div> — individual product (repeated)
+    "product-price"    → <span> — price display within card
+    "cart-count"       → <span> — header cart item count
+    "filter-panel"     → <aside> — sidebar filters
+
+  Hidden inputs:
+    <input type="hidden" id="csrf" value="abc123...">
+    <input type="hidden" name="cart-token" value="ghi012...">
+
+  Triangulation: embedded JSON has {price: 64.99} for DECK-001
+    DOM shows <live-inventory data-value="64.99">$64.99</live-inventory>
+    WebSocket updates this element when stock/price changes
+    All three sources agree → data model confirmed
+```
+
+This DOM map serves three purposes: (1) confirms the data model by triangulation, (2) identifies token sources for request construction, (3) provides stable selectors if DOM extraction is ever needed as a fallback.
+
+## 7. Follow Every Trail
 
 Each discovery raises the next question. Follow it.
 
@@ -120,7 +205,7 @@ Each discovery raises the next question. Follow it.
 
 **Don't stop until you can construct any request from scratch.** If there's a parameter you don't understand, trace it. If a response has a field you haven't seen used, note it — it may be needed later for a different endpoint.
 
-## 6. Document as You Go
+## 8. Document as You Go
 
 Every finding gets logged immediately. The discovery output is a complete map:
 
