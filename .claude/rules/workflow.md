@@ -14,6 +14,23 @@ description: Workflow rules — verification, git hygiene, mistake logging, test
 - **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
 - **Track multi-attempt difficulties:** when a problem requires 5+ different approaches, document it in `base-fixes-needed.md` with: the problem, what was tried, and the resolution. The user reviews these after prompt completion to understand where complexity lives.
 
+## Process Cleanup Rule
+
+**Clean up everything you started.** Before finishing a task or switching context, kill all processes and remove all temp files you created. Orphaned processes waste resources and confuse the user.
+
+Checklist:
+
+1. **Kill browser sessions** — `pkill -f "connect-browser"`, check `ps aux | grep browser-profiles`
+2. **Kill API/web servers** you started — `lsof -ti:3001 | xargs kill`, `lsof -ti:3000 | xargs kill`
+3. **Kill node scripts** in /tmp — `pkill -f "node /tmp/"`, any WebSocket streamers, polling scripts
+4. **Kill tsx watchers** — `pkill -f "tsx.*src/index"` (tsx --watch respawns child processes)
+5. **Remove temp files** — `/tmp/scripts.ts`, `/tmp/*.cjs`, `/tmp/*.log` that you created
+6. **Verify** — `lsof -ti:3001`, `ps aux | grep browser-profiles`, `ps aux | grep "node /tmp/"` should all return empty
+
+**tsx --watch trap:** When you kill an API server started with `tsx --watch`, the watcher respawns it. You must kill both the child (on the port) and the parent watcher (`pkill -f "tsx.*src/index"`).
+
+Do this cleanup at end of task, before switching branches, and before the conversation ends.
+
 ## Notes File Rule (Test -> Base)
 
 **On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.** Write discoveries to the persistent fix queue instead:

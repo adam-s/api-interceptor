@@ -31,7 +31,9 @@ FOR each prompt:
         This list is your contract. You are done when every item has evidence, not before.
      b. Connect browser via WebSocket
         (ws://localhost:PORT/browser/stream?profile=<domain>&url=<target>).
-        Capture traffic. Screenshot the page with visual-dev skill to see ground truth.
+        Follow the full discovery process in `.claude/rules/discovery-process.md` — read the page
+        source, catalog tokens, interact and watch traffic, check JS bundles for WebSocket/GraphQL
+        endpoints, document the DOM. This is how you find the data before classifying it.
         ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
         capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
   1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
