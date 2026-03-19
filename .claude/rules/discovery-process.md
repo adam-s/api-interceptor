@@ -1,10 +1,10 @@
 ---
-description: "The investigative process for reverse-engineering how a website serves data. Read the source, catalog tokens, interact and watch, read the JS, follow every trail. Companion to data-transport-discovery.md."
+description: "The investigative process for discovering how a website serves data. Read the source, catalog tokens, interact and watch, read the JS, follow every trail. Companion to data-transport-discovery.md."
 ---
 
 # Discovery Process
 
-**This is how you find data.** The decision tree in `data-transport-discovery.md` classifies what transport type the data uses. This document teaches the investigative work that happens first — the reverse engineering that discovers WHERE the data lives, HOW requests are constructed, and WHAT tokens/IDs are required.
+**This is how you find data.** The decision tree in `data-transport-discovery.md` classifies what transport type the data uses. This document teaches the investigative work that happens first — discovering WHERE the data lives, HOW requests are constructed, and WHAT tokens/IDs are required.
 
 **Do this for every new domain.** Every step builds on the previous. Each discovery raises the next question. Don't stop until you can construct any request the site makes, from scratch.
 
@@ -86,7 +86,7 @@ Example: boardshop.example.com "Load more boards" button
 
 ## 4. Read the Site's JavaScript
 
-Fetch the JS bundles and reverse-engineer how the frontend constructs requests.
+Fetch the JS bundles and analyze how the frontend constructs requests.
 
 - Find all `<script src="...">` tags, fetch the bundle URLs
 - Search for **string anchors:** endpoint URLs, field names from the data, parameter names you found in request payloads

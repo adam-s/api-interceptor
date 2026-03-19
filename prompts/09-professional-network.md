@@ -1,4 +1,4 @@
-Use the api-discovery skill (`.claude/skills/api-discovery/SKILL.md`) in **Live Mode** to reverse-engineer a major professional network's internal API. The API server is running on port 3001 with traffic capture at `/browser/traffic`. Follow the skill's workflow: clear buffer → navigate → wait → read traffic → analyze → schema → repeat.
+Use the api-discovery skill (`.claude/skills/api-discovery/SKILL.md`) in **Live Mode** to discover a major professional network's internal API. The API server is running on port 3001 with traffic capture at `/browser/traffic`. Follow the skill's workflow: clear buffer → navigate → wait → read traffic → analyze → schema → repeat.
 
 Build me a full automation platform. Create a domain plugin that captures every API endpoint the site uses — feed, profiles, messaging, jobs, posting, comments, reactions, search, connections, notifications. This is an API discovery project first, automation platform second.
 

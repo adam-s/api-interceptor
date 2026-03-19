@@ -1,11 +1,11 @@
 ---
 name: api-discovery
-description: Discover any website's API and create domain plugins with proxy routes. Use when the user wants to create an API for a website, reverse-engineer a web service, add a new domain, capture browser traffic, build typed API clients, or integrate with a third-party site. Also use when the user mentions a website name and wants to interact with it programmatically.
+description: Discover any website's API and create domain plugins with proxy routes. Use when the user wants to create an API for a website, discover a web service's data transport, add a new domain, capture browser traffic, build typed API clients, or integrate with a third-party site. Also use when the user mentions a website name and wants to interact with it programmatically.
 ---
 
 # API Discovery
 
-Reverse-engineer how a website delivers its data, then create a domain plugin that exposes it as a typed API. Works with JSON APIs, WebSocket streams, GraphQL, gRPC-Web, SSE, encoded/obfuscated APIs, and SSR pages.
+Discover how a website delivers its data, then create a domain plugin that exposes it as a typed API. Works with JSON APIs, WebSocket streams, GraphQL, gRPC-Web, SSE, encoded/obfuscated APIs, and SSR pages.
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions. **Before writing ANY route, run the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`).** Interception ALWAYS over extraction — if the data exists in any network response, intercept it; DOM extraction is the absolute last resort.
 

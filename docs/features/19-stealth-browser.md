@@ -30,7 +30,7 @@ Robinhood is not most websites.
 
 The first sign was Robinhood's login page redirecting to a challenge after five seconds. No CAPTCHA, no error message. Just a blank page and a redirect to a URL containing `challenge`.
 
-I had no visibility into *why* it was flagging me. That's the fundamental problem with bot detection debugging: the defender tells you nothing. You're reverse-engineering a classifier with a single bit of output—blocked or not blocked.
+I had no visibility into *why* it was flagging me. That's the fundamental problem with bot detection debugging: the defender tells you nothing. You're investigating a classifier with a single bit of output—blocked or not blocked.
 
 The fix was to add fingerprint logging. On every browser launch, I captured the same signals that bot detectors check and wrote them to a file:
 

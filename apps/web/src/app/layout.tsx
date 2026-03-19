@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
 	title: 'Interceptor',
-	description: 'Reverse-engineer web APIs through request interception and traffic analysis',
+	description: 'Discover web APIs through request interception and traffic analysis',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

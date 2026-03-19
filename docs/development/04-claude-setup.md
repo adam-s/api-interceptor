@@ -65,7 +65,7 @@ A markdown file at the repo root that Claude Code reads on every session. It's a
 ```markdown
 # Interceptor
 
-pnpm + Turborepo monorepo for API interception and reverse engineering.
+pnpm + Turborepo monorepo for API interception and discovery.
 
 ## Commands
 

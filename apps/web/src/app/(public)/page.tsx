@@ -7,7 +7,7 @@ export default function HomePage() {
 			<div className="text-center">
 				<h1 className="text-3xl font-bold">Interceptor</h1>
 				<p className="mt-2 text-muted-foreground">
-					Reverse-engineer web APIs through request interception
+					Discover web APIs through request interception
 				</p>
 			</div>
 			<div className="flex gap-3">
