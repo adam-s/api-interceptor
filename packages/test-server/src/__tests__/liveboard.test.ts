@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { WebSocket } from 'ws';
 import protobufjs from 'protobufjs';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
+import { WebSocket } from 'ws';
 import { createTestServer, type TestServerInstance } from '../index';
 import { PROTO_DEFINITION } from '../transports/protobuf';
 
@@ -49,7 +49,9 @@ describe('liveboard site', () => {
 		const html = await pageRes.text();
 		const cookie = pageRes.headers.get('set-cookie')!;
 
-		const configMatch = html.match(/<script id="app-config" type="application\/json">(.+?)<\/script>/s);
+		const configMatch = html.match(
+			/<script id="app-config" type="application\/json">(.+?)<\/script>/s,
+		);
 		const config = JSON.parse(configMatch![1]);
 
 		// Without crumb → 401
@@ -84,7 +86,10 @@ describe('liveboard site', () => {
 		const messages: string[] = [];
 		await new Promise<void>((resolve, reject) => {
 			const ws = new WebSocket(wsUrl);
-			const timeout = setTimeout(() => { ws.close(); reject(new Error('WS timeout')); }, 5000);
+			const timeout = setTimeout(() => {
+				ws.close();
+				reject(new Error('WS timeout'));
+			}, 5000);
 
 			ws.on('message', (data) => {
 				messages.push(data.toString());
@@ -94,7 +99,10 @@ describe('liveboard site', () => {
 					resolve();
 				}
 			});
-			ws.on('error', (e) => { clearTimeout(timeout); reject(e); });
+			ws.on('error', (e) => {
+				clearTimeout(timeout);
+				reject(e);
+			});
 		});
 
 		// First message is connection confirmation

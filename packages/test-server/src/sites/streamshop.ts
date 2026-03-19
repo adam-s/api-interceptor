@@ -8,13 +8,13 @@
  * - Channel page HTML referencing all endpoints
  */
 
-import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
+import { Hono } from 'hono';
 import { CHANNELS, QUALITY_VARIANTS } from '../data/media';
 import { PRODUCTS } from '../data/products';
+import { renderEmbeddedPage } from '../transports/embedded-html';
 import { createGraphQLRoutes } from '../transports/graphql';
 import { createHLSRoutes } from '../transports/hls';
-import { renderEmbeddedPage } from '../transports/embedded-html';
 
 const CLIENT_ID = 'boardshop_client_abc123xyz';
 
@@ -28,8 +28,8 @@ export function createStreamshopSite(): Hono {
 	const gql = createGraphQLRoutes('', {
 		requiredHeader: { name: 'Client-ID', value: CLIENT_ID },
 		persistedQueries: {
-			'a1b2c3d4e5f6': 'SearchProducts',
-			'f6e5d4c3b2a1': 'GetProduct',
+			a1b2c3d4e5f6: 'SearchProducts',
+			f6e5d4c3b2a1: 'GetProduct',
 		},
 		resolver: {
 			products: (args) => {
@@ -86,9 +86,7 @@ export function createStreamshopSite(): Hono {
 					},
 				},
 			],
-			metaTags: [
-				{ name: 'client-id', content: CLIENT_ID },
-			],
+			metaTags: [{ name: 'client-id', content: CLIENT_ID }],
 			bodyHtml:
 				`<div data-testid="channel-page" data-channel="${channel.name}">` +
 				`<section data-testid="video-player"><video></video></section>` +

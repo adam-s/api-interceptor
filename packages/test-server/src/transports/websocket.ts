@@ -3,8 +3,8 @@
  */
 
 import type { WebSocket, WebSocketServer } from 'ws';
-import { generatePriceUpdate } from '../data/prices';
 import { CHAT_MESSAGES } from '../data/media';
+import { generatePriceUpdate } from '../data/prices';
 import { encodePriceUpdate } from './protobuf';
 
 export type WSMode = 'json' | 'protobuf' | 'irc';
@@ -16,10 +16,7 @@ export interface WSRoute {
 	channel?: string;
 }
 
-export function handleWSUpgrade(
-	ws: WebSocket,
-	route: WSRoute,
-): void {
+export function handleWSUpgrade(ws: WebSocket, route: WSRoute): void {
 	if (route.mode === 'json') {
 		handleJsonWS(ws);
 	} else if (route.mode === 'protobuf') {
@@ -33,7 +30,10 @@ function handleJsonWS(ws: WebSocket): void {
 	ws.send(JSON.stringify({ type: 'connected', transport: 'websocket-json' }));
 
 	const interval = setInterval(() => {
-		if (ws.readyState !== 1) { clearInterval(interval); return; }
+		if (ws.readyState !== 1) {
+			clearInterval(interval);
+			return;
+		}
 		const update = generatePriceUpdate();
 		ws.send(JSON.stringify({ type: 'price_update', data: update }));
 	}, 500);
@@ -46,7 +46,10 @@ function handleProtobufWS(ws: WebSocket): void {
 	ws.send(JSON.stringify({ type: 'connected', transport: 'websocket-protobuf' }));
 
 	const interval = setInterval(() => {
-		if (ws.readyState !== 1) { clearInterval(interval); return; }
+		if (ws.readyState !== 1) {
+			clearInterval(interval);
+			return;
+		}
 		const update = generatePriceUpdate();
 		const encoded = encodePriceUpdate({
 			sku: update.sku,
@@ -89,9 +92,14 @@ function handleIrcWS(ws: WebSocket, channel: string): void {
 function startChatStream(ws: WebSocket, channel: string): void {
 	let idx = 0;
 	const interval = setInterval(() => {
-		if (ws.readyState !== 1) { clearInterval(interval); return; }
+		if (ws.readyState !== 1) {
+			clearInterval(interval);
+			return;
+		}
 		const msg = CHAT_MESSAGES[idx % CHAT_MESSAGES.length];
-		ws.send(`:${msg.user}!${msg.user}@${msg.user}.tmi.testserver.tv PRIVMSG #${channel} :${msg.message}\r\n`);
+		ws.send(
+			`:${msg.user}!${msg.user}@${msg.user}.tmi.testserver.tv PRIVMSG #${channel} :${msg.message}\r\n`,
+		);
 		idx++;
 	}, 800);
 

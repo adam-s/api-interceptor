@@ -15,9 +15,9 @@ import { Hono } from 'hono';
 import { WebSocketServer } from 'ws';
 
 import { createBoardshopSite } from './sites/boardshop';
+import { createDataboardSite } from './sites/databoard';
 import { createLiveboardSite } from './sites/liveboard';
 import { createStreamshopSite } from './sites/streamshop';
-import { createDataboardSite } from './sites/databoard';
 import { handleWSUpgrade, type WSRoute } from './transports/websocket';
 
 export interface TestServerOptions {
@@ -38,7 +38,9 @@ const WS_ROUTES: WSRoute[] = [
 	{ path: '/sites/streamshop/chat', mode: 'irc', channel: 'boardshop-live' },
 ];
 
-export async function createTestServer(options: TestServerOptions = {}): Promise<TestServerInstance> {
+export async function createTestServer(
+	options: TestServerOptions = {},
+): Promise<TestServerInstance> {
 	const app = new Hono();
 
 	// Health check
@@ -76,13 +78,16 @@ export async function createTestServer(options: TestServerOptions = {}): Promise
 					},
 					{} as Record<string, string>,
 				),
-				body: req.method !== 'GET' && req.method !== 'HEAD'
-					? await new Promise<string>((resolve) => {
-							let data = '';
-							req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
-							req.on('end', () => resolve(data));
-						})
-					: undefined,
+				body:
+					req.method !== 'GET' && req.method !== 'HEAD'
+						? await new Promise<string>((resolve) => {
+								let data = '';
+								req.on('data', (chunk: Buffer) => {
+									data += chunk.toString();
+								});
+								req.on('end', () => resolve(data));
+							})
+						: undefined,
 			}),
 		);
 

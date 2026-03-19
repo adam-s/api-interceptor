@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { WebSocket } from 'ws';
 import { createTestServer, type TestServerInstance } from '../index';
 import { STREAMSHOP_CLIENT_ID } from '../sites/streamshop';
@@ -120,7 +120,10 @@ describe('streamshop site', () => {
 		const messages: string[] = [];
 		await new Promise<void>((resolve, reject) => {
 			const ws = new WebSocket(wsUrl);
-			const timeout = setTimeout(() => { ws.close(); reject(new Error('WS timeout')); }, 5000);
+			const timeout = setTimeout(() => {
+				ws.close();
+				reject(new Error('WS timeout'));
+			}, 5000);
 
 			ws.on('open', () => {
 				// IRC handshake
@@ -140,7 +143,10 @@ describe('streamshop site', () => {
 				}
 			});
 
-			ws.on('error', (e) => { clearTimeout(timeout); reject(e); });
+			ws.on('error', (e) => {
+				clearTimeout(timeout);
+				reject(e);
+			});
 		});
 
 		// Should have IRC protocol messages + at least one chat message

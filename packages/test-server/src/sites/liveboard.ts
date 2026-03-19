@@ -8,9 +8,9 @@
  * - Custom DOM elements with data-field, data-symbol, data-value
  */
 
-import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
-import { TRACKED_SKUS, generateSnapshot } from '../data/prices';
+import { Hono } from 'hono';
+import { generateSnapshot, TRACKED_SKUS } from '../data/prices';
 import { PRODUCTS } from '../data/products';
 import { renderEmbeddedPage } from '../transports/embedded-html';
 

@@ -10,15 +10,19 @@
  * - Multiple auth token sources (hidden input, cookie, window global)
  */
 
-import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
-import { PRODUCTS, getProductPage, getReviewsCursor, MAX_PAGE_SIZE } from '../data/products';
+import { Hono } from 'hono';
+import { getProductPage, getReviewsCursor, MAX_PAGE_SIZE, PRODUCTS } from '../data/products';
 import { renderEmbeddedPage } from '../transports/embedded-html';
 
 // In-memory session store for CSRF tokens
 const sessions = new Map<string, { csrf: string; filterSessionId: string }>();
 
-function getOrCreateSession(sessionId: string | undefined): { sessionId: string; csrf: string; filterSessionId: string } {
+function getOrCreateSession(sessionId: string | undefined): {
+	sessionId: string;
+	csrf: string;
+	filterSessionId: string;
+} {
 	const sid = sessionId ?? randomUUID();
 	if (!sessions.has(sid)) {
 		sessions.set(sid, { csrf: randomUUID(), filterSessionId: randomUUID() });
@@ -33,7 +37,12 @@ export function createBoardshopSite(): Hono {
 	// ─── Main catalog page (GET = HTML with embedded JSON) ───────────
 	app.get('/', (c) => {
 		const q = c.req.query('q') ?? '';
-		const category = c.req.query('category') as 'decks' | 'trucks' | 'wheels' | 'accessories' | undefined;
+		const category = c.req.query('category') as
+			| 'decks'
+			| 'trucks'
+			| 'wheels'
+			| 'accessories'
+			| undefined;
 		const sessionCookie = c.req.header('cookie')?.match(/_sid=([^;]+)/)?.[1];
 		const session = getOrCreateSession(sessionCookie);
 
@@ -41,9 +50,11 @@ export function createBoardshopSite(): Hono {
 
 		// Filter by search query if provided
 		const filteredItems = q
-			? page1.items.filter((p) =>
-					p.name.toLowerCase().includes(q.toLowerCase()) ||
-					p.brand.toLowerCase().includes(q.toLowerCase()))
+			? page1.items.filter(
+					(p) =>
+						p.name.toLowerCase().includes(q.toLowerCase()) ||
+						p.brand.toLowerCase().includes(q.toLowerCase()),
+				)
 			: page1.items;
 
 		const catalogData = {
@@ -61,14 +72,16 @@ export function createBoardshopSite(): Hono {
 
 		// Build custom element HTML for each product
 		const productElements = filteredItems
-			.map((p) =>
-				`<div data-testid="product-card" data-sku="${p.sku}">` +
-				`<board-price data-sku="${p.sku}" data-field="price" data-value="${p.price}">$${p.price.toFixed(2)}</board-price>` +
-				`<board-stock data-sku="${p.sku}" data-field="stock" data-value="${p.stock}">${p.stock} in stock</board-stock>` +
-				`<board-rating data-sku="${p.sku}" data-field="rating" data-value="${p.rating}">${p.rating}/5</board-rating>` +
-				`<span data-testid="product-name">${p.name}</span>` +
-				`<span data-testid="product-brand">${p.brand}</span>` +
-				`</div>`)
+			.map(
+				(p) =>
+					`<div data-testid="product-card" data-sku="${p.sku}">` +
+					`<board-price data-sku="${p.sku}" data-field="price" data-value="${p.price}">$${p.price.toFixed(2)}</board-price>` +
+					`<board-stock data-sku="${p.sku}" data-field="stock" data-value="${p.stock}">${p.stock} in stock</board-stock>` +
+					`<board-rating data-sku="${p.sku}" data-field="rating" data-value="${p.rating}">${p.rating}/5</board-rating>` +
+					`<span data-testid="product-name">${p.name}</span>` +
+					`<span data-testid="product-brand">${p.brand}</span>` +
+					`</div>`,
+			)
 			.join('\n');
 
 		const html = renderEmbeddedPage({
@@ -80,12 +93,8 @@ export function createBoardshopSite(): Hono {
 			windowGlobals: {
 				__SESSION__: { id: session.sessionId, filterSessionId: session.filterSessionId },
 			},
-			hiddenInputs: [
-				{ id: 'csrf-token', name: 'csrf-token', value: session.csrf },
-			],
-			metaTags: [
-				{ name: 'api-key', content: 'pk_test_boardshop_abc123' },
-			],
+			hiddenInputs: [{ id: 'csrf-token', name: 'csrf-token', value: session.csrf }],
+			metaTags: [{ name: 'api-key', content: 'pk_test_boardshop_abc123' }],
 			bodyHtml: `<section data-testid="product-grid">\n${productElements}\n</section>`,
 			cookies: [{ name: '_sid', value: session.sessionId, path: '/' }],
 		});
@@ -97,7 +106,7 @@ export function createBoardshopSite(): Hono {
 
 	// ─── POST pagination (same URL!) ────────────────────────────────
 	app.post('/', async (c) => {
-		const body = await c.req.json() as {
+		const body = (await c.req.json()) as {
 			page?: number;
 			pageSize?: number;
 			filterSessionId?: string;
@@ -126,7 +135,11 @@ export function createBoardshopSite(): Hono {
 
 		const page = body.page ?? 1;
 		const pageSize = body.pageSize ?? MAX_PAGE_SIZE;
-		const result = getProductPage(page, pageSize, body.category as 'decks' | 'trucks' | 'wheels' | 'accessories' | undefined);
+		const result = getProductPage(
+			page,
+			pageSize,
+			body.category as 'decks' | 'trucks' | 'wheels' | 'accessories' | undefined,
+		);
 
 		// POST response is FLATTER than GET — items at top level, not nested under catalog
 		return c.json({
@@ -146,7 +159,15 @@ export function createBoardshopSite(): Hono {
 		const html = renderEmbeddedPage({
 			title: `${product.name} — BoardShop`,
 			dataScripts: [
-				{ id: 'product-data', data: { product, relatedSkus: PRODUCTS.filter((p) => p.category === product.category && p.sku !== sku).slice(0, 4).map((p) => p.sku) } },
+				{
+					id: 'product-data',
+					data: {
+						product,
+						relatedSkus: PRODUCTS.filter((p) => p.category === product.category && p.sku !== sku)
+							.slice(0, 4)
+							.map((p) => p.sku),
+					},
+				},
 			],
 			bodyHtml:
 				`<div data-testid="product-detail" data-sku="${sku}">` +
@@ -177,7 +198,12 @@ export function createBoardshopSite(): Hono {
 		}
 		const page = Number(c.req.query('page') ?? 1);
 		const pageSize = Number(c.req.query('pageSize') ?? MAX_PAGE_SIZE);
-		const category = c.req.query('category') as 'decks' | 'trucks' | 'wheels' | 'accessories' | undefined;
+		const category = c.req.query('category') as
+			| 'decks'
+			| 'trucks'
+			| 'wheels'
+			| 'accessories'
+			| undefined;
 		return c.json(getProductPage(page, pageSize, category));
 	});
 

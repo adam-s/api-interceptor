@@ -68,17 +68,20 @@ export function encodePriceUpdate(data: {
 	return Type.encode(msg).finish();
 }
 
-export function encodeProductList(products: Array<{
-	sku: string;
-	name: string;
-	category: string;
-	price: number;
-	currency: string;
-	stock: number;
-	brand: string;
-	rating: number;
-	reviewCount: number;
-}>, totalCount: number): Uint8Array {
+export function encodeProductList(
+	products: Array<{
+		sku: string;
+		name: string;
+		category: string;
+		price: number;
+		currency: string;
+		stock: number;
+		brand: string;
+		rating: number;
+		reviewCount: number;
+	}>,
+	totalCount: number,
+): Uint8Array {
 	const r = getRoot();
 	const Type = r.lookupType('boardshop.ProductList');
 	const msg = Type.create({

@@ -235,8 +235,6 @@ server.listen(port, () => {
 	// The browser is shared: a subsequent WS connection reuses it (same profile) or
 	// replaces it (different profile). Set BROWSER_AUTO_START=false to disable.
 	if (process.env.BROWSER_AUTO_START !== 'false') {
-		autoStartHeadlessBrowser().catch((err) =>
-			console.error('[browser] Auto-start failed:', err),
-		);
+		autoStartHeadlessBrowser().catch((err) => console.error('[browser] Auto-start failed:', err));
 	}
 });

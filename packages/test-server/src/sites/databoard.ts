@@ -10,11 +10,11 @@
  * - Bearer token auth flow
  */
 
-import { Hono } from 'hono';
 import { randomUUID } from 'node:crypto';
-import { PRODUCTS, getProductPage, MAX_PAGE_SIZE } from '../data/products';
-import { encodeProductList, grpcWebFrame, PROTO_DEFINITION } from '../transports/protobuf';
+import { Hono } from 'hono';
+import { getProductPage, MAX_PAGE_SIZE, PRODUCTS } from '../data/products';
 import { encodeBase64, encodeMsgpack } from '../transports/encoded';
+import { encodeProductList, grpcWebFrame, PROTO_DEFINITION } from '../transports/protobuf';
 
 // Bearer tokens
 const bearerTokens = new Set<string>();
@@ -24,7 +24,7 @@ export function createDataboardSite(): Hono {
 
 	// ─── Auth token endpoint ────────────────────────────────────────
 	app.post('/api/auth/token', async (c) => {
-		const body = await c.req.json().catch(() => ({})) as { clientId?: string };
+		const body = (await c.req.json().catch(() => ({}))) as { clientId?: string };
 		if (!body.clientId) return c.json({ error: 'clientId required' }, 400);
 		const token = randomUUID();
 		bearerTokens.add(token);
@@ -51,20 +51,28 @@ export function createDataboardSite(): Hono {
 	app.post('/graphql', async (c) => {
 		const body = await c.req.json();
 		const ops = Array.isArray(body) ? body : [body];
-		const results = ops.map((op: { operationName?: string; variables?: Record<string, unknown> }) => {
-			const name = op.operationName ?? '';
-			const vars = op.variables ?? {};
-			if (name === 'SearchProducts' || name.includes('roduct')) {
-				const limit = (vars.limit as number) ?? 20;
-				const products = gqlResolver.products({ category: vars.category as string, limit });
-				return { data: { searchProducts: { items: products.slice(0, limit), totalCount: products.length } } };
-			}
-			if (name === 'GetProduct') {
-				const product = gqlResolver.product(vars.sku as string);
-				return product ? { data: { product } } : { data: null, errors: [{ message: 'Not found' }] };
-			}
-			return { data: null, errors: [{ message: `Unknown operation: ${name}` }] };
-		});
+		const results = ops.map(
+			(op: { operationName?: string; variables?: Record<string, unknown> }) => {
+				const name = op.operationName ?? '';
+				const vars = op.variables ?? {};
+				if (name === 'SearchProducts' || name.includes('roduct')) {
+					const limit = (vars.limit as number) ?? 20;
+					const products = gqlResolver.products({ category: vars.category as string, limit });
+					return {
+						data: {
+							searchProducts: { items: products.slice(0, limit), totalCount: products.length },
+						},
+					};
+				}
+				if (name === 'GetProduct') {
+					const product = gqlResolver.product(vars.sku as string);
+					return product
+						? { data: { product } }
+						: { data: null, errors: [{ message: 'Not found' }] };
+				}
+				return { data: null, errors: [{ message: `Unknown operation: ${name}` }] };
+			},
+		);
 		return c.json(Array.isArray(body) ? results : results[0]);
 	});
 
@@ -117,7 +125,8 @@ export function createDataboardSite(): Hono {
 		const stats = {
 			totalProducts: PRODUCTS.length,
 			categories: { decks: 40, trucks: 30, wheels: 30, accessories: 20 },
-			avgPrice: Math.round(PRODUCTS.reduce((s, p) => s + p.price, 0) / PRODUCTS.length * 100) / 100,
+			avgPrice:
+				Math.round((PRODUCTS.reduce((s, p) => s + p.price, 0) / PRODUCTS.length) * 100) / 100,
 			topBrands: ['Element', 'Independent', 'Spitfire'],
 		};
 		const encoded = encodeMsgpack(stats);

@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import protobufjs from 'protobufjs';
 import { decode as msgpackDecode } from '@msgpack/msgpack';
+import protobufjs from 'protobufjs';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createTestServer, type TestServerInstance } from '../index';
 import { PROTO_DEFINITION } from '../transports/protobuf';
 
@@ -136,7 +136,8 @@ describe('databoard site', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				operationName: 'SearchProducts',
-				query: 'query SearchProducts($limit: Int) { searchProducts(limit: $limit) { items { sku name price } totalCount } }',
+				query:
+					'query SearchProducts($limit: Int) { searchProducts(limit: $limit) { items { sku name price } totalCount } }',
 				variables: { limit: 5 },
 			}),
 		});

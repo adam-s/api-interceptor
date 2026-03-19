@@ -20,8 +20,8 @@
 import type { DomainRoute } from '@interceptor/browser/handler/domain-loader';
 import { rateLimitedFetch } from '@interceptor/shared';
 import { createOrder } from './api-client';
-import type { BoardShopHeaders } from './types';
 import { BoardShopSessionManager } from './session-manager';
+import type { BoardShopHeaders } from './types';
 
 export const routes: DomainRoute[] = [
 	// ─── Route 1: SSR DOM Extraction (Type B) ─────────────────────────────
@@ -38,9 +38,7 @@ export const routes: DomainRoute[] = [
 			const page = browser.getPage();
 			if (!page) return c.json({ error: 'Browser page not available' }, 503);
 
-			await browser.navigate(
-				`https://www.boardshop.example.com/search?q=${encodeURIComponent(q)}`,
-			);
+			await browser.navigate(`https://www.boardshop.example.com/search?q=${encodeURIComponent(q)}`);
 			await new Promise((r) => setTimeout(r, 4000)); // Hydration wait
 
 			// PATTERN: String-based evaluate to avoid esbuild __name injection

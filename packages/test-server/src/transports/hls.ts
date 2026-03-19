@@ -27,7 +27,9 @@ export function createHLSRoutes(basePath: string, config: HLSConfig): Hono {
 
 		const token: AccessToken = { channelName: channel, expires: Date.now() + 3600000 };
 		const tokenStr = Buffer.from(JSON.stringify(token)).toString('base64');
-		const signature = Buffer.from(`${config.tokenSecret}:${tokenStr}`).toString('base64').slice(0, 40);
+		const signature = Buffer.from(`${config.tokenSecret}:${tokenStr}`)
+			.toString('base64')
+			.slice(0, 40);
 
 		return c.json({ signature, token: JSON.stringify(token) });
 	});

@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { createTestServer, type TestServerInstance } from '../index';
+import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { MAX_PAGE_SIZE, PRODUCTS } from '../data/products';
+import { createTestServer, type TestServerInstance } from '../index';
 
 let server: TestServerInstance;
 let baseUrl: string;
@@ -59,7 +59,9 @@ describe('boardshop site', () => {
 		const cookie = pageRes.headers.get('set-cookie')!;
 		const sid = cookie.match(/_sid=([^;]+)/)?.[1];
 
-		const catalogMatch = html.match(/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s);
+		const catalogMatch = html.match(
+			/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s,
+		);
 		const catalogData = JSON.parse(catalogMatch![1]);
 		const filterSessionId = catalogData.catalog.filterSessionId;
 
@@ -90,7 +92,9 @@ describe('boardshop site', () => {
 		const html = await pageRes.text();
 		const cookie = pageRes.headers.get('set-cookie')!;
 		const sid = cookie.match(/_sid=([^;]+)/)?.[1];
-		const catalogMatch = html.match(/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s);
+		const catalogMatch = html.match(
+			/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s,
+		);
 		const catalogData = JSON.parse(catalogMatch![1]);
 		const csrfMatch = html.match(/id="csrf-token"[^>]*value="([^"]+)"/);
 
@@ -153,7 +157,9 @@ describe('boardshop site', () => {
 
 		// Verify data-value matches embedded JSON
 		const priceMatch = html.match(/data-sku="DECK-001" data-field="price" data-value="([^"]+)"/);
-		const catalogMatch = html.match(/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s);
+		const catalogMatch = html.match(
+			/<script id="catalog-data" type="application\/json">(.+?)<\/script>/s,
+		);
 		const catalogData = JSON.parse(catalogMatch![1]);
 		const deck001 = catalogData.catalog.items.find((i: { sku: string }) => i.sku === 'DECK-001');
 		expect(priceMatch![1]).toBe(String(deck001.price));

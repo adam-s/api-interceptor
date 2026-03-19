@@ -48,19 +48,27 @@ function resolveOperation(op: GQLOperation, config: GraphQLConfig): unknown {
 
 	// Try to detect from query string
 	const q = op.query ?? '';
-	if (q.includes('products') || q.includes('Products')) return resolveByName('SearchProducts', op.variables ?? {}, config);
-	if (q.includes('product') || q.includes('Product')) return resolveByName('GetProduct', op.variables ?? {}, config);
+	if (q.includes('products') || q.includes('Products'))
+		return resolveByName('SearchProducts', op.variables ?? {}, config);
+	if (q.includes('product') || q.includes('Product'))
+		return resolveByName('GetProduct', op.variables ?? {}, config);
 
 	return { data: null, errors: [{ message: 'Unknown operation' }] };
 }
 
-function resolveByName(name: string, variables: Record<string, unknown>, config: GraphQLConfig): unknown {
+function resolveByName(
+	name: string,
+	variables: Record<string, unknown>,
+	config: GraphQLConfig,
+): unknown {
 	switch (name) {
 		case 'SearchProducts': {
 			const category = variables.category as string | undefined;
 			const limit = (variables.limit as number) ?? 20;
 			const products = config.resolver.products({ category, limit });
-			return { data: { searchProducts: { items: products.slice(0, limit), totalCount: products.length } } };
+			return {
+				data: { searchProducts: { items: products.slice(0, limit), totalCount: products.length } },
+			};
 		}
 		case 'GetProduct': {
 			const sku = variables.sku as string;
@@ -80,7 +88,10 @@ export function createGraphQLRoutes(basePath: string, config: GraphQLConfig): Ho
 		if (config.requiredHeader) {
 			const val = c.req.header(config.requiredHeader.name);
 			if (val !== config.requiredHeader.value) {
-				return c.json({ errors: [{ message: `Missing or invalid ${config.requiredHeader.name}` }] }, 401);
+				return c.json(
+					{ errors: [{ message: `Missing or invalid ${config.requiredHeader.name}` }] },
+					401,
+				);
 			}
 		}
 

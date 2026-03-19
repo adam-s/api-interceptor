@@ -21,6 +21,10 @@ step "Install (frozen-lockfile)"
 pnpm install --frozen-lockfile || fail "Install failed — lockfile out of sync?"
 pass "Install"
 
+step "Lint (Biome)"
+pnpm biome ci . || fail "Biome lint failed"
+pass "Lint"
+
 step "Build"
 pnpm turbo build || fail "Build failed"
 pass "Build"
