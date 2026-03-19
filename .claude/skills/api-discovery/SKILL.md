@@ -5,9 +5,9 @@ description: Discover any website's API and create domain plugins with proxy rou
 
 # API Discovery
 
-Reverse-engineer how a website delivers its data, then create a domain plugin that exposes it as a typed API. Works with JSON APIs, SSR pages, and hybrid sites.
+Reverse-engineer how a website delivers its data, then create a domain plugin that exposes it as a typed API. Works with JSON APIs, WebSocket streams, GraphQL, gRPC-Web, SSE, encoded/obfuscated APIs, and SSR pages.
 
-**Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions.
+**Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions. **Before writing ANY route, run the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`).** Interception ALWAYS over extraction — if the data exists in any network response, intercept it; DOM extraction is the absolute last resort.
 
 **Development principle:** Use debug-logs and visual-dev skills at every step. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. **GATE: You may NOT write the next component until you have screenshotted the current one.**
 
@@ -15,7 +15,7 @@ Reverse-engineer how a website delivers its data, then create a domain plugin th
 
 **Decision rules:**
 
-- Intercepted JSON > DOM extraction. Always prefer the site's internal API over scraping HTML.
+- **Intercepted data > DOM extraction. ALWAYS.** This includes encoded, obfuscated, binary, protobuf, or any other format. If data exists in ANY network response, decode and intercept it. Never fall back to DOM extraction for data that's in the wire. See `.claude/rules/data-transport-discovery.md`.
 - If parsing takes more than ~5 lines of regex, escalate to a real parser. The Python bridge with NLP libraries (`dateutil`, `spacy`, `thefuzz`) is the right tool for complex text extraction — use it rather than building fragile regex chains.
 - If extracted data doesn't match what the browser renders, trace the decoder — don't hack around the mismatch. See [reference/decoding.md](reference/decoding.md).
 - Auto-start browser has no traffic capture. Connect via WebSocket for discovery.
@@ -46,8 +46,10 @@ Browser navigation → CDP Network.enable → captures ALL XHR/Fetch
     → setupNetworkCapture() filters to JSON, skips analytics
     → onNetworkCapture() callback → addTrafficEntry() → trafficBuffer[]
     → GET /browser/traffic returns captured entries
-    → Analyze → classify endpoints → build routes
+    → Run Data Transport Discovery Protocol → classify per data type → build routes
 ```
+
+**Current capture scope:** CDP only captures `XHR` and `Fetch` request types. WebSocket frames, SSE streams, and gRPC-Web are NOT yet captured by the framework. When the transport discovery protocol identifies these transports, capture must be implemented per-domain or the CDP listener extended. See `.claude/rules/data-transport-discovery.md` for the full classification tree.
 
 **Why the auto-start browser returns empty traffic:** `startScreencast()` calls `setupNetworkCapture()` which registers CDP listeners. But those listeners check `if (!this.networkCaptureCallback) return` — without the callback, events are silently discarded. The callback is wired ONLY inside `handleBrowserWebSocket()` when a WebSocket client connects. The auto-start browser never wires it.
 
