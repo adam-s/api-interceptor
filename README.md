@@ -49,15 +49,15 @@ sequenceDiagram
 
     Note over Dev,UI: Phase 1.5 — Classify Transport
     Skill->>Skill: Run Data Transport Discovery Protocol
-    Skill->>Skill: WebSocket? GraphQL? gRPC? SSE? JSON? Encoded? SSR?
+    Skill->>Skill: classifyPage(trafficEntries)
     Skill->>Skill: If encoded → DECODE, never fall back to DOM
 
     Note over Dev,UI: Phase 2-3 — Extract Routes
-    Skill->>Skill: Write DomainRoute[] (targetUrl or handler)
+    Skill->>Skill: Write DomainRoute[] per classified transport
 
-    Note over Dev,UI: Phase 4 — Verify
+    Note over Dev,UI: Phase 4 — Verify (every route, real data)
     Skill->>Proxy: curl /api/domain/search?q=test
-    Proxy->>Browser: browserFetch() or page.evaluate()
+    Proxy->>Browser: browserFetch() or decode() or page.evaluate()
     Browser->>Site: Fetch with inherited cookies
     Site-->>Browser: JSON response
     Browser-->>Proxy: {status, data}
@@ -77,15 +77,33 @@ sequenceDiagram
 
 **The most important capability in the project.** Before writing any route, the agent must classify how the target site serves each data type. The full protocol is at `.claude/rules/data-transport-discovery.md`.
 
-```
-Priority order — check in this exact sequence:
-  (a) WebSocket frames?         → intercept WS
-  (b) GraphQL requests?         → proxy GraphQL query
-  (c) gRPC-Web?                 → decode protobuf, proxy RPC
-  (d) Server-Sent Events?       → relay event stream
-  (e) XHR/Fetch JSON?           → Type A proxy (browserFetch)
-  (f) Encoded XHR (non-JSON)?   → ⚠️  DECODE IT — never skip to DOM
-  (g) Zero network requests?    → SSR (last resort, must prove a-f empty)
+```mermaid
+flowchart TD
+    Start["Capture traffic<br/>CDP Network.enable<br/>Wait 15s"] --> WS{"(a) WebSocket<br/>frames?"}
+    WS -->|Yes| WSRoute["Intercept WS<br/>Replay subscription"]
+    WS -->|No| GQL{"(b) GraphQL?<br/>/graphql URL or<br/>query in body"}
+    GQL -->|Yes| GQLRoute["Proxy GraphQL query<br/>Forward variables"]
+    GQL -->|No| GRPC{"(c) gRPC-Web?<br/>application/grpc-web"}
+    GRPC -->|Yes| GRPCRoute["Decode protobuf<br/>Proxy RPC call"]
+    GRPC -->|No| SSE{"(d) SSE?<br/>text/event-stream"}
+    SSE -->|Yes| SSERoute["Subscribe + relay<br/>event stream"]
+    SSE -->|No| JSON{"(e) JSON API?<br/>application/json"}
+    JSON -->|Yes| JSONRoute["Type A proxy<br/>browserFetch()"]
+    JSON -->|No| ENC{"(f) Encoded XHR?<br/>Non-JSON body"}
+    ENC -->|Yes| ENCRoute["⚠️ DECODE IT<br/>protobuf/msgpack/b64<br/>NEVER skip to DOM"]
+    ENC -->|No| CHECK{"Loading state<br/>appeared?"}
+    CHECK -->|Yes| WARN["⚠️ MISSED IT<br/>Increase wait time<br/>Re-capture"]
+    WARN --> Start
+    CHECK -->|No| SSR["(g) SSR<br/>DOM extraction<br/>LAST RESORT"]
+
+    style ENCRoute fill:#ff6b6b,color:#fff
+    style WARN fill:#ff6b6b,color:#fff
+    style SSR fill:#868e96,color:#fff
+    style WSRoute fill:#51cf66,color:#fff
+    style GQLRoute fill:#51cf66,color:#fff
+    style GRPCRoute fill:#51cf66,color:#fff
+    style SSERoute fill:#51cf66,color:#fff
+    style JSONRoute fill:#51cf66,color:#fff
 ```
 
 **The golden rule:** If ANY network request carries the data — even encoded, even obfuscated — the route MUST intercept it. DOM extraction is the absolute last resort.
