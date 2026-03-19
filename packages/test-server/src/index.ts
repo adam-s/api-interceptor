@@ -1,45 +1,24 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
- * Test Server — Multi-Transport API
+ * Test Server — Composable fake websites for end-to-end pipeline testing.
  *
- * Serves the same canonical dataset via every transport type in the
- * Data Transport Discovery Protocol decision tree:
- *
- * (a) WebSocket      — /ws/prices
- * (b) GraphQL        — /graphql
- * (c) gRPC-Web       — /grpc/testserver.EventService/*
- * (d) SSE            — /sse/prices
- * (e) JSON API       — /api/json/*
- * (f) Encoded APIs:
- *     - Base64       — /api/encoded/b64/*
- *     - Protobuf     — /api/encoded/proto/*
- *     - MessagePack  — /api/encoded/msgpack/*
- * (g) Pure SSR       — /ssr/*
- *     Hybrid SSR     — /hybrid/*
- *
- * Every endpoint returns the same 5 events / 3 performers.
- * Tests verify: "did the pipeline extract these exact values
- * regardless of transport?"
- *
- * @module test-server
+ * Four sites simulate different real-world transport patterns:
+ * - /sites/boardshop/  — E-commerce: embedded JSON, pagination, CSRF, DOM elements
+ * - /sites/liveboard/  — Real-time: WebSocket protobuf, SSE, crumb auth
+ * - /sites/streamshop/ — Media: GraphQL, HLS streams, IRC chat
+ * - /sites/databoard/  — API-heavy: gRPC-Web, encoded APIs, Bearer auth
  */
 
-import { Hono } from 'hono';
+import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
+import type { Socket } from 'node:net';
+import { Hono } from 'hono';
 import { WebSocketServer } from 'ws';
-import { createJsonApiRoutes } from './transports/json-api.js';
-import { createGraphQLRoutes } from './transports/graphql.js';
-import { createSSERoutes } from './transports/sse.js';
-import { createBase64Routes } from './transports/encoded-base64.js';
-import { createMsgpackRoutes } from './transports/encoded-msgpack.js';
-import { createProtobufRoutes } from './transports/encoded-protobuf.js';
-import { createGrpcWebRoutes } from './transports/grpc-web.js';
-import { createSSRRoutes } from './transports/ssr-pure.js';
-import { createHybridSSRRoutes } from './transports/ssr-hybrid.js';
-import { setupWebSocketTransport } from './transports/websocket.js';
-import { createCrumbRoutes } from './transports/json-crumb.js';
-import { createPersistedGraphQLRoutes } from './transports/graphql-persisted.js';
-import { EVENTS, PERFORMERS } from './data.js';
+
+import { createBoardshopSite } from './sites/boardshop';
+import { createLiveboardSite } from './sites/liveboard';
+import { createStreamshopSite } from './sites/streamshop';
+import { createDataboardSite } from './sites/databoard';
+import { handleWSUpgrade, type WSRoute } from './transports/websocket';
 
 export interface TestServerOptions {
 	port?: number;
@@ -51,223 +30,99 @@ export interface TestServerInstance {
 	close: () => Promise<void>;
 }
 
-/**
- * Create and start the multi-transport test server.
- * Returns a handle with the assigned port and a close() method.
- */
-export async function createTestServer(
-	options: TestServerOptions = {},
-): Promise<TestServerInstance> {
-	const port = options.port ?? 0; // 0 = auto-assign
+const SITES = ['boardshop', 'liveboard', 'streamshop', 'databoard'] as const;
 
+const WS_ROUTES: WSRoute[] = [
+	{ path: '/sites/liveboard/stream', mode: 'protobuf' },
+	{ path: '/sites/liveboard/ws/json', mode: 'json' },
+	{ path: '/sites/streamshop/chat', mode: 'irc', channel: 'boardshop-live' },
+];
+
+export async function createTestServer(options: TestServerOptions = {}): Promise<TestServerInstance> {
 	const app = new Hono();
 
 	// Health check
-	app.get('/health', (c) => c.json({ status: 'ok', transports: TRANSPORT_LIST }));
+	app.get('/health', (c) => c.json({ status: 'ok', sites: [...SITES] }));
 
-	// Transport inventory — lists all available endpoints
+	// Root — inventory of all sites
 	app.get('/', (c) =>
 		c.json({
-			name: '@interceptor/test-server',
-			description: 'Multi-transport test server for Data Transport Discovery Protocol',
-			canonical_data: {
-				performers: PERFORMERS.length,
-				events: EVENTS.length,
-				total_tickets: EVENTS.reduce((sum, e) => sum + e.tickets.length, 0),
-			},
-			transports: TRANSPORT_LIST,
+			sites: SITES.map((name) => ({
+				name,
+				url: `/sites/${name}/`,
+			})),
 		}),
 	);
 
-	// Mount all transport routes
-	app.route('/', createJsonApiRoutes());
-	app.route('/', createGraphQLRoutes());
-	app.route('/', createSSERoutes());
-	app.route('/', createBase64Routes());
-	app.route('/', createMsgpackRoutes());
-	app.route('/', createProtobufRoutes());
-	app.route('/', createGrpcWebRoutes());
-	app.route('/', createSSRRoutes());
-	app.route('/', createHybridSSRRoutes());
-	app.route('/', createCrumbRoutes());
-	app.route('/', createPersistedGraphQLRoutes());
+	// Mount sites
+	app.route('/sites/boardshop', createBoardshopSite());
+	app.route('/sites/liveboard', createLiveboardSite());
+	app.route('/sites/streamshop', createStreamshopSite());
+	app.route('/sites/databoard', createDataboardSite());
 
-	// Create HTTP server with proper Hono-to-Node adapter
-	const server = createServer(async (req, res) => {
-		try {
-			let body: string | undefined;
-			if (!['GET', 'HEAD'].includes(req.method ?? 'GET')) {
-				const chunks: Buffer[] = [];
-				await new Promise<void>((resolve, reject) => {
-					req.on('data', (chunk: Buffer) => chunks.push(chunk));
-					req.on('end', () => resolve());
-					req.on('error', reject);
-				});
-				body = Buffer.concat(chunks).toString();
-			}
+	// Create HTTP server
+	const httpServer = createServer(async (req, res) => {
+		// Normalize: strip trailing slash (except root) so Hono routing matches consistently
+		let url = req.url ?? '/';
+		if (url.length > 1 && url.endsWith('/')) url = url.slice(0, -1);
 
-			const response = await app.fetch(
-				new Request(`http://${req.headers.host}${req.url}`, {
-					method: req.method,
-					headers: req.headers as Record<string, string>,
-					body,
-				}),
-			);
+		const response = await app.fetch(
+			new Request(`http://localhost${url}`, {
+				method: req.method,
+				headers: Object.entries(req.headers).reduce(
+					(acc, [k, v]) => {
+						if (v) acc[k] = Array.isArray(v) ? v.join(', ') : v;
+						return acc;
+					},
+					{} as Record<string, string>,
+				),
+				body: req.method !== 'GET' && req.method !== 'HEAD'
+					? await new Promise<string>((resolve) => {
+							let data = '';
+							req.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+							req.on('end', () => resolve(data));
+						})
+					: undefined,
+			}),
+		);
 
-			res.statusCode = response.status;
-			response.headers.forEach((value, key) => {
-				res.setHeader(key, value);
-			});
-
-			const buffer = await response.arrayBuffer();
-			res.end(Buffer.from(buffer));
-		} catch {
-			res.statusCode = 500;
-			res.end('Internal Server Error');
-		}
+		res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+		const body = await response.arrayBuffer();
+		res.end(Buffer.from(body));
 	});
 
-	// WebSocket server (noServer mode for manual upgrade handling)
+	// WebSocket server
 	const wss = new WebSocketServer({ noServer: true });
-	setupWebSocketTransport(wss, '/ws/prices');
 
-	server.on('upgrade', (req, socket, head) => {
-		if (req.url?.startsWith('/ws/')) {
-			wss.handleUpgrade(req, socket, head, (ws) => {
-				wss.emit('connection', ws, req);
-			});
-		} else {
+	httpServer.on('upgrade', (request: IncomingMessage, socket: Socket, head: Buffer) => {
+		const url = request.url ?? '';
+		const route = WS_ROUTES.find((r) => url.startsWith(r.path));
+
+		if (!route) {
 			socket.destroy();
+			return;
 		}
+
+		wss.handleUpgrade(request, socket, head, (ws) => {
+			handleWSUpgrade(ws, route);
+		});
 	});
 
 	// Start listening
-	return new Promise((resolve) => {
-		server.listen(port, () => {
-			const addr = server.address();
-			const assignedPort = typeof addr === 'object' && addr ? addr.port : port;
-			resolve({
-				port: assignedPort,
-				url: `http://localhost:${assignedPort}`,
-				close: () =>
-					new Promise<void>((res) => {
-						wss.close();
-						server.close(() => res());
-					}),
-			});
-		});
+	const port = options.port ?? 0;
+	await new Promise<void>((resolve) => {
+		httpServer.listen(port, () => resolve());
 	});
+
+	const assignedPort = (httpServer.address() as { port: number }).port;
+
+	return {
+		port: assignedPort,
+		url: `http://localhost:${assignedPort}`,
+		close: () =>
+			new Promise<void>((resolve) => {
+				wss.close();
+				httpServer.close(() => resolve());
+			}),
+	};
 }
-
-/**
- * List of all transport endpoints for documentation and testing.
- */
-const TRANSPORT_LIST = [
-	{
-		priority: 'a',
-		type: 'WEBSOCKET',
-		endpoints: ['WS /ws/prices'],
-		description: 'Real-time price update stream',
-	},
-	{
-		priority: 'b',
-		type: 'GRAPHQL',
-		endpoints: ['POST /graphql'],
-		description: 'GraphQL queries for performers, events, tickets',
-	},
-	{
-		priority: 'c',
-		type: 'GRPC_WEB',
-		endpoints: [
-			'POST /grpc/testserver.EventService/ListPerformers',
-			'POST /grpc/testserver.EventService/ListEvents',
-		],
-		description: 'gRPC-Web with protobuf framing',
-	},
-	{
-		priority: 'd',
-		type: 'SSE',
-		endpoints: ['GET /sse/prices'],
-		description: 'Server-Sent Events price stream',
-	},
-	{
-		priority: 'e',
-		type: 'JSON_API',
-		endpoints: [
-			'GET /api/json/performers?q=',
-			'GET /api/json/events/:performerId',
-			'GET /api/json/tickets/:eventId',
-		],
-		description: 'Plain JSON REST API',
-	},
-	{
-		priority: 'f',
-		type: 'ENCODED_BASE64',
-		endpoints: [
-			'GET /api/encoded/b64/performers?q=',
-			'GET /api/encoded/b64/events/:performerId',
-			'GET /api/encoded/b64/tickets/:eventId',
-		],
-		description: 'Base64-encoded JSON responses',
-	},
-	{
-		priority: 'f',
-		type: 'ENCODED_PROTOBUF',
-		endpoints: [
-			'GET /api/encoded/proto/performers?q=',
-			'GET /api/encoded/proto/events/:performerId',
-			'GET /api/encoded/proto/tickets/:eventId',
-			'GET /api/encoded/proto/schema.proto',
-		],
-		description: 'Protocol Buffer binary responses',
-	},
-	{
-		priority: 'f',
-		type: 'ENCODED_MSGPACK',
-		endpoints: [
-			'GET /api/encoded/msgpack/performers?q=',
-			'GET /api/encoded/msgpack/events/:performerId',
-			'GET /api/encoded/msgpack/tickets/:eventId',
-		],
-		description: 'MessagePack binary responses',
-	},
-	{
-		priority: 'g',
-		type: 'SSR_PURE',
-		endpoints: [
-			'GET /ssr/search?q=',
-			'GET /ssr/performer/:performerId',
-			'GET /ssr/event/:eventId',
-		],
-		description: 'Pure SSR with __NEXT_DATA__ — zero XHR',
-	},
-	{
-		priority: 'g',
-		type: 'SSR_HYBRID',
-		endpoints: ['GET /hybrid/search?q=', 'GET /hybrid/event/:eventId'],
-		description: 'SSR shell + deferred XHR data loading',
-	},
-	{
-		priority: 'e',
-		type: 'JSON_CRUMB_AUTH',
-		endpoints: [
-			'GET /api/crumb/session',
-			'GET /api/crumb/token',
-			'GET /api/crumb/performers?crumb=&q=',
-			'GET /api/crumb/events/:performerId?crumb=',
-		],
-		description: 'JSON API with crumb/cookie auth handshake',
-	},
-	{
-		priority: 'b',
-		type: 'GRAPHQL_PERSISTED',
-		endpoints: [
-			'POST /api/v3/:operationName/:hash',
-		],
-		description: 'GraphQL with persisted query hashes',
-	},
-];
-
-// Re-export data for test access
-export { EVENTS, PERFORMERS, PRICE_UPDATES } from './data.js';
-export type { TestEvent, TestTicket, TestPerformer } from './data.js';
