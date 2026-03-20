@@ -4,6 +4,8 @@
 
 **Every data endpoint MUST be discovered by navigating as a real user and capturing browser traffic.** Connect a browser via WebSocket, navigate the target site, capture traffic at `/browser/traffic`, and find the internal API endpoints the site uses. Do NOT search for or use publicly documented developer APIs — we don't have API keys and the goal is to intercept what the browser actually sends.
 
+**Do NOT research endpoints from external sources.** Scraping guides, GitHub gists, blog posts, Stack Overflow answers, API documentation sites, and third-party tools (Scrape.do, Scrapfly, Postman collections) are all banned for endpoint discovery. The ONLY valid source of endpoint information is captured browser traffic from `/browser/traffic`. If you cannot find an endpoint in captured traffic, you haven't navigated to the right page yet — go back to the browser, don't go to Google.
+
 **Before writing ANY data extraction code**, complete the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`) and produce a Transport Classification table in the conversation. No table = no fetcher.
 
 **`page.evaluate()` for data extraction requires proof.** If you want to use `page.evaluate()` to extract data users see on the page, you must first prove with captured traffic evidence that no network request carries that data. `page.evaluate()` IS allowed for: navigation (clicking, typing), page metadata (URL, title), and auth token extraction (CSRF from hidden inputs). It is NOT allowed for extracting data without evidence from the discovery protocol.

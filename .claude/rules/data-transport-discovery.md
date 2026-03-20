@@ -87,13 +87,25 @@ Before writing any route, produce this log in the conversation:
 ## Transport Classification: [domain]
 | Data Type | Transport | Endpoint | Evidence |
 |-----------|-----------|----------|----------|
-| search    | JSON_API  | POST /api/v1/search | 200 response with results array |
-| events    | SSR       | (document) | zero XHR after 15s, no loading state |
-| tickets   | ENCODED_XHR | POST /api/explore/v1/listings | binary response, protobuf |
-| prices    | WEBSOCKET | wss://prices.example.com | real-time price frames |
+| search    | JSON_API  | POST /api/v1/search | /browser/traffic entry #3: 200 response, 12KB, results array with 20 items |
+| events    | SSR       | (document) | /browser/traffic: zero XHR after 15s wait, no loading state observed |
+| tickets   | ENCODED_XHR | POST /api/explore/v1/listings | /browser/traffic entry #7: binary response, 48KB, protobuf |
+| prices    | WEBSOCKET | wss://prices.example.com | JS bundle search: found WebSocket URL in main.js line 4521 |
 ```
 
-**This table is a MANDATORY gate. No routes without it. Any row with transport=SSR must have evidence confirming Steps 2g validation.**
+**This table is a MANDATORY gate. No routes without it.**
+
+**Evidence MUST come from captured browser traffic or JS bundle analysis — NEVER from external research.** Valid evidence sources:
+- `/browser/traffic` entry showing the request/response
+- Page source HTML showing embedded JSON (`<script>` tags)
+- JS bundle search showing WebSocket URLs or GraphQL operations
+
+**Invalid evidence (instant REJECT):**
+- "Scraping guide confirms", "GitHub gist shows", "API documentation says"
+- "Known API pattern", "Research indicates", "External tool confirms"
+- Any reference to third-party scraping services, blog posts, or documentation
+
+Any row with transport=SSR must have evidence confirming Steps 2g validation.
 
 ## Validate Against the Test Server
 

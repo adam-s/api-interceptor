@@ -124,7 +124,7 @@ export async function autoStartHeadlessBrowser(profile?: string): Promise<void> 
 						console.log(
 							`[browser] Crash detected, auto-restarting (attempt ${autoRestartAttempts}/3)...`,
 						);
-						setTimeout(() => autoStartHeadlessBrowser(), 5000);
+						setTimeout(() => autoStartHeadlessBrowser(currentProfile ?? 'generic'), 5000);
 					} else {
 						console.error('[browser] Max auto-restart attempts reached. Manual restart required.');
 					}
@@ -132,12 +132,32 @@ export async function autoStartHeadlessBrowser(profile?: string): Promise<void> 
 			},
 		);
 
+		// Wire CDP traffic capture so /browser/traffic works on auto-started browser
+		activeBrowser.onNetworkCapture((req, res) => {
+			addTrafficEntry(
+				{
+					url: req.url,
+					method: req.method,
+					headers: req.headers,
+					body: req.body,
+					timestamp: Date.now(),
+				},
+				{
+					url: res.url,
+					status: res.status,
+					headers: res.headers,
+					body: res.body,
+					timestamp: Date.now(),
+				},
+			);
+		});
+
 		browserReady = true;
 		autoRestartAttempts = 0; // Reset on successful start
 		currentProfile = profile ?? null;
 		lifecycleManager.registerBrowser(activeBrowser);
 		browserLogger.lifecycle('auto_started', { profile: profile ?? 'headless-temp' });
-		console.log('[browser] Auto-started headless browser — proxy routes ready');
+		console.log('[browser] Auto-started headless browser — proxy routes + traffic capture ready');
 	} catch (err) {
 		browserLogger.error(
 			'auto_start_failed',
