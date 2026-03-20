@@ -1,6 +1,7 @@
 import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
+import { analyzeDiscovery } from '@interceptor/browser/analysis/discovery';
 import {
 	autoStartHeadlessBrowser,
 	clearTrafficBuffer,
@@ -47,6 +48,30 @@ app.get('/browser/traffic/summary', (c) => c.json(getTrafficSummary()));
 app.delete('/browser/traffic', (c) => {
 	const cleared = clearTrafficBuffer();
 	return c.json({ cleared });
+});
+
+app.get('/browser/analysis', async (c) => {
+	const browser = getActiveBrowser();
+	if (!browser) {
+		return c.json({ error: 'No active browser — connect via /browser/stream first' }, 503);
+	}
+
+	try {
+		// Get page HTML and URL from the active browser
+		const html = await browser.evaluate(() => document.documentElement.outerHTML);
+		const pageUrl = browser.getUrl();
+
+		// Get traffic entries from the capture buffer
+		const { entries } = getTrafficEntries();
+
+		const analysis = analyzeDiscovery(html, entries, pageUrl);
+		return c.json(analysis);
+	} catch (err) {
+		return c.json(
+			{ error: `Analysis failed: ${err instanceof Error ? err.message : String(err)}` },
+			500,
+		);
+	}
 });
 
 // Domain API proxy routes — each domain's routes proxy through browserFetch()

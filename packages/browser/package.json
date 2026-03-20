@@ -17,9 +17,13 @@
 		"./handler": "./src/handler/index.ts",
 		"./handler/api-proxy": "./src/handler/api-proxy.ts",
 		"./handler/domain-loader": "./src/handler/domain-loader.ts",
+		"./analysis": "./src/analysis/discovery-analyzer.ts",
+		"./analysis/discovery": "./src/analysis/discovery-analyzer.ts",
+		"./analysis/dom": "./src/analysis/dom-orchestrator.ts",
 		"./codegen": "./src/codegen/index.ts",
 		"./registry": "./src/registry.ts",
-		"./mcp": "./src/mcp/server.ts"
+		"./mcp": "./src/mcp/server.ts",
+		"./analysis/discovery": "./src/analysis/discovery-analyzer.ts"
 	},
 	"scripts": {
 		"test": "vitest run",
@@ -30,6 +34,7 @@
 	"dependencies": {
 		"@ghostery/adblocker-playwright": "2.14.1",
 		"@modelcontextprotocol/sdk": "1.27.1",
+		"cheerio": "^1.2.0",
 		"cross-fetch": "4.1.0",
 		"hono": "^4.12.8",
 		"patchright": "1.58.2",
