@@ -2,7 +2,7 @@ Use the api-discovery skill (`.claude/skills/api-discovery/SKILL.md`) in **Live 
 
 Build me a full automation platform. Create a domain plugin that captures every API endpoint the site uses — feed, profiles, messaging, jobs, posting, comments, reactions, search, connections, notifications. This is an API discovery project first, automation platform second.
 
-The site is auth-gated — cookies are already imported into the `generic` browser profile. Use that profile for all browser sessions. Go SLOW — the site aggressively rate-limits and flags automation. Add delays between every action (5-15 seconds randomized). Never burst requests.
+The site is auth-gated — the user has already logged into their own account via the browser at `localhost:3000/browser`. The `generic` browser profile has a valid session. Use that profile for all browser sessions. Go SLOW — add delays between every action (5-15 seconds randomized). Never burst requests.
 
 ## Phase 1: API Discovery (capture everything)
 
