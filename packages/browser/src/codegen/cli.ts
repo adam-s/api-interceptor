@@ -66,12 +66,14 @@ async function main() {
 		domainName: domain,
 		interceptPatterns: [],
 		requiredHeaders: [],
+		// biome-ignore lint/suspicious/noExplicitAny: empty schema placeholder for codegen
 		headerSchema: {} as any,
 		baseUrls: [],
 	};
 
 	// 2. Load traffic data
-	let traffic: any = { entries: [] };
+	// biome-ignore lint/suspicious/noExplicitAny: traffic shape comes from JSON file, validated at runtime
+	let traffic: { entries: any[] } = { entries: [] };
 
 	if (trafficPath) {
 		try {
@@ -141,6 +143,7 @@ async function main() {
 		className,
 		baseUrls: domainConfig.baseUrls || [],
 		requiredHeaders: domainConfig.requiredHeaders,
+		// biome-ignore lint/suspicious/noExplicitAny: codegen endpoint shape varies
 		endpoints: endpoints as any,
 	};
 
