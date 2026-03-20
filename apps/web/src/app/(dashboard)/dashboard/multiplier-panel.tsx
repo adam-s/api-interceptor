@@ -38,7 +38,8 @@ export default function MultiplierPanel() {
 	const computingRef = useRef(false);
 
 	useEffect(() => {
-		const ws = new WebSocket('ws://localhost:3001/ws');
+		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 		wsRef.current = ws;
 
 		ws.addEventListener('open', () => setConnected(true));

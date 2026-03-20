@@ -41,7 +41,8 @@ export default function BrowserContent() {
 		params.set('profile', profile);
 		if (capture) params.set('capture', capture);
 		if (startUrl) params.set('url', startUrl);
-		return `ws://localhost:3001/browser/stream?${params.toString()}`;
+		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		return `${protocol}//${window.location.host}/browser/stream?${params.toString()}`;
 	}, [searchParams]);
 
 	const handleWsRef = useCallback((ws: WebSocket | null) => {
