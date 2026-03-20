@@ -198,6 +198,7 @@ export function domAnalyzerFn(): DomAnalysisResult {
 	for (const script of inlineScripts) {
 		const text = script.textContent || '';
 		if (!text) continue;
+		ASSIGN_RE.lastIndex = 0; // Reset stateful regex for each script element
 		let match: RegExpExecArray | null;
 		// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
 		while ((match = ASSIGN_RE.exec(text)) !== null) {
@@ -215,6 +216,7 @@ export function domAnalyzerFn(): DomAnalysisResult {
 	const WSS_RE = /wss?:\/\/[^\s"'`<>]+/g;
 	for (const script of inlineScripts) {
 		const text = script.textContent || '';
+		WSS_RE.lastIndex = 0; // Reset stateful regex for each script element
 		let wsMatch: RegExpExecArray | null;
 		// biome-ignore lint/suspicious/noAssignInExpressions: regex exec loop pattern
 		while ((wsMatch = WSS_RE.exec(text)) !== null) {

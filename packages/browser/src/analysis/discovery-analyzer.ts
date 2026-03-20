@@ -125,8 +125,8 @@ export interface SkipCounts {
 
 // ─── Framework Detection ───────────────────────────────────────────
 
-export function detectFramework(html: string): FrameworkDetection {
-	const $ = cheerio.load(html);
+export function detectFramework(html: string, $?: cheerio.CheerioAPI): FrameworkDetection {
+	$ = $ ?? cheerio.load(html);
 	const evidence: string[] = [];
 
 	// Next.js markers
@@ -224,8 +224,8 @@ export function detectFramework(html: string): FrameworkDetection {
 
 // ─── Embedded Data Extraction ──────────────────────────────────────
 
-export function extractEmbeddedData(html: string): EmbeddedDataBlock[] {
-	const $ = cheerio.load(html);
+export function extractEmbeddedData(html: string, $?: cheerio.CheerioAPI): EmbeddedDataBlock[] {
+	$ = $ ?? cheerio.load(html);
 	const blocks: EmbeddedDataBlock[] = [];
 
 	// <script type="application/json"> blocks
@@ -314,8 +314,8 @@ function truncateToken(value: string, maxLen = 20): string {
 	return `${value.slice(0, maxLen)}...`;
 }
 
-export function discoverTokens(html: string, trafficEntries: TrafficEntry[]): DiscoveredToken[] {
-	const $ = cheerio.load(html);
+export function discoverTokens(html: string, trafficEntries: TrafficEntry[], $?: cheerio.CheerioAPI): DiscoveredToken[] {
+	$ = $ ?? cheerio.load(html);
 	const tokens: DiscoveredToken[] = [];
 
 	// 1. Hidden inputs
@@ -645,11 +645,11 @@ function formatBytes(bytes: number): string {
 
 // ─── WebSocket URL Discovery ───────────────────────────────────────
 
-export function findWebSocketUrls(html: string): string[] {
+export function findWebSocketUrls(html: string, $?: cheerio.CheerioAPI): string[] {
 	const urls = new Set<string>();
 
 	// Search all inline scripts for wss:// or ws:// URLs
-	const $ = cheerio.load(html);
+	$ = $ ?? cheerio.load(html);
 	$('script:not([type="application/json"])').each((_i, el) => {
 		const content = $(el).html() ?? '';
 		// Match wss:// and ws:// URLs
@@ -740,12 +740,15 @@ export function analyzeDiscovery(
 	trafficEntries: TrafficEntry[],
 	pageUrl: string,
 ): DiscoveryAnalysis {
-	const framework = detectFramework(html);
-	const embeddedData = extractEmbeddedData(html);
-	const tokens = discoverTokens(html, trafficEntries);
+	// Parse HTML once — reused by all analysis functions (PERF-6 fix)
+	const $ = cheerio.load(html);
+
+	const framework = detectFramework(html, $);
+	const embeddedData = extractEmbeddedData(html, $);
+	const tokens = discoverTokens(html, trafficEntries, $);
 	const { apiEntries, skipCounts } = categorizeTraffic(trafficEntries);
 	const apiEndpoints = classifyEndpoints(apiEntries);
-	const websocketUrls = findWebSocketUrls(html);
+	const websocketUrls = findWebSocketUrls(html, $);
 	const graphqlOperations = findGraphQLOperations(trafficEntries);
 
 	return {
