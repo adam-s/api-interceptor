@@ -20,6 +20,15 @@ import { join } from 'node:path';
 import type { BrowserContext, CDPSession, Page, Route } from 'patchright';
 import { chromium } from 'patchright';
 import { BlockerManager } from '../blocker';
+import type {
+	CDPLoadingFailed,
+	CDPLoadingFinished,
+	CDPRequestWillBeSent,
+	CDPResponseReceived,
+	CDPWebSocketClosed,
+	CDPWebSocketCreated,
+	CDPWebSocketFrameReceived,
+} from './cdp-types';
 
 // Rate limiter integration for browserFetch — injected at startup to avoid circular deps
 let rateLimitWait: ((url: string) => Promise<void>) | null = null;
@@ -1497,12 +1506,12 @@ export class RemoteBrowserService {
 		// Track Document requests for pre-hydration HTML capture
 		const documentRequests = new Map<string, { url: string }>();
 
-		this.cdp.on('Network.requestWillBeSent', (params: any) => {
+		this.cdp.on('Network.requestWillBeSent', (params: CDPRequestWillBeSent) => {
 			// Capture Document requests for the analyzer (pre-hydration HTML)
 			if (params.type === 'Document') {
 				documentRequests.set(params.requestId, { url: params.request.url });
 			}
-			if (!['XHR', 'Fetch'].includes(params.type)) return;
+			if (!params.type || !['XHR', 'Fetch'].includes(params.type)) return;
 			let body: unknown;
 			try {
 				if (params.request.postData) body = JSON.parse(params.request.postData);
@@ -1518,7 +1527,7 @@ export class RemoteBrowserService {
 			});
 		});
 
-		this.cdp.on('Network.responseReceived', (params: any) => {
+		this.cdp.on('Network.responseReceived', (params: CDPResponseReceived) => {
 			if (!pendingRequests.has(params.requestId)) return;
 			const ct =
 				params.response.headers['content-type'] || params.response.headers['Content-Type'] || '';
@@ -1530,7 +1539,7 @@ export class RemoteBrowserService {
 			});
 		});
 
-		this.cdp.on('Network.loadingFinished', async (params: any) => {
+		this.cdp.on('Network.loadingFinished', async (params: CDPLoadingFinished) => {
 			const req = pendingRequests.get(params.requestId);
 			const res = responseInfo.get(params.requestId);
 			pendingRequests.delete(params.requestId);
@@ -1582,14 +1591,14 @@ export class RemoteBrowserService {
 		});
 
 		// Fix: clean up pendingRequests on failed requests (prevents memory leak)
-		this.cdp.on('Network.loadingFailed', (params: any) => {
+		this.cdp.on('Network.loadingFailed', (params: CDPLoadingFailed) => {
 			pendingRequests.delete(params.requestId);
 			responseInfo.delete(params.requestId);
 			documentRequests.delete(params.requestId);
 		});
 
 		// Capture Document response bodies (pre-hydration HTML for the analyzer)
-		this.cdp.on('Network.loadingFinished', async (params: any) => {
+		this.cdp.on('Network.loadingFinished', async (params: CDPLoadingFinished) => {
 			const doc = documentRequests.get(params.requestId);
 			if (!doc || !this.networkCaptureCallback) return;
 			documentRequests.delete(params.requestId);
@@ -1616,7 +1625,7 @@ export class RemoteBrowserService {
 		// These events let us see WebSocket connections and their messages.
 		const wsConnections = new Map<string, string>(); // requestId → url
 
-		this.cdp.on('Network.webSocketCreated', (params: any) => {
+		this.cdp.on('Network.webSocketCreated', (params: CDPWebSocketCreated) => {
 			wsConnections.set(params.requestId, params.url);
 			if (this.networkCaptureCallback) {
 				this.networkCaptureCallback(
@@ -1631,7 +1640,7 @@ export class RemoteBrowserService {
 			}
 		});
 
-		this.cdp.on('Network.webSocketFrameReceived', (params: any) => {
+		this.cdp.on('Network.webSocketFrameReceived', (params: CDPWebSocketFrameReceived) => {
 			const url = wsConnections.get(params.requestId) || 'unknown-ws';
 			if (!this.networkCaptureCallback) return;
 			const payload = params.response?.payloadData || '';
@@ -1652,7 +1661,7 @@ export class RemoteBrowserService {
 			);
 		});
 
-		this.cdp.on('Network.webSocketClosed', (params: any) => {
+		this.cdp.on('Network.webSocketClosed', (params: CDPWebSocketClosed) => {
 			wsConnections.delete(params.requestId);
 		});
 	}
