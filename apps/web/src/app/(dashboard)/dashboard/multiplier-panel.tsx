@@ -33,6 +33,7 @@ export default function MultiplierPanel() {
 	const [state, setState] = useState<State | null>(null);
 	const [stats, setStats] = useState<Stats | null>(null);
 	const [connected, setConnected] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const wsRef = useRef<WebSocket | null>(null);
 	const lastJsonRef = useRef('');
 	const computingRef = useRef(false);
@@ -42,9 +43,27 @@ export default function MultiplierPanel() {
 		const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 		wsRef.current = ws;
 
-		ws.addEventListener('open', () => setConnected(true));
-		ws.addEventListener('close', () => setConnected(false));
-		ws.addEventListener('error', () => setConnected(false));
+		// Timeout: if WS doesn't connect within 10s, show error state
+		const connectTimeout = setTimeout(() => {
+			if (ws.readyState !== WebSocket.OPEN) {
+				setError('Cannot connect to API server');
+				ws.close();
+			}
+		}, 10_000);
+
+		ws.addEventListener('open', () => {
+			clearTimeout(connectTimeout);
+			setConnected(true);
+			setError(null);
+		});
+		ws.addEventListener('close', () => {
+			setConnected(false);
+		});
+		ws.addEventListener('error', () => {
+			clearTimeout(connectTimeout);
+			setConnected(false);
+			setError('Connection lost');
+		});
 
 		ws.addEventListener('message', (e: MessageEvent) => {
 			let msg: { type: string; data?: unknown; requestId?: string };
@@ -100,6 +119,24 @@ export default function MultiplierPanel() {
 		setStats(null);
 		sendAction('reset');
 	}, [sendAction]);
+
+	if (error) {
+		return (
+			<div className="rounded-lg border border-destructive/50 p-8 shadow-sm text-center">
+				<p className="text-destructive font-medium">{error}</p>
+				<button
+					type="button"
+					className="mt-3 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+					onClick={() => {
+						setError(null);
+						window.location.reload();
+					}}
+				>
+					Retry
+				</button>
+			</div>
+		);
+	}
 
 	if (!state) {
 		return (
