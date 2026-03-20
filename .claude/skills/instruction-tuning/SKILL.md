@@ -26,18 +26,25 @@ Use sub-agents as test subjects to iteratively improve `.claude/` instruction fi
 **Before every sub-agent run:**
 
 ```bash
-MEMORY_DIR="~/.claude/projects/<project>/memory"
-BACKUP_DIR="/tmp/memory-backup"
+# IMPORTANT: Only target THIS project's memory, not other projects
+MEMORY_DIR="$HOME/.claude/projects/$(pwd | tr '/' '-' | sed 's/^-//')/memory"
+BACKUP_DIR="/tmp/memory-backup-$(basename $(pwd))"
 mkdir -p "$BACKUP_DIR"
-cp "$MEMORY_DIR"/*.md "$BACKUP_DIR/"
+cp "$MEMORY_DIR"/*.md "$BACKUP_DIR/" 2>/dev/null
 
-# Remove anything that mentions specific websites or transport types
-ls "$MEMORY_DIR"/*.md | while read f; do
-  if grep -qi "specific-site-names-here" "$f" 2>/dev/null; then
-    echo "REMOVING: $(basename $f)"
+# Remove files with domain-specific content (transport types, auth details, site names)
+# Keep: operational files (tool usage, permission fixes, effort level)
+for f in "$MEMORY_DIR"/*.md; do
+  [ "$(basename "$f")" = "MEMORY.md" ] && continue  # Never delete the index
+  content=$(cat "$f" 2>/dev/null)
+  # Check if file contains discovery findings, transport types, or domain-specific patterns
+  if echo "$content" | grep -qiE "transport|embedded.json|websocket|graphql|crumb|csrf|XHR|DOM extraction|page\.evaluate|SSR|protobuf"; then
+    echo "REMOVING (domain-specific): $(basename $f)"
     rm "$f"
   fi
 done
+
+# Restore after tuning: cp "$BACKUP_DIR"/*.md "$MEMORY_DIR/"
 ```
 
 **After every run:** Check if the agent wrote new memory files. Remove any with domain-specific hints before the next test.
