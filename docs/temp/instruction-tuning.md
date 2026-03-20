@@ -29,19 +29,45 @@ The only way to know if instructions actually work is to test them against an ag
 
 Work on a branch (e.g., `fix/claude-instruction-tuning`). Instruction edits happen here. Sub-agents run in worktrees or on the same branch writing to different directories. Only merge to `base` after instructions are battle-tested.
 
-### Memory Isolation
+### Memory Isolation — CRITICAL
 
-Clear memory files **before every sub-agent run**, not just once at the start. Sub-agents share the same memory directory and can write new files mid-run — leaving transport-type hints, architecture notes, or domain-specific discoveries that give the next agent a cheat sheet. Check after each run and wipe any new files.
+**Memory contamination invalidates test results.** Sub-agents share the same memory directory (`~/.claude/projects/<project>/memory/`). If a memory file says "StubHub uses embedded JSON" or "Yahoo Finance crumb is in SvelteKit scripts," the agent doesn't need to discover this — it already knows. Your 100% pass rate might be 70% without the hints.
 
-Back up first:
+**Rules:**
+1. Clear ALL domain-specific memory files **before every sub-agent run** — not just once at the start
+2. Check memory **after every run** — agents can write new memory files mid-execution
+3. Keep only operational memories (how to use tools, permission fixes) — delete anything that mentions a specific website's transport type, data structure, or auth mechanism
+4. If you forget to clear memory and an agent passes, the result is **unverified** — you must re-run with clean memory to confirm
+
+**Which files are safe to keep:**
+- `feedback_tmp_scripts.md` — how to run scripts (operational, no domain hints)
+- `feedback_subagent_bash.md` — permission fix (operational)
+
+**Which files MUST be removed before testing:**
+- Any file mentioning a specific website name (StubHub, Yahoo, Twitch, etc.)
+- Any file describing transport types, data patterns, or auth mechanisms
+- Any file with "discovery" findings from previous sessions
+- `iteration_state.md` — contains exact transport classifications from prior runs
 
 ```bash
 MEMORY_DIR="~/.claude/projects/<project>/memory"
 BACKUP_DIR="/tmp/memory-backup"
+mkdir -p "$BACKUP_DIR"
 cp "$MEMORY_DIR"/*.md "$BACKUP_DIR/"
-rm "$MEMORY_DIR"/feedback_*.md "$MEMORY_DIR"/project_*.md
-# Restore after tuning: cp "$BACKUP_DIR"/*.md "$MEMORY_DIR/"
+
+# Keep ONLY operational files — remove everything domain-specific
+ls "$MEMORY_DIR"/*.md | while read f; do
+  # Check if file mentions any website names
+  if grep -qi "stubhub\|ticketmaster\|youtube\|twitch\|yahoo\|linkedin\|reddit" "$f" 2>/dev/null; then
+    echo "REMOVING (domain-specific): $(basename $f)"
+    rm "$f"
+  fi
+done
+
+# After tuning: cp "$BACKUP_DIR"/*.md "$MEMORY_DIR/"
 ```
+
+**Lesson learned:** In our first tuning session, `feedback_xhr_before_dom.md` contained "StubHub uses S/. prices from DOM extraction" and `iteration_state.md` listed exact transport types per domain. Multiple agents may have been influenced by these hints, making our pass rates optimistic. Always verify results were achieved without memory assistance.
 
 ### Prompt Design
 
