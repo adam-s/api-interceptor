@@ -37,15 +37,18 @@ Example: boardshop.example.com product listing page
 
 **Do this immediately — before you need them.** Scan every source for tokens, session IDs, CSRF values, API keys, and auth headers. Document where each one lives.
 
-Sources to check:
+**Always extract tokens from the page first, not from dedicated token endpoints.** Many sites embed tokens (crumbs, CSRF, API keys) in their HTML, cookies, or JS globals. Dedicated token endpoints (e.g., `/api/getcrumb`) are often aggressively rate-limited. If you hit the page source first, you get the token for free without burning your rate limit budget.
 
+Sources to check (in priority order):
+
+- **Embedded JSON in `<script>` tags:** SvelteKit, Next.js, and React apps embed tokens in server-rendered data (`<script type="application/json">`, `__NEXT_DATA__`, `data-sveltekit-fetched`)
 - **HTML hidden inputs:** `<input type="hidden" id="x-csrf-token" value="...">`
 - **HTML meta tags:** `<meta name="api-key" content="...">`
-- **HTML data attributes:** `<div data-session-id="...">`
 - **Cookies:** both request cookies and `Set-Cookie` response headers
-- **JavaScript globals:** `window.__CONFIG__`, `window.__SESSION__`
+- **JavaScript globals:** `window.__CONFIG__`, `window.__SESSION__`, `window.ytcfg`
 - **Inline script assignments:** `<script>var API_TOKEN = "...";</script>`
 - **Response headers:** `X-Request-Id`, `X-Session-Token`, custom headers
+- **Dedicated token endpoints (LAST):** Only call `/api/crumb` or `/api/token` if the token isn't available in any of the above sources — these endpoints are frequently rate-limited
 
 ```
 Example: boardshop.example.com token inventory

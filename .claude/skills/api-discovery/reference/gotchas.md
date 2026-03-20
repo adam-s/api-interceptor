@@ -20,6 +20,7 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | Real-time 429, cached 200 | CDN passes cached (no bot check); origin blocks headless. `age > 0` = CDN |
 | Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see anti-bot.md Step 0) |
 | Direct `fetch()` 429 but browser 200 | TLS fingerprinting (JA3/JA4) — use `browserFetch()` instead |
+| Token endpoint returns 429 | **Don't retry the endpoint.** The token (crumb, CSRF) is almost always embedded in the page HTML, cookies, or JS globals. Extract it from there instead. Dedicated token endpoints are aggressively rate-limited. See discovery-process.md Step 2. |
 | Route 404 after editing routes.ts | Kill port 3001, rerun `pnpm dev` |
 | ID regex misses alphanumeric IDs | Use `[A-Z0-9]+` not `\d+` |
 | `data-*` attr != displayed value | Always read from displayed text |
