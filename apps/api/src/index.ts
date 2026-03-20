@@ -22,6 +22,7 @@ import {
 } from '@interceptor/shared';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { WSContext } from 'hono/ws';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import './register-domains'; // Side-effect: registers domain plugins
@@ -205,8 +206,18 @@ server.on('upgrade', async (req: IncomingMessage, socket: Socket, head: Buffer) 
 			if (pathname === '/ws') {
 				// Dashboard state management WebSocket
 				const adapter = new WSClientAdapter(ws);
-				// Cast to WSContext interface (adapter is compatible)
-				const client = addClient(adapter as any);
+				const wsContext = new WSContext({
+					send: (data, _opts) =>
+						adapter.send(
+							typeof data === 'string'
+								? data
+								: Buffer.from(new Uint8Array(data instanceof ArrayBuffer ? data : data.buffer)),
+						),
+					close: (code, reason) => ws.close(code, reason),
+					readyState: ws.readyState as 0 | 1 | 2 | 3,
+					raw: ws,
+				});
+				const client = addClient(wsContext);
 
 				ws.on('message', async (data: Buffer) => {
 					try {
