@@ -1457,7 +1457,14 @@ export class RemoteBrowserService {
 			{ url: string; status: number; headers: Record<string, string>; contentType: string }
 		>();
 
+		// Track Document requests for pre-hydration HTML capture
+		const documentRequests = new Map<string, { url: string }>();
+
 		this.cdp.on('Network.requestWillBeSent', (params: any) => {
+			// Capture Document requests for the analyzer (pre-hydration HTML)
+			if (params.type === 'Document') {
+				documentRequests.set(params.requestId, { url: params.request.url });
+			}
 			if (!['XHR', 'Fetch'].includes(params.type)) return;
 			let body: unknown;
 			try {
@@ -1541,6 +1548,31 @@ export class RemoteBrowserService {
 		this.cdp.on('Network.loadingFailed', (params: any) => {
 			pendingRequests.delete(params.requestId);
 			responseInfo.delete(params.requestId);
+			documentRequests.delete(params.requestId);
+		});
+
+		// Capture Document response bodies (pre-hydration HTML for the analyzer)
+		this.cdp.on('Network.loadingFinished', async (params: any) => {
+			const doc = documentRequests.get(params.requestId);
+			if (!doc || !this.networkCaptureCallback) return;
+			documentRequests.delete(params.requestId);
+			try {
+				const bodyResult = await this.cdp!.send('Network.getResponseBody', {
+					requestId: params.requestId,
+				});
+				// Store as a special traffic entry that the analyzer can use
+				this.networkCaptureCallback(
+					{ method: 'DOCUMENT', url: doc.url, body: null, headers: {} },
+					{
+						url: doc.url,
+						status: 200,
+						headers: { 'content-type': 'text/html' },
+						body: bodyResult.body, // Raw HTML string — pre-hydration
+					},
+				);
+			} catch {
+				/* Document body unavailable */
+			}
 		});
 
 		// WebSocket frame capture — CDP does NOT capture WS frames via requestWillBeSent.
