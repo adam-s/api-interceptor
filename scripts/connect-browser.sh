@@ -5,7 +5,7 @@
 # WebSocket connection alive in the background so traffic capture works.
 #
 # Usage:
-#   ./scripts/connect-browser.sh --profile stubhub --url https://www.stubhub.com
+#   ./scripts/connect-browser.sh --profile mysite --url https://www.example.com
 #   ./scripts/connect-browser.sh --profile generic --url http://localhost:4444/boardshop
 #   ./scripts/connect-browser.sh --profile generic --url http://localhost:4444/boardshop --port 3001
 #
