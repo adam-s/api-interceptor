@@ -75,7 +75,6 @@ export function RemoteBrowserViewer({
 }: RemoteBrowserViewerProps) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const wsRef = useRef<WebSocket | null>(null);
-	const [_isConnected, setIsConnected] = useState(false);
 	const [frameCount, setFrameCount] = useState(0);
 	const [viewport, setViewport] = useState<ViewportInfo>({ width, height });
 	const [isReady, setIsReady] = useState(false);
@@ -142,7 +141,6 @@ export function RemoteBrowserViewer({
 		onWsRef?.(ws);
 
 		ws.onopen = () => {
-			setIsConnected(true);
 			onStatusChange?.('connected');
 		};
 
@@ -174,7 +172,6 @@ export function RemoteBrowserViewer({
 							navigator.clipboard.writeText(message.text as string).catch(() => {});
 						}
 					} else if (message.type === 'crash') {
-						setIsConnected(false);
 						setIsReady(false);
 						onStatusChange?.('error');
 					}
@@ -185,7 +182,6 @@ export function RemoteBrowserViewer({
 		};
 
 		ws.onclose = (event) => {
-			setIsConnected(false);
 			setIsReady(false);
 			onStatusChange?.(event.code === 1000 ? 'disconnected' : 'error');
 			// Only null the ref if this WS is still the current one — avoids
@@ -207,8 +203,9 @@ export function RemoteBrowserViewer({
 		if (wsRef.current) {
 			wsRef.current.close();
 			wsRef.current = null;
+			onWsRef?.(null);
 		}
-	}, []);
+	}, [onWsRef]);
 
 	// Send control message (only when ready)
 	const sendMessage = useCallback(
