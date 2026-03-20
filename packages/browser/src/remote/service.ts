@@ -1536,6 +1536,46 @@ export class RemoteBrowserService {
 				/* body unavailable */
 			}
 		});
+
+		// Fix: clean up pendingRequests on failed requests (prevents memory leak)
+		this.cdp.on('Network.loadingFailed', (params: any) => {
+			pendingRequests.delete(params.requestId);
+			responseInfo.delete(params.requestId);
+		});
+
+		// WebSocket frame capture — CDP does NOT capture WS frames via requestWillBeSent.
+		// These events let us see WebSocket connections and their messages.
+		const wsConnections = new Map<string, string>(); // requestId → url
+
+		this.cdp.on('Network.webSocketCreated', (params: any) => {
+			wsConnections.set(params.requestId, params.url);
+			if (this.networkCaptureCallback) {
+				this.networkCaptureCallback(
+					{ method: 'WS', url: params.url, body: null, headers: {} },
+					{ url: params.url, status: 101, headers: {}, body: { type: 'websocket-created', wsUrl: params.url } },
+				);
+			}
+		});
+
+		this.cdp.on('Network.webSocketFrameReceived', (params: any) => {
+			const url = wsConnections.get(params.requestId) || 'unknown-ws';
+			if (!this.networkCaptureCallback) return;
+			const payload = params.response?.payloadData || '';
+			let body: unknown;
+			try {
+				body = JSON.parse(payload);
+			} catch {
+				body = payload.length > 200 ? `[binary/text ${payload.length} bytes]` : payload;
+			}
+			this.networkCaptureCallback(
+				{ method: 'WS-FRAME', url, body: null, headers: {} },
+				{ url, status: 0, headers: {}, body: { type: 'websocket-frame', data: body, size: payload.length } },
+			);
+		});
+
+		this.cdp.on('Network.webSocketClosed', (params: any) => {
+			wsConnections.delete(params.requestId);
+		});
 	}
 
 	/**
