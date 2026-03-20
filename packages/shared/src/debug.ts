@@ -11,7 +11,7 @@
  *   DEBUG('location', 'message', () => ({ key: expensiveCall() }))
  */
 
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFile, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const DEBUG_DIR = '/tmp/interceptor-debug';
@@ -75,7 +75,7 @@ export function DEBUG(arg1: string, arg2?: string | DataFactory, arg3?: DataFact
 		ensureDir();
 		const date = new Date().toISOString().split('T')[0];
 		const file = join(DEBUG_DIR, `debug-${date}.log`);
-		appendFileSync(file, `${line}\n`);
+		appendFile(file, `${line}\n`, () => {}); // async, non-blocking
 	} catch {
 		// silently fail file writes
 	}
@@ -91,7 +91,7 @@ export function appendDebugLog(line: string): void {
 		ensureDir();
 		const date = new Date().toISOString().split('T')[0];
 		const file = join(DEBUG_DIR, `debug-${date}.log`);
-		appendFileSync(file, `${line}\n`);
+		appendFile(file, `${line}\n`, () => {}); // async, non-blocking
 	} catch {
 		// silently fail
 	}

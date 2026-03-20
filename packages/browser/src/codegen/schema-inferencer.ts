@@ -39,11 +39,14 @@ function inferType(value: unknown): InferredType {
 
 	if (Array.isArray(value)) {
 		const itemTypes = value.map((item) => inferType(item));
-		// Use first non-null type as item type
-		const itemType = itemTypes.find((t) => t.type !== 'null') || {
-			type: 'unknown',
-			nullable: true,
-		};
+		// Find all unique non-null types — if they agree, use that type; otherwise 'unknown'
+		const nonNullTypes = itemTypes.filter((t) => t.type !== 'null');
+		const uniqueTypes = new Set(nonNullTypes.map((t) => t.type));
+		const fallback: InferredType = { type: 'unknown', nullable: true };
+		const itemType: InferredType =
+			uniqueTypes.size === 1
+				? (nonNullTypes[0] ?? fallback)
+				: fallback;
 		return {
 			type: 'array',
 			nullable: false,

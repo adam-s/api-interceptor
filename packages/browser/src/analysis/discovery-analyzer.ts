@@ -368,8 +368,9 @@ export function discoverTokens(html: string, trafficEntries: TrafficEntry[], $?:
 			entry.responseHeaders?.['set-cookie'] ?? entry.responseHeaders?.['Set-Cookie'] ?? '';
 		if (!setCookie) continue;
 
-		// Parse cookie name=value pairs
-		const cookies = setCookie.split(',').map((c) => c.trim());
+		// Parse cookie name=value pairs — split on comma but skip commas inside date values
+		// (e.g., "Expires=Thu, 01 Dec 2025"). Split on comma followed by a cookie name pattern.
+		const cookies = setCookie.split(/,(?=\s*[a-zA-Z_][a-zA-Z0-9_]*=)/).map((c) => c.trim());
 		for (const cookie of cookies) {
 			const match = cookie.match(/^([^=]+)=([^;]*)/);
 			if (match && !cookiesSeen.has(match[1])) {

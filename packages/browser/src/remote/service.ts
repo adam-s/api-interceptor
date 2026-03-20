@@ -161,6 +161,7 @@ export class RemoteBrowserService {
 	private cdp: CDPSession | null = null;
 	private frameCallback: FrameCallback | null = null;
 	private urlChangeCallback: ((url: string) => void) | null = null;
+	private urlChangeHandler: ((frame: unknown) => void) | null = null;
 	private errorCallback: ErrorCallback | null = null;
 	private crashCallback: CrashCallback | null = null;
 	private frameId = 0;
@@ -1469,11 +1470,16 @@ export class RemoteBrowserService {
 
 		callback(this.page.url());
 
-		this.page.on('framenavigated', (frame) => {
+		// Remove previous listener to avoid duplicates (BUG-3)
+		if (this.urlChangeHandler) {
+			this.page.removeListener('framenavigated', this.urlChangeHandler);
+		}
+		this.urlChangeHandler = (frame) => {
 			if (frame === this.page?.mainFrame()) {
-				callback(this.page.url());
+				callback(this.page?.url() ?? '');
 			}
-		});
+		};
+		this.page.on('framenavigated', this.urlChangeHandler);
 	}
 
 	/**
