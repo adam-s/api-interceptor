@@ -1,20 +1,34 @@
-# Phase 0: Check for a Public API
+# Phase 0: Public API Check (RESTRICTED)
 
-Before launching a browser, check if the target site has a documented public REST API. If the user's prompt includes discovery hints or notes about the target site, read them first — they may contain answers that save hours of trial and error.
+> **GATE: This phase is ONLY applicable when ALL of the following are true:**
+> 1. The user's prompt explicitly requests using a known public API (e.g., "use the Reddit API" or "use the GitHub API")
+> 2. OR: You have already completed Phases 1-2, produced a Transport Classification table, and discovered that the site's internal endpoints require authentication you cannot obtain via browser interception
+>
+> **Do NOT use this phase to skip browser-based discovery.** The project's core purpose is intercepting internal browser traffic. Searching for public APIs as a first step violates the #1 Rule in CLAUDE.md.
+>
+> **If the user's prompt says "discover the API for example.com" or similar, this means browser traffic interception — NOT searching for public API documentation.** Go directly to Phase 1.
 
-## How to check
+## When this phase applies
 
-1. **WebSearch** for `"<site-name> API documentation"` — mandatory, never guess endpoints
+Public APIs are appropriate when:
+- The user explicitly asks to use a documented API and provides credentials
+- A CLI tool (yt-dlp, gallery-dl) covers the exact use case and the user requests it
+
+Public APIs are NOT appropriate when:
+- You haven't tried browser interception yet
+- You assume the site "probably has an API"
+- You want to avoid the complexity of browser traffic capture
+- You don't have API keys (we almost never do)
+
+## How to check (ONLY when the gate above is met)
+
+1. **WebSearch** for `"<site-name> API documentation"` — only after the gate above is satisfied
 2. Look for `api.example.com` / `developer.example.com` subdomains
-3. Some sites expose a `.json` suffix on regular URLs for read-only JSON (no key needed) — fastest path to `browserRequired: false` routes
-4. When the primary source requires paid auth or CAPTCHA, look for **free open-source mirrors**
+3. Some sites expose a `.json` suffix on regular URLs for read-only JSON (no key needed)
 
-## If the API requires a key — use a disposable email for dev
+## If the API requires a key
 
-1. Get a temp email address (disposable email service or domain plugin)
-2. Register on the target service's signup page with the temp email
-3. Read the verification email, extract the confirmation link
-4. Navigate to the link → API key issued. Dev only — production uses `.env` credentials.
+**STOP.** If the public API requires registration, API keys, or OAuth credentials, this phase does not apply. Go to Phase 1 and discover the internal endpoints the site uses when a real user browses — those don't need keys because the browser session handles auth.
 
 ## Public API route pattern
 

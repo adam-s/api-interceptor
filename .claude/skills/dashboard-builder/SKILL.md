@@ -7,7 +7,7 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
-**Development principle:** The build loop IS the debug-log + screenshot loop. Build a component → add DEBUG() to verify data flow → screenshot it → fix what's wrong → re-screenshot. **Verification output is required input for the next step** (see CLAUDE.md "The Rule That Makes This Work").
+**Development principle: DEBUG logging is mandatory.** The build loop IS the debug-log + screenshot loop. `import { DEBUG } from '@interceptor/shared'` in every new file. Add `DEBUG('component-name', () => ({ step, data }))` at every data flow point: API fetch, response parsing, state updates, render decisions. Build a component → check debug logs to verify data flow → screenshot it → fix what's wrong → re-screenshot. **Verification output is required input for the next step** (see CLAUDE.md "The Rule That Makes This Work").
 
 **Single browser instance — sequential calls only.** See api-discovery skill "Gotchas" section for details and code patterns.
 
@@ -28,7 +28,23 @@ Domain plugins registered, `pnpm run dev` (ports 3000/3001).
 
 **Verify the data layer returns real data before building UI.** For HTTP routes: curl. For WebSocket streams: connect and observe messages. For any protocol: the verification must produce observable output proving real data flows end-to-end. If you can't verify it, you can't build on it.
 
+**Routes must use network interception, not DOM extraction.** Every route that serves data must intercept a network request (XHR, WebSocket, GraphQL, etc.) — not parse rendered HTML via `page.evaluate()`. If a route uses `page.evaluate()` for data extraction, it violates the discovery protocol and must be rewritten. The Transport Classification table from `data-transport-discovery.md` must exist before any route is created.
+
 If any endpoint returns empty or errors, stop and fix the API layer using debug-logs skill. If data looks wrong or encoded, see CLAUDE.md "Unexpected Output Is Information, Not Failure" — investigate the transformation before concluding something is broken.
+
+## Step 0: Cache Fixture Data (before building ANY UI)
+
+After API routes are proven with curl, cache ALL responses as fixtures. This eliminates browser dependency during UI development — every reload is instant (0ms vs 30-60s).
+
+```bash
+mkdir -p data/fixtures/{domain}
+curl -s http://localhost:3001/api/{domain}/search?q=test > data/fixtures/{domain}/search.json
+curl -s http://localhost:3001/api/{domain}/detail/123 > data/fixtures/{domain}/detail.json
+```
+
+Then develop with `FIXTURE_DIR=data/fixtures pnpm dev` — the API serves cached data instantly. Switch to live mode only for final integration testing.
+
+**Why this is mandatory:** UI iteration requires 10-50 reloads. At 30-60s per live request, that's 5-50 minutes of pure waiting. With fixtures, it's under 1 second total.
 
 ## Steps 1-3: Plan + Create Route
 

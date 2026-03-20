@@ -1,5 +1,17 @@
 # Interceptor
 
+## The #1 Rule: Browser Traffic Interception
+
+**Every data endpoint MUST be discovered by navigating as a real user and capturing browser traffic.** Connect a browser via WebSocket, navigate the target site, capture traffic at `/browser/traffic`, and find the internal API endpoints the site uses. Do NOT search for or use publicly documented developer APIs — we don't have API keys and the goal is to intercept what the browser actually sends.
+
+**Before writing ANY data extraction code**, complete the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`) and produce a Transport Classification table in the conversation. No table = no fetcher.
+
+**`page.evaluate()` for data extraction requires proof.** If you want to use `page.evaluate()` to extract data users see on the page, you must first prove with captured traffic evidence that no network request carries that data. `page.evaluate()` IS allowed for: navigation (clicking, typing), page metadata (URL, title), and auth token extraction (CSRF from hidden inputs). It is NOT allowed for extracting data without evidence from the discovery protocol.
+
+**Why:** DOM extraction causes 60–90s page loads, locale-dependent data, and fragile text parsing. Network interception returns clean JSON in 1–3s.
+
+**DEBUG logging is mandatory.** `import { DEBUG } from '@interceptor/shared'` in every new file. Add `DEBUG()` calls at every decision point: traffic capture, response reading, token extraction, endpoint testing, data processing. Log what you receive BEFORE processing it. Check logs at `/tmp/interceptor-debug/`. On complex sites, debug logging reduces total work by 8-15% — you observe and pivot instead of guessing and retrying.
+
 ## Mission
 
 **A developer pastes a natural-language prompt. Claude Code discovers the target website's API via browser traffic interception, creates a typed domain plugin with proxy routes, and builds a working dashboard — without manual intervention beyond the initial prompt.** The browser IS the API client. The skills are the product.
@@ -40,6 +52,25 @@ pnpm turbo typecheck                  # TypeScript
 pnpm turbo build                      # Build all
 ```
 
+### Browser Connection for Discovery
+
+To capture traffic, connect a browser via WebSocket (the auto-started browser does NOT capture traffic):
+
+```bash
+./scripts/connect-browser.sh --profile <domain> --url <target-url>
+./scripts/capture-traffic.sh --summary
+```
+
+### Fixture-Based UI Development
+
+After API routes are proven with curl, cache responses for instant UI development:
+
+```bash
+mkdir -p data/fixtures/{domain}
+curl -s http://localhost:3001/api/{domain}/search?q=test > data/fixtures/{domain}/search.json
+FIXTURE_DIR=data/fixtures pnpm --filter @interceptor/api dev  # Instant responses, no browser
+```
+
 ## Key Architecture
 
 - **Browser WebSocket:** `ws://localhost:3001/browser/stream?profile=<domain>&url=<target>`
@@ -59,5 +90,11 @@ pnpm turbo build                      # Build all
 - Tests: Vitest with workspace mode
 - Frontend API URLs: use **relative URLs** (`/api/...`), not `http://localhost:3001/...`. Next.js rewrites proxy in `apps/web/next.config.ts`.
 - Rate-limited outbound fetch: use `rateLimitedFetch` from `@interceptor/shared` for `browserRequired: false` routes.
+- `page.evaluate()` for data extraction: **FORBIDDEN without proof.** See The #1 Rule above. Allowed uses: navigation actions (clicking, typing), page metadata (URL, title), auth token extraction (CSRF from hidden inputs), and reading the full HTML source for embedded JSON discovery.
+- Every new `.ts`/`.tsx` file: add `// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior` as first line.
+- Before fixing any bug: add DEBUG() calls first, observe the actual state, confirm root cause, THEN fix. Never commit a fix without proof.
+- Never declare "done" without end-to-end proof (curl output or screenshot showing real data at every step).
+- When an API returns empty/zero results: STOP. Add DEBUG logs, read the output, understand WHY, then fix. Do not guess or tweak CSS selectors.
+- Unexpected output is information, not failure. Investigate encoding, localization, lazy loading — don't abandon the approach without evidence it *cannot* work.
 - Never `git add -A` — stage specific files by name.
 - Always run `./scripts/ci-local.sh` before committing.

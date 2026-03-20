@@ -5,38 +5,32 @@ description: Workflow rules — verification, git hygiene, mistake logging, test
 # Workflow Rules
 
 - **Verify every step:** curl returns real data, screenshot shows real content — never move on without proof
-- **Debug skill for runtime bugs:** invoke `.claude/skills/debug-logs/SKILL.md` — don't guess, observe.
+- **Debug skill for runtime bugs:** don't guess, observe
 - **Never quit half-way:** iterate until the prompt is fully solved and CI is green
-- **Commit base clean before cutting branches:** always commit `base` to a clean, passing state BEFORE creating test branches — the branch point is permanent and cannot be retroactively fixed without rebase
-- **Never `git add -A`:** stage specific files by name. `git add -A` catches `data/browser-profiles/` cache, `.env` files, and other local artifacts. Prefer dependency injection over hardcoded imports — framework code in `packages/` must be clean of domain-specific code.
-- **Document mistakes immediately:** when something goes wrong, append a one-line note to `base-fixes-needed.md` describing what happened and how to avoid it. Don't wait until the end of the iteration.
-- **Review skills after using them:** after completing work guided by a skill, review what went wrong and add gotchas/lessons to the skill's SKILL.md on the next base pass. Skills improve every iteration.
-- **Maintain a running failure log:** during iterations, log every failure with root cause. At the end, sweep: domain-specific stays on the test branch, generalizable fixes go to base skills.
-- **Track multi-attempt difficulties:** when a problem requires 5+ different approaches, document it in `base-fixes-needed.md` with: the problem, what was tried, and the resolution. The user reviews these after prompt completion to understand where complexity lives.
+- **Commit base clean before cutting branches:** the branch point is permanent
+- **Never `git add -A`:** stage specific files by name
+- **Document mistakes immediately:** append to `base-fixes-needed.md`, don't wait
+- **Track multi-attempt difficulties:** 5+ approaches = document the problem and resolution
 
-## Process Cleanup Rule
+## Process Cleanup
 
-**Clean up everything you started.** Before finishing a task or switching context, kill all processes and remove all temp files you created. Orphaned processes waste resources and confuse the user.
+**Clean up everything you started.** Kill all processes and remove temp files before finishing or switching context.
 
-Checklist:
+```bash
+pkill -f "connect-browser"              # Browser sessions
+pkill -f "tsx.*src/index"               # tsx watchers (respawn children — kill parent too)
+lsof -ti:3001 | xargs kill 2>/dev/null  # API server
+lsof -ti:3000 | xargs kill 2>/dev/null  # Web server
+pkill -f "node /tmp/"                   # Temp node scripts
+rm -f /tmp/*.cjs /tmp/*.ts              # Temp files you created
+```
 
-1. **Kill browser sessions** — `pkill -f "connect-browser"`, check `ps aux | grep browser-profiles`
-2. **Kill API/web servers** you started — `lsof -ti:3001 | xargs kill`, `lsof -ti:3000 | xargs kill`
-3. **Kill node scripts** in /tmp — `pkill -f "node /tmp/"`, any WebSocket streamers, polling scripts
-4. **Kill tsx watchers** — `pkill -f "tsx.*src/index"` (tsx --watch respawns child processes)
-5. **Remove temp files** — `/tmp/scripts.ts`, `/tmp/*.cjs`, `/tmp/*.log` that you created
-6. **Verify** — `lsof -ti:3001`, `ps aux | grep browser-profiles`, `ps aux | grep "node /tmp/"` should all return empty
+## Notes File Rule (Test → Base)
 
-**tsx --watch trap:** When you kill an API server started with `tsx --watch`, the watcher respawns it. You must kill both the child (on the port) and the parent watcher (`pkill -f "tsx.*src/index"`).
+On test branches, NEVER edit CLAUDE.md or `.claude/skills/` directly. Write to the fix queue:
 
-Do this cleanup at end of task, before switching branches, and before the conversation ends.
-
-## Notes File Rule (Test -> Base)
-
-**On a test branch, NEVER directly edit CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md, or `.claude/skills/`.** Write discoveries to the persistent fix queue instead:
-
-```text
+```
 ~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/base-fixes-needed.md
 ```
 
-On return to `base`: read the file, apply every item, clear it, run CI, commit. The next test branch inherits all learnings.
+On return to `base`: read, apply, clear, run CI, commit.

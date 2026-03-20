@@ -2,6 +2,8 @@
 description: "The investigative process for discovering how a website serves data. Read the source, catalog tokens, interact and watch, read the JS, follow every trail. Companion to data-transport-discovery.md."
 ---
 
+> **This process discovers the internal network endpoints a website uses.** Navigate as a real user with a browser connected via WebSocket, capture traffic, and find what the site sends. Do NOT search for or use publicly documented developer APIs — intercept what the browser actually calls.
+
 # Discovery Process
 
 **This is how you find data.** The decision tree in `data-transport-discovery.md` classifies what transport type the data uses. This document teaches the investigative work that happens first — discovering WHERE the data lives, HOW requests are constructed, and WHAT tokens/IDs are required.
@@ -16,7 +18,7 @@ description: "The investigative process for discovering how a website serves dat
 
 Get the full HTML — not DOM text, the actual response body.
 
-- Use `page.evaluate(() => document.documentElement.outerHTML)` or fetch the URL directly with the browser's cookies
+- Use `page.evaluate(() => document.documentElement.outerHTML)` or fetch the URL directly with the browser's cookies. **(This is the ONLY acceptable `page.evaluate()` for data discovery — reading the raw HTML source to find embedded JSON. Do NOT use `page.evaluate()` to extract rendered text, prices, listings, or any user-visible data from the DOM. That requires proof from the Transport Classification table that no network request carries it.)**
 - Search for `<script type="application/json">`, `<script id="...">`, `__NEXT_DATA__`, inline JSON blobs
 - Search for the actual data values visible on the page — prices, names, IDs, counts
 - Traffic capture truncates large responses (often just a 2KB preview of a 500KB page). When the preview is incomplete, fetch the URL directly to get the full body
@@ -317,3 +319,7 @@ Example: boardshop.example.com complete endpoint map
   filterSessionId:  embedded JSON → filterSessionId         — per-session, from initial GET
   _sid cookie:      Set-Cookie on initial page load          — persistent session
 ```
+
+## 11. Produce the Transport Classification Table
+
+**This process is not complete until you produce the Transport Classification table from `data-transport-discovery.md` Step 4 in the conversation.** The table is the mandatory output of discovery. No table = no extraction code. Go back to `data-transport-discovery.md` and fill in every row before writing any fetcher or route code.

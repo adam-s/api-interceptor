@@ -8,7 +8,9 @@ Route with `targetUrl` — proxied through `browserFetch()` automatically. Cooki
 { method: 'GET', path: '/search', targetUrl: 'https://api.example.com/v1/search', description: 'Search' }
 ```
 
-## Type B: SSR extraction via `page.evaluate()`
+## Type B: SSR extraction via `page.evaluate()` (LAST RESORT — requires proof)
+
+> **PREREQUISITE: You may only write Type B code if your Transport Classification table has a row for this data type with transport=SSR and evidence that priorities (a)-(f) in `data-transport-discovery.md` were all checked and returned nothing.** If you do not have this evidence, go back to Phase 2. `page.evaluate()` for data extraction without this proof violates the #1 Rule in CLAUDE.md.
 
 **Always use `innerText` not `textContent`** — `innerText` respects CSS layout and adds `\n` between block elements.
 

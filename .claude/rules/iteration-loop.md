@@ -17,6 +17,7 @@ The user has granted full autonomous operation. You may:
 - **Skip `EnterPlanMode`** — don't wait for human approval to start coding. This does NOT mean skip self-verification gates in the skills. Those gates are mandatory checkpoints you enforce on yourself.
 - **Skipping plan mode does NOT mean skipping the Prompt Compliance Matrix.** The matrix in Step 5 is a self-verification gate, not a human review gate. You produce it for yourself as proof that you checked every requirement. Autonomous mode means you don't wait for human approval — it does NOT mean you skip proving to yourself that the prompt is fully solved.
 - **Skipping plan mode does NOT mean skipping observation.** The api-discovery skill's Phase 1 (Observe) is a MANDATORY gate — connect a browser via WebSocket, capture traffic, see what the site sends. Guessing DOM structure without observation is the #1 failure mode. If extracted data doesn't match the rendered DOM (wrong names, category labels instead of real names, prices off by 100x), see "Decoding Encoded API Responses" in api-discovery/SKILL.md.
+- **You MUST produce the Transport Classification table (`.claude/rules/data-transport-discovery.md` Step 4) BEFORE writing any fetcher or extraction code.** No table in the conversation = no code. This is a structural gate, not a suggestion. Discovery means navigating the site in a real browser and capturing traffic — not searching for or using publicly documented developer APIs.
 
 **You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
 
@@ -40,7 +41,12 @@ FOR each prompt:
         endpoints, document the DOM. This is how you find the data before classifying it.
         ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
         capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
-  1. Build API routes → curl each route → paste response proving real data → ONLY THEN proceed to UI
+  1. Build API routes → curl each route → paste response proving real data
+  1b. CACHE FIXTURES: After routes are proven, save ALL curl responses to data/fixtures/{domain}/.
+      `curl -s http://localhost:3001/api/{domain}/{route} > data/fixtures/{domain}/{route}.json`
+      Then develop UI with `FIXTURE_DIR=data/fixtures pnpm dev` — instant responses, no browser needed.
+      This step is MANDATORY — UI development without fixtures wastes 30-60s per reload.
+      → ONLY THEN proceed to UI
      ⚠️  Classification is per-ENDPOINT, not per-site. Even a SINGLE PAGE can be hybrid:
      the shell and metadata load via SSR while the primary data (prices, inventory,
      listings) loads via XHR after the initial HTML. A page showing "Loading..." for its
@@ -73,7 +79,9 @@ FOR each prompt:
 - You cannot commit until you have screenshots of every state showing zero visual/functional issues
 - You cannot call a button "done" until you have Patchright output showing you clicked it and it responded correctly
 
-**If something is wrong — use debug-logs skill immediately.** Don't guess, observe. The runtime tells you exactly what's wrong.
+**DEBUG logging is mandatory, not optional.** Import `DEBUG` from `@interceptor/shared` and add `DEBUG('component-name', () => ({ ... }))` calls at every decision point: when you capture traffic, read response bodies, find tokens, extract data, test endpoints, or encounter unexpected results. Log what you receive BEFORE processing it. On hard problems (WAF, encoded responses, multi-transport sites), debug logging reduces total tokens by 8-15% because you observe and pivot instead of guessing and retrying.
+
+**If something is wrong — read the debug logs first.** Check `/tmp/interceptor-debug/debug-*.log`. Don't guess, observe. The runtime tells you exactly what's wrong.
 
 **If something looks wrong — use visual-dev skill immediately.** Screenshot it, read it, describe the problem, fix it, re-screenshot. Repeat until zero issues.
 

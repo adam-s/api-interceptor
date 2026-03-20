@@ -1,12 +1,33 @@
 {
   "permissions": {
     "allow": [
-      "Bash(./scripts/ci-local.sh:*)",
+      "Bash(./scripts:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(pnpm:*)",
+      "Bash(lsof:*)",
+      "Bash(kill:*)",
+      "Bash(pkill:*)",
+      "Bash(sleep:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(chmod:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(echo:*)",
       "Bash(gh run:*)",
       "Bash(gh pr:*)",
-      "Bash(pnpm turbo:*)",
-      "Bash(pnpm install:*)",
-      "Bash(docker build:*)"
+      "Bash(git:*)",
+      "Bash(docker build:*)",
+      "Edit(.claude/**)",
+      "Write(.claude/**)"
     ]
   }
 }

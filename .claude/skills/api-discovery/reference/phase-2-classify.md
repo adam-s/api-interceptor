@@ -7,7 +7,7 @@ Compare what you SEE on the page vs what CDP CAPTURED.
 | Type | Signal | Approach |
 |------|--------|----------|
 | **A: JSON API** | Traffic contains the visible data | Proxy routes for XHR/Fetch endpoints |
-| **B: SSR** | Traffic empty; data is in initial HTML | Extract from DOM via `page.evaluate()` |
+| **B: SSR** | Traffic empty after 15s; data is in initial HTML; Steps 2g validation from `data-transport-discovery.md` ALL pass | Extract from DOM via `page.evaluate()` — **LAST RESORT ONLY, requires proof** |
 | **C: Hybrid** | Page 1 SSR; pagination triggers API calls | SSR for page 1, `browserFetch` for page 2+ |
 | **D: Bot-Protected** | `captcha-delivery.com` or `datadome` in body HTML | Return structured 403 (see below) |
 | **B3: SSR-Embedded JSON** | Page renders data via interactive widgets (maps, modals, canvases) but `innerText` has zero matches. HTML response body contains JSON. | Use CDP `Network.getResponseBody` on the HTML response to extract the embedded JSON blob |

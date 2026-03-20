@@ -5,6 +5,8 @@ description: Discover any website's API and create domain plugins with proxy rou
 
 # API Discovery
 
+> **HARD GATE: Before writing ANY fetcher or route code, you MUST (1) connect a browser via WebSocket, (2) navigate the target site, (3) capture traffic at `/browser/traffic`, (4) read every response body, and (5) produce the Transport Classification table from `data-transport-discovery.md` Step 4. No table = no code. Do NOT search for or use publicly documented developer APIs — we don't have API keys. Discover the internal endpoints the website calls when a real user browses.**
+
 Discover how a website delivers its data, then create a domain plugin that exposes it as a typed API. Works with JSON APIs, WebSocket streams, GraphQL, gRPC-Web, SSE, encoded/obfuscated APIs, and SSR pages.
 
 **Core principle:** Navigate as a real user. Never guess a URL. Let every endpoint reveal itself through real browser actions. **Before writing ANY route, run the Data Transport Discovery Protocol (`.claude/rules/data-transport-discovery.md`).** Interception ALWAYS over extraction — if the data exists in any network response, intercept it; DOM extraction is the absolute last resort.
@@ -15,7 +17,7 @@ Discover how a website delivers its data, then create a domain plugin that expos
 
 **Don't stop at the first data source.** Finding embedded JSON in the page is step 1, not the end. You must also discover: how pagination works (click Load More, scroll, check for cursor params), where auth tokens come from (trace backwards through page source, cookies, previous responses, JS globals), whether additional transports exist (WebSocket for real-time data, GraphQL alongside REST), and what the complete request signature looks like (every header, every token, every parameter). Each finding raises the next question — follow it until you can construct any request from scratch.
 
-**Development principle:** Use debug-logs and visual-dev skills at every step. Debug logs turn guessing into knowing. Screenshots turn assumptions into proof. **GATE: You may NOT write the next component until you have screenshotted the current one.**
+**Development principle: DEBUG logging is mandatory.** `import { DEBUG } from '@interceptor/shared'` and add `DEBUG('discovery', () => ({ step, data }))` at every step: traffic capture results, response body previews, token values, endpoint test results. Log what you receive BEFORE processing it. Debug logs turn guessing into knowing — on complex sites they reduce total work by 8-15%. Screenshots turn assumptions into proof. **GATE: You may NOT write the next component until you have screenshotted the current one.**
 
 **Prompt compliance gate:** Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
 
