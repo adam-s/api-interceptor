@@ -19,9 +19,25 @@ Use sub-agents as test subjects to iteratively improve `.claude/` instruction fi
 7. Go to step 1
 ```
 
-## Memory Isolation — CRITICAL
+## Contamination Isolation — CRITICAL
 
-**Memory contamination invalidates results.** Sub-agents share the same memory directory. If a memory file describes a specific site's transport type, auth mechanism, or data structure, the agent doesn't need to discover it — it already knows. Your pass rate may be inflated.
+**Any prior discovery artifacts invalidate results.** Sub-agents can read everything on disk. Two contamination sources:
+
+### 1. Memory files
+If a memory file describes a specific site's transport type, auth mechanism, or data structure, the agent doesn't need to discover it — it already knows.
+
+### 2. Domain plugin directories
+Sub-agents leave `domains/<site>/` directories with complete route implementations, transport classifications, and auth token extraction code. A fresh agent can `ls domains/` and read the answer. **Clean `domains/` before every test run.**
+
+```bash
+# Remove sub-agent domain artifacts (keep only committed reference examples)
+ls domains/ | while read d; do
+  if ! git ls-files --error-unmatch "domains/$d" > /dev/null 2>&1; then
+    echo "REMOVING untracked domain: $d"
+    rm -rf "domains/$d"
+  fi
+done
+```
 
 **Before every sub-agent run:**
 
