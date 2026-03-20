@@ -48,9 +48,17 @@ const app = new Hono();
 app.use('/*', cors());
 
 // Request timeout middleware — browser navigation can take 60s+, cap at 120s
-app.use('/*', async (_c, next) => {
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), 120_000);
+app.use('/*', async (c, next) => {
+	const timeout = setTimeout(() => {
+		if (!c.res.headers.get('content-type')) {
+			// Response not yet sent — send timeout error
+			c.status(504);
+			c.res = new Response(JSON.stringify({ error: 'Request timed out after 120s' }), {
+				status: 504,
+				headers: { 'content-type': 'application/json' },
+			});
+		}
+	}, 120_000);
 	try {
 		await next();
 	} finally {
@@ -152,9 +160,10 @@ const server = createServer(async (req, res) => {
 
 		const buffer = await response.arrayBuffer();
 		res.end(Buffer.from(buffer));
-	} catch (_err) {
+	} catch (err) {
+		console.error('[api] Request error:', err instanceof Error ? err.message : err);
 		res.statusCode = 500;
-		res.end('Internal Server Error');
+		res.end(JSON.stringify({ error: 'Internal Server Error' }));
 	}
 });
 
