@@ -34,10 +34,12 @@ export abstract class GenericInterceptor {
 	protected headersPromiseResolve: ((headers: Record<string, string>) => void) | null = null;
 	protected isAttached = false;
 	protected page: Page | null = null;
+	private headersEmitted = false;
 
 	/**
 	 * Callback fired when all required headers are captured.
 	 * Set before attaching to receive notifications.
+	 * Fires only once — subsequent requests after headers are complete do not re-trigger.
 	 */
 	public onHeadersCaptured: ((headers: Record<string, string>) => void) | null = null;
 
@@ -230,10 +232,11 @@ export abstract class GenericInterceptor {
 				callback(interceptedRequest, interceptedResponse);
 			}
 
-			// Notify if headers completed
-			if (this.hasHeaders() && this.onHeadersCaptured) {
+			// Notify once when headers are first completed (BUG-14 fix)
+			if (this.hasHeaders() && this.onHeadersCaptured && !this.headersEmitted) {
 				const headers = this.getHeaders();
 				if (headers) {
+					this.headersEmitted = true;
 					this.onHeadersCaptured(headers);
 				}
 			}

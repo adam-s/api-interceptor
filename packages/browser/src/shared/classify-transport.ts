@@ -27,6 +27,7 @@ export type TransportType =
 	| 'GRPC_WEB'
 	| 'SSE'
 	| 'JSON_API'
+	| 'EMBEDDED_JSON'
 	| 'ENCODED_API'
 	| 'SSR'
 	| 'HYBRID'
@@ -253,13 +254,20 @@ function isGraphQL(entry: TrafficEntry): boolean {
 	// URL-based detection
 	if (url.includes('/graphql') || url.includes('/gql')) return true;
 
-	// Body-based detection (POST with query/mutation)
+	// Body-based detection (POST with query/mutation) — handles single and batched requests
 	if (entry.method === 'POST' && entry.requestBody) {
-		const body = entry.requestBody as Record<string, unknown>;
-		if (typeof body.query === 'string') {
-			return (
-				body.query.includes('{') || body.query.includes('query') || body.query.includes('mutation')
-			);
+		const bodies = Array.isArray(entry.requestBody) ? entry.requestBody : [entry.requestBody];
+		for (const item of bodies) {
+			if (item && typeof item === 'object') {
+				const body = item as Record<string, unknown>;
+				if (typeof body.query === 'string') {
+					return (
+						body.query.includes('{') ||
+						body.query.includes('query') ||
+						body.query.includes('mutation')
+					);
+				}
+			}
 		}
 	}
 
@@ -367,16 +375,20 @@ function filterDataEntries(entries: TrafficEntry[]): TrafficEntry[] {
 
 	const skipExtensions = [
 		'.js',
+		'.mjs',
 		'.css',
 		'.png',
 		'.jpg',
 		'.jpeg',
 		'.gif',
 		'.svg',
+		'.webp',
 		'.woff',
 		'.woff2',
 		'.ttf',
+		'.eot',
 		'.ico',
+		'.map',
 	];
 
 	return entries.filter((e) => {
