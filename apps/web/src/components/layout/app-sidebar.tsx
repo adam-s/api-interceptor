@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { TrendingUp } from 'lucide-react';
 import {
 	Sidebar,
@@ -19,7 +20,7 @@ export function AppSidebar() {
 				<SidebarMenu>
 					<SidebarMenuItem>
 						<SidebarMenuButton size="lg" asChild>
-							<a href="/dashboard">
+							<Link href="/dashboard">
 								<div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
 									<TrendingUp className="size-4" />
 								</div>
@@ -27,7 +28,7 @@ export function AppSidebar() {
 									<span className="truncate font-semibold">Interceptor</span>
 									<span className="truncate text-xs">API Discovery</span>
 								</div>
-							</a>
+							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
