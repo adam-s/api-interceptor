@@ -13,6 +13,7 @@ import {
 } from '@interceptor/browser/handler';
 import { createDomainProxy } from '@interceptor/browser/handler/api-proxy';
 import { getDomain, listDomains } from '@interceptor/browser/handler/domain-loader';
+import { connectBrowserRateLimiter } from '@interceptor/browser/remote';
 import {
 	recordRateLimitedRequest,
 	releaseRateLimitSlot,
@@ -23,7 +24,6 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
-import { connectBrowserRateLimiter } from '@interceptor/browser/remote';
 import './register-domains'; // Side-effect: registers domain plugins
 
 // Connect rate limiter to browserFetch so Chrome-based fetches respect rate limits
@@ -32,6 +32,7 @@ connectBrowserRateLimiter({
 	record: recordRateLimitedRequest,
 	release: releaseRateLimitSlot,
 });
+
 import { getBridge } from './bridge';
 import { formatStartupBanner } from './format';
 import { addClient, getState, removeClient, resetState, setMultiplier, setRunning } from './state';
@@ -47,7 +48,7 @@ const app = new Hono();
 app.use('/*', cors());
 
 // Request timeout middleware — browser navigation can take 60s+, cap at 120s
-app.use('/*', async (c, next) => {
+app.use('/*', async (_c, next) => {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 120_000);
 	try {

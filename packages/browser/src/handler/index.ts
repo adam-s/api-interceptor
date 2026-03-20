@@ -121,7 +121,9 @@ export async function autoStartHeadlessBrowser(profile?: string): Promise<void> 
 					// Auto-restart after crash (max 3 attempts, 5s delay)
 					if ((autoRestartAttempts ?? 0) < 3) {
 						autoRestartAttempts = (autoRestartAttempts ?? 0) + 1;
-						console.log(`[browser] Crash detected, auto-restarting (attempt ${autoRestartAttempts}/3)...`);
+						console.log(
+							`[browser] Crash detected, auto-restarting (attempt ${autoRestartAttempts}/3)...`,
+						);
 						setTimeout(() => autoStartHeadlessBrowser(), 5000);
 					} else {
 						console.error('[browser] Max auto-restart attempts reached. Manual restart required.');

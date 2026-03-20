@@ -1621,7 +1621,12 @@ export class RemoteBrowserService {
 			if (this.networkCaptureCallback) {
 				this.networkCaptureCallback(
 					{ method: 'WS', url: params.url, body: null, headers: {} },
-					{ url: params.url, status: 101, headers: {}, body: { type: 'websocket-created', wsUrl: params.url } },
+					{
+						url: params.url,
+						status: 101,
+						headers: {},
+						body: { type: 'websocket-created', wsUrl: params.url },
+					},
 				);
 			}
 		});
@@ -1638,7 +1643,12 @@ export class RemoteBrowserService {
 			}
 			this.networkCaptureCallback(
 				{ method: 'WS-FRAME', url, body: null, headers: {} },
-				{ url, status: 0, headers: {}, body: { type: 'websocket-frame', data: body, size: payload.length } },
+				{
+					url,
+					status: 0,
+					headers: {},
+					body: { type: 'websocket-frame', data: body, size: payload.length },
+				},
 			);
 		});
 
