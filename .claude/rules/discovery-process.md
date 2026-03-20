@@ -14,6 +14,25 @@ description: "The investigative process for discovering how a website serves dat
 
 **The #1 failure mode is stopping too early.** Finding one data source is not done. You must also find: how pagination works, where auth tokens come from, what happens when you interact with the page, whether there are additional data sources (WebSocket, GraphQL) alongside the initial one. Each discovery leads to the next question — follow it.
 
+## 0. Identify the Framework
+
+Before reading the page source, identify which framework the site uses. This tells you exactly where data lives and saves significant discovery time.
+
+**Quick identification** (check the HTML source for these markers):
+
+| Marker | Framework | Where data lives |
+|--------|-----------|-----------------|
+| `__NEXT_DATA__` or `/_next/` | **Next.js** | `<script id="__NEXT_DATA__">` JSON, `/api/` routes, RSC flight payloads (`text/x-component`) |
+| `data-sveltekit-fetched` or `/_app/immutable/` | **SvelteKit** | `<script type="application/json" data-sveltekit-fetched>` tags per-fetch |
+| `__NUXT_DATA__` or `/_payload.json` | **Nuxt (Vue)** | `<script id="__NUXT_DATA__">` or `/_payload.json` sibling requests |
+| `ng-version` or `ng-app` | **Angular** | XHR after bootstrap — rarely embedded, check traffic first |
+| `data-reactroot` but no `__NEXT_DATA__` | **React SPA** | XHR after hydration — no embedded data, all APIs in traffic |
+| `jQuery` or `$.ajax` in scripts | **jQuery/traditional** | Form POSTs, `$.ajax` calls, server-rendered HTML |
+| `__remixContext` or `__remix` | **Remix** | Loader data in `<script>` tags, `/action` POST endpoints |
+| `__GATSBY` | **Gatsby** | `page-data.json` files, static JSON at build time |
+
+**Why this matters:** A Next.js site almost always has data in `__NEXT_DATA__`. A React SPA never does — all data comes via XHR. Knowing the framework skips 10-15 minutes of guessing.
+
 ## 1. Read the Page Source
 
 Get the full HTML — not DOM text, the actual response body.
