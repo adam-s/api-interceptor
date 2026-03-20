@@ -1539,14 +1539,41 @@ export class RemoteBrowserService {
 			});
 		});
 
+		// Unified loadingFinished handler — processes both XHR/Fetch and Document requests
 		this.cdp.on('Network.loadingFinished', async (params: CDPLoadingFinished) => {
+			if (!this.networkCaptureCallback) return;
+
+			// Check if this is a Document request (pre-hydration HTML capture)
+			const doc = documentRequests.get(params.requestId);
+			if (doc) {
+				documentRequests.delete(params.requestId);
+				try {
+					const bodyResult = await this.cdp!.send('Network.getResponseBody', {
+						requestId: params.requestId,
+					});
+					this.networkCaptureCallback(
+						{ method: 'DOCUMENT', url: doc.url, body: null, headers: {} },
+						{
+							url: doc.url,
+							status: 200,
+							headers: { 'content-type': 'text/html' },
+							body: bodyResult.body,
+						},
+					);
+				} catch {
+					/* Document body unavailable */
+				}
+				return;
+			}
+
+			// XHR/Fetch request handling
 			const req = pendingRequests.get(params.requestId);
 			const res = responseInfo.get(params.requestId);
 			pendingRequests.delete(params.requestId);
 			responseInfo.delete(params.requestId);
-			if (!req || !res || !this.networkCaptureCallback) return;
+			if (!req || !res) return;
 
-			// Skip responses that are clearly not API data (HTML pages, images, CSS)
+			// Skip responses that are clearly not API data
 			const ct = res.contentType.toLowerCase();
 			if (
 				ct.includes('text/html') ||
@@ -1555,7 +1582,6 @@ export class RemoteBrowserService {
 				ct.includes('font/')
 			)
 				return;
-			// Keep: JSON, no content-type (many APIs don't set it), text/plain, etc.
 
 			// Skip analytics/tracking
 			const skip = [
@@ -1590,35 +1616,11 @@ export class RemoteBrowserService {
 			}
 		});
 
-		// Fix: clean up pendingRequests on failed requests (prevents memory leak)
+		// Clean up on failed requests (prevents memory leak)
 		this.cdp.on('Network.loadingFailed', (params: CDPLoadingFailed) => {
 			pendingRequests.delete(params.requestId);
 			responseInfo.delete(params.requestId);
 			documentRequests.delete(params.requestId);
-		});
-
-		// Capture Document response bodies (pre-hydration HTML for the analyzer)
-		this.cdp.on('Network.loadingFinished', async (params: CDPLoadingFinished) => {
-			const doc = documentRequests.get(params.requestId);
-			if (!doc || !this.networkCaptureCallback) return;
-			documentRequests.delete(params.requestId);
-			try {
-				const bodyResult = await this.cdp!.send('Network.getResponseBody', {
-					requestId: params.requestId,
-				});
-				// Store as a special traffic entry that the analyzer can use
-				this.networkCaptureCallback(
-					{ method: 'DOCUMENT', url: doc.url, body: null, headers: {} },
-					{
-						url: doc.url,
-						status: 200,
-						headers: { 'content-type': 'text/html' },
-						body: bodyResult.body, // Raw HTML string — pre-hydration
-					},
-				);
-			} catch {
-				/* Document body unavailable */
-			}
 		});
 
 		// WebSocket frame capture — CDP does NOT capture WS frames via requestWillBeSent.

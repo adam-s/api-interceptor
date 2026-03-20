@@ -38,8 +38,6 @@ interface HostState {
 	timestamps: number[];
 	/** Number of currently in-flight requests. */
 	inflight: number;
-	/** Queue of waiting requests. */
-	queue: Array<() => void>;
 }
 
 // ─── Registry ────────────────────────────────────────────────────────
@@ -60,7 +58,6 @@ export function registerRateLimit(hostname: string, config: RateLimitConfig): vo
 			config,
 			timestamps: [],
 			inflight: 0,
-			queue: [],
 		});
 	}
 	DEBUG('rate-limiter', `registered ${hostname}`, () => ({ ...config }));

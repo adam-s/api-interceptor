@@ -61,6 +61,7 @@ export class BlockerManager {
 	private blocker: PlaywrightBlocker | null = null;
 	private initPromise: Promise<PlaywrightBlocker> | null = null;
 	private stats: BlockerStats = { blockedRequests: 0, redirectedRequests: 0 };
+	private listenersAttached = false;
 
 	private constructor(config?: BrowserConfig) {
 		this.config = config ?? getBrowserConfig();
@@ -159,16 +160,19 @@ export class BlockerManager {
 		// biome-ignore lint/suspicious/noExplicitAny: Patchright Page is runtime-compatible with Playwright Page
 		await blocker.enableBlockingInPage(page as any);
 
-		// Track blocked requests for this instance
-		blocker.on('request-blocked', (request: Request) => {
-			this.stats.blockedRequests++;
-			console.log('[Blocked]', request.url.substring(0, 80));
-		});
+		// Track blocked requests — attach listeners only once (BUG-31 fix)
+		if (!this.listenersAttached) {
+			this.listenersAttached = true;
+			blocker.on('request-blocked', (request: Request) => {
+				this.stats.blockedRequests++;
+				console.log('[Blocked]', request.url.substring(0, 80));
+			});
 
-		blocker.on('request-redirected', (request: Request) => {
-			this.stats.redirectedRequests++;
-			console.log('[Redirected]', request.url.substring(0, 80));
-		});
+			blocker.on('request-redirected', (request: Request) => {
+				this.stats.redirectedRequests++;
+				console.log('[Redirected]', request.url.substring(0, 80));
+			});
+		}
 	}
 
 	/**
