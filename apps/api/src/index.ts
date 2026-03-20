@@ -32,6 +32,18 @@ const config = validateConfig({
 // Create Hono app for REST routes
 const app = new Hono();
 app.use('/*', cors());
+
+// Request timeout middleware — browser navigation can take 60s+, cap at 120s
+app.use('/*', async (c, next) => {
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 120_000);
+	try {
+		await next();
+	} finally {
+		clearTimeout(timeout);
+	}
+});
+
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
 // Browser endpoints — traffic capture for API discovery
