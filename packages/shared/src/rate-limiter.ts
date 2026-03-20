@@ -133,6 +133,36 @@ async function waitForSlot(state: HostState): Promise<void> {
 // ─── Public API ──────────────────────────────────────────────────────
 
 /**
+ * Wait for a rate limit slot for the given URL's host.
+ * Use this when you need rate limiting but handle the fetch yourself
+ * (e.g., browserFetch which uses Chrome's TLS fingerprint).
+ *
+ * After calling this, you MUST call `recordRateLimitedRequest(url)` when
+ * the request starts, and `releaseRateLimitSlot(url)` when it completes.
+ * Or use `rateLimitedFetch()` which handles all of this automatically.
+ */
+export async function waitForRateLimitSlot(url: string): Promise<void> {
+	const state = getHostState(url);
+	if (!state) return; // No rate limit registered — pass through
+	await waitForSlot(state);
+}
+
+/** Record that a rate-limited request started. Call after waitForRateLimitSlot. */
+export function recordRateLimitedRequest(url: string): void {
+	const state = getHostState(url);
+	if (!state) return;
+	state.timestamps.push(Date.now());
+	state.inflight++;
+}
+
+/** Release the inflight slot when a rate-limited request completes. */
+export function releaseRateLimitSlot(url: string): void {
+	const state = getHostState(url);
+	if (!state) return;
+	state.inflight = Math.max(0, state.inflight - 1);
+}
+
+/**
  * Drop-in replacement for `fetch()` that respects registered rate limits.
  * Unregistered hosts pass through immediately with no delay.
  *

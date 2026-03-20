@@ -21,6 +21,25 @@ import type { BrowserContext, CDPSession, Page, Route } from 'patchright';
 import { chromium } from 'patchright';
 import { BlockerManager } from '../blocker';
 
+// Rate limiter integration for browserFetch — injected at startup to avoid circular deps
+let rateLimitWait: ((url: string) => Promise<void>) | null = null;
+let rateLimitRecord: ((url: string) => void) | null = null;
+let rateLimitRelease: ((url: string) => void) | null = null;
+
+/**
+ * Connect the rate limiter to browserFetch. Called once at API server startup.
+ * This avoids a circular dependency (browser ↔ shared).
+ */
+export function connectBrowserRateLimiter(fns: {
+	wait: (url: string) => Promise<void>;
+	record: (url: string) => void;
+	release: (url: string) => void;
+}): void {
+	rateLimitWait = fns.wait;
+	rateLimitRecord = fns.record;
+	rateLimitRelease = fns.release;
+}
+
 /**
  * URLs to block completely (tracking, analytics, fingerprinting)
  * Domain-specific trackers that can detect automation
@@ -1243,13 +1262,25 @@ export class RemoteBrowserService {
 			navigateTo?: string;
 			/** Timeout in ms for the entire operation (navigation + fetch). Default: 20000. */
 			timeout?: number;
+			/** Skip rate limiting for this request. Default: false. */
+			skipRateLimit?: boolean;
 		} = {},
 	): Promise<{ status: number; data: T; headers: Record<string, string> }> {
 		if (!this.page) {
 			throw new Error('Browser not started');
 		}
 
+		// Wait for rate limit slot before making the request (Chrome TLS + rate limiting)
+		if (!options.skipRateLimit && rateLimitWait) {
+			await rateLimitWait(url);
+		}
+
 		const timeoutMs = options.timeout ?? 20_000;
+
+		// Record the request start for rate limiting
+		if (!options.skipRateLimit && rateLimitRecord) {
+			rateLimitRecord(url);
+		}
 
 		// Wrap the entire operation in a timeout so callers never hang
 		const timeoutPromise = new Promise<never>((_, reject) => {
@@ -1259,8 +1290,14 @@ export class RemoteBrowserService {
 			);
 		});
 
-		const fetchPromise = this._browserFetchInner<T>(url, options);
-		return Promise.race([fetchPromise, timeoutPromise]);
+		try {
+			const fetchPromise = this._browserFetchInner<T>(url, options);
+			return await Promise.race([fetchPromise, timeoutPromise]);
+		} finally {
+			if (!options.skipRateLimit && rateLimitRelease) {
+				rateLimitRelease(url);
+			}
+		}
 	}
 
 	/** Inner implementation of browserFetch, separated to enable timeout wrapping. */

@@ -13,12 +13,25 @@ import {
 } from '@interceptor/browser/handler';
 import { createDomainProxy } from '@interceptor/browser/handler/api-proxy';
 import { getDomain, listDomains } from '@interceptor/browser/handler/domain-loader';
-import { validateConfig } from '@interceptor/shared';
+import {
+	recordRateLimitedRequest,
+	releaseRateLimitSlot,
+	validateConfig,
+	waitForRateLimitSlot,
+} from '@interceptor/shared';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
+import { connectBrowserRateLimiter } from '@interceptor/browser/remote';
 import './register-domains'; // Side-effect: registers domain plugins
+
+// Connect rate limiter to browserFetch so Chrome-based fetches respect rate limits
+connectBrowserRateLimiter({
+	wait: waitForRateLimitSlot,
+	record: recordRateLimitedRequest,
+	release: releaseRateLimitSlot,
+});
 import { getBridge } from './bridge';
 import { formatStartupBanner } from './format';
 import { addClient, getState, removeClient, resetState, setMultiplier, setRunning } from './state';

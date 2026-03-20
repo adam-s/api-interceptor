@@ -18,6 +18,7 @@ export {
 	validateProfileName,
 } from './profiles';
 export {
+	connectBrowserRateLimiter,
 	type FrameCallback,
 	type FrameData,
 	RemoteBrowserService,

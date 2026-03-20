@@ -9,6 +9,13 @@ export type {
 } from './python-bridge';
 export { BridgeError, PythonBridge } from './python-bridge';
 export type { RateLimitConfig } from './rate-limiter';
-export { getRateLimits, rateLimitedFetch, registerRateLimit } from './rate-limiter';
+export {
+	getRateLimits,
+	rateLimitedFetch,
+	recordRateLimitedRequest,
+	registerRateLimit,
+	releaseRateLimitSlot,
+	waitForRateLimitSlot,
+} from './rate-limiter';
 export type { AppConfig } from './types';
 export { ConfigValidationError, validateConfig } from './validate';
