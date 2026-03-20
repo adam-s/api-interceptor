@@ -482,7 +482,14 @@ function findTokensInObject(
 					location: `<script id="${prefix}"> -> ${key}`,
 				});
 			}
-		} else if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+		} else if (Array.isArray(val)) {
+			// Recurse into arrays — tokens can be in [{token: "..."}] patterns (BUG-20)
+			for (let i = 0; i < Math.min(val.length, 5); i++) {
+				if (val[i] && typeof val[i] === 'object') {
+					findTokensInObject(val[i], `${prefix}.${key}[${i}]`, tokens, source, depth + 1);
+				}
+			}
+		} else if (typeof val === 'object' && val !== null) {
 			findTokensInObject(val, `${prefix}.${key}`, tokens, source, depth + 1);
 		}
 	}

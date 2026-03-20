@@ -1291,9 +1291,10 @@ export class RemoteBrowserService {
 			rateLimitRecord(url);
 		}
 
-		// Wrap the entire operation in a timeout so callers never hang
+		// Wrap the entire operation in a timeout so callers never hang (BUG-4: clear timer on success)
+		let timeoutHandle: ReturnType<typeof setTimeout>;
 		const timeoutPromise = new Promise<never>((_, reject) => {
-			setTimeout(
+			timeoutHandle = setTimeout(
 				() => reject(new Error(`browserFetch timed out after ${timeoutMs}ms: ${url}`)),
 				timeoutMs,
 			);
@@ -1303,6 +1304,7 @@ export class RemoteBrowserService {
 			const fetchPromise = this._browserFetchInner<T>(url, options);
 			return await Promise.race([fetchPromise, timeoutPromise]);
 		} finally {
+			clearTimeout(timeoutHandle!);
 			if (!options.skipRateLimit && rateLimitRelease) {
 				rateLimitRelease(url);
 			}
@@ -1327,7 +1329,12 @@ export class RemoteBrowserService {
 		// Extract the origin from the target URL
 		const targetOrigin = new URL(url).origin;
 		const currentUrl = page.url();
-		const currentOrigin = currentUrl ? new URL(currentUrl).origin : '';
+		let currentOrigin = '';
+		try {
+			currentOrigin = currentUrl ? new URL(currentUrl).origin : '';
+		} catch {
+			// data: URLs, about:blank, chrome-error:// don't have valid origins
+		}
 
 		// Determine navigation target: use navigateTo override if provided,
 		// otherwise default to the target API origin.
