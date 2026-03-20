@@ -12,7 +12,7 @@
  */
 
 import { EventEmitter } from 'node:events';
-import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getProfilePath } from '../remote/profiles';
 import type { GenericSession, SessionEvent, SessionEventType, SessionStatus } from './types';
@@ -113,6 +113,33 @@ export class GenericSessionManager extends EventEmitter {
 			console.log(`[SessionManager] Persisted session to disk`);
 		} catch (err) {
 			console.error(`[SessionManager] Failed to save session for ${profileName}:`, err);
+		}
+	}
+
+	/**
+	 * Load a persisted session from disk if it exists and hasn't expired.
+	 * Called lazily on first getSession() for a profile. (BUG-17 fix)
+	 */
+	private loadSessionFromDisk(profileName: string): GenericSession | null {
+		try {
+			const profilePath = getProfilePath(profileName);
+			if (!profilePath) return null;
+
+			const sessionFile = join(profilePath, this.sessionFileName);
+			if (!existsSync(sessionFile)) return null;
+
+			const data = JSON.parse(readFileSync(sessionFile, 'utf-8')) as GenericSession;
+
+			// Check if session has expired
+			if (data.connectedAt && Date.now() - data.connectedAt > this.maxAgeMs) {
+				console.log(`[SessionManager] Expired session on disk for ${profileName}, ignoring`);
+				return null;
+			}
+
+			console.log(`[SessionManager] Loaded session from disk for ${profileName}`);
+			return data;
+		} catch {
+			return null;
 		}
 	}
 
@@ -247,7 +274,17 @@ export class GenericSessionManager extends EventEmitter {
 	 * Get current session state for a profile.
 	 */
 	getSession(profileName: string): GenericSession | null {
-		return this.sessions.get(profileName) || null;
+		const inMemory = this.sessions.get(profileName);
+		if (inMemory) return inMemory;
+
+		// Try loading from disk on first access (BUG-17 fix)
+		const fromDisk = this.loadSessionFromDisk(profileName);
+		if (fromDisk) {
+			this.sessions.set(profileName, fromDisk);
+			return fromDisk;
+		}
+
+		return null;
 	}
 
 	/**

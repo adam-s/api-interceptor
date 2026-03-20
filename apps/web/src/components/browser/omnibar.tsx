@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowLeft, ArrowRight, Home, RotateCw } from 'lucide-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -55,10 +55,12 @@ export function Omnibar({
 		[inputValue, onNavigate],
 	);
 
-	// Update input when URL prop changes (e.g., from navigation)
-	if (url !== inputValue && url !== '') {
-		setInputValue(url);
-	}
+	// Sync input value when URL prop changes from external navigation
+	useEffect(() => {
+		if (url && url !== '') {
+			setInputValue(url);
+		}
+	}, [url]);
 
 	const statusColor =
 		status === 'ready'
