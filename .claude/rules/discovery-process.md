@@ -82,6 +82,8 @@ When you later need to construct a POST request, you already know where every re
 
 ## 3. Interact with the Page and Watch the Network
 
+**If your initial capture shows only DOCUMENT entries, interaction is not optional — it's how you discover the XHR endpoints.** A page with visible data and no XHR means you haven't interacted yet or your capture is stale, not that the site is SSR. Kill the browser, reconnect fresh, and interact before classifying.
+
 Click every interactive element. After each interaction, check what network requests fired.
 
 - **Click:** Load More, Show All, Next Page, pagination buttons
