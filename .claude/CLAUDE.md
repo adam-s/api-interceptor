@@ -33,6 +33,14 @@ pnpm --filter @interceptor/test-server start  # Test server on 4444
 - **Test server sites:** boardshop (embedded JSON), liveboard (WebSocket + protobuf), streamshop (GraphQL + HLS), databoard (gRPC-Web + encoded)
 - **Debug logs:** `import { DEBUG } from "@interceptor/shared"` → `/tmp/interceptor-debug/`
 
+## Worktree Agents — DO NOT MODIFY THE MAIN REPO
+
+If you are running in a worktree (`pwd` contains `/tmp/interceptor-worktrees/`):
+- **ALL files go in YOUR worktree.** Never write to the original repo.
+- **NEVER modify** `apps/api/src/register-domains.ts`, `apps/api/package.json`, or `pnpm-lock.yaml`
+- **NEVER run** `pnpm install` — it creates workspace links in the main repo
+- Your domain plugin is standalone. Test with curl directly against the target site.
+
 ## Conventions
 
 - Import paths: `@interceptor/[package]`
