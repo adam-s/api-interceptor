@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
-# PreToolUse hook — redirect writes from main repo to worktree.
-#
-# When an agent in a worktree tries to write to the main repo path,
-# rewrite the file_path to the worktree equivalent. This handles:
-# - Relative paths resolved against main project root
-# - Absolute paths copied from documentation or other files
-# - Any path that starts with MAIN_REPO/ but should be CWD/
+# PreToolUse hook — deny writes to main repo from worktrees.
+# Agent must use worktree-relative paths instead.
 set -euo pipefail
 
 INPUT="$(cat)"
@@ -22,31 +17,26 @@ if [[ -z "$FILE_PATH" ]]; then
   exit 0
 fi
 
-# If already pointing to the worktree, allow as-is
+# If path is inside worktree cwd, allow
 if [[ "$FILE_PATH" == "$CWD/"* || "$FILE_PATH" == "$CWD" ]]; then
   exit 0
 fi
 
-# Derive main repo path from worktree cwd
+# Derive main repo path
 MAIN_REPO="${CWD%%/.claude/worktrees/*}"
 
-# If the path points to main repo, REDIRECT to worktree
+# If path points to main repo, DENY with helpful message
 if [[ "$FILE_PATH" == "$MAIN_REPO/"* ]]; then
   SUFFIX="${FILE_PATH#"$MAIN_REPO"/}"
-  NEW_PATH="$CWD/$SUFFIX"
-
-  jq -n --arg new_path "$NEW_PATH" '{
+  CORRECT_PATH="$CWD/$SUFFIX"
+  jq -n --arg correct "$CORRECT_PATH" '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
-      permissionDecision: "allow",
-      permissionDecisionReason: "Redirected write from main repo to worktree",
-      updatedInput: {
-        file_path: $new_path
-      }
+      permissionDecision: "deny",
+      permissionDecisionReason: ("WRONG PATH. Use: " + $correct)
     }
   }'
   exit 0
 fi
 
-# Allow everything else
 exit 0
