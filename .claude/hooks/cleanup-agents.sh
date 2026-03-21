@@ -42,7 +42,12 @@ pkill -9 -f "patchright" 2>/dev/null || true
 
 sleep 2
 
-# 4. Remove ALL worktrees (external + internal)
+# 4. Clean up tmp files from previous iterations
+echo "Cleaning tmp files..."
+rm -f /tmp/api-server-*.log 2>/dev/null || true
+rm -f /tmp/interceptor-debug/*.log 2>/dev/null || true
+
+# 5. Remove ALL worktrees (external + internal)
 echo "Removing worktrees..."
 rm -rf /tmp/interceptor-worktrees/ 2>/dev/null || true
 if [[ -d ".claude/worktrees" ]]; then
@@ -50,7 +55,7 @@ if [[ -d ".claude/worktrees" ]]; then
 fi
 git worktree prune 2>/dev/null || true
 
-# 5. Remove untracked domains
+# 6. Remove untracked domains
 echo "Cleaning domains..."
 ls domains/ 2>/dev/null | while read -r d; do
   if ! git ls-files --error-unmatch "domains/$d" > /dev/null 2>&1; then
@@ -59,16 +64,16 @@ ls domains/ 2>/dev/null | while read -r d; do
   fi
 done
 
-# 6. Revert contaminated shared files
+# 7. Revert contaminated shared files
 echo "Reverting shared files..."
 git checkout HEAD -- apps/api/src/register-domains.ts apps/api/package.json pnpm-lock.yaml .gitignore 2>/dev/null || true
 
-# 7. Remove stale symlinks from old worktree pnpm
+# 8. Remove stale symlinks from old worktree pnpm
 for link in packages/shared/shared packages/browser/browser; do
   [[ -L "$link" ]] && rm -f "$link" && echo "  Removed symlink: $link"
 done
 
-# 8. Verify
+# 9. Verify
 echo ""
 echo "=== Verification ==="
 echo "Domains: $(ls domains/ | tr '\n' ' ')"

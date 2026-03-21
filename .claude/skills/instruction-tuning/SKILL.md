@@ -61,10 +61,8 @@ Discover ALL transport types that [site] uses. Build a route for EVERY transport
 Target: [url]
 Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
 Fill ALL 8 elimination rows before writing code.
-PORT=XXXX pnpm --filter @interceptor/api dev > /tmp/api-server-XXXX.log 2>&1 &
-.claude/hooks/track-pid.sh $! XXXX "api-server"
-sleep 8 && curl -s http://localhost:XXXX/health
-./scripts/connect-browser.sh --profile DOMAIN --url TARGET --port XXXX
+After building routes, register your domain and test EVERY route through the API server proxy.
+Your port is XXXX.
 ```
 
 ## Scorecard
@@ -75,9 +73,10 @@ sleep 8 && curl -s http://localhost:XXXX/health
 | Route built for EVERY ✓ transport | |
 | Used GATHER→SCAN→CLASSIFY→BUILD pipeline | |
 | Did NOT search for public APIs | |
-| Routes proven with curl or browserFetch | |
+| Browser traffic captured (Steps 1d/1e) | |
+| Routes tested through API server proxy (not just curl) | |
 | Wrote files to worktree, not main repo | |
-| Stayed under 100 tool calls | |
+| Stayed under 150 tool calls | |
 
 ## Deep Analysis (after each iteration)
 

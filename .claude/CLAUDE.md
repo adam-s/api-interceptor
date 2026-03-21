@@ -37,10 +37,10 @@ pnpm --filter @interceptor/test-server start  # Test server on 4444
 
 If you are running in a worktree (`pwd` contains `/tmp/interceptor-worktrees/`):
 - **ALL files go in YOUR worktree.** Never write to the original repo.
-- **NEVER modify** `apps/api/src/register-domains.ts`, `apps/api/package.json`, or `pnpm-lock.yaml`
-- **NEVER run** `pnpm install` — it creates workspace links in the main repo
-- Your domain plugin is standalone. Test routes with curl against the target site.
-- You MUST still start the API server and connect a browser for traffic capture (see discovery-agent.md).
+- Run `pnpm install` once to get dependencies, then never again.
+- Edit `register-domains.ts` **in your worktree** to import your domain plugin.
+- Start the API server on your assigned port and test routes through `localhost:PORT/api/domain/route`.
+- Connect a browser for traffic capture — curl-only discovery misses transport types.
 
 ## Conventions
 
