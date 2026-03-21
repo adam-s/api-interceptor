@@ -13,7 +13,9 @@ STEP 1: Fetch target URL with rateLimitedFetch
         ├── 200 → go to STEP 2
         ├── 429/202 → try browserFetch ONCE
         │            ├── 200 → go to STEP 2 (mark: needs browser)
-        │            └── fail → try homepage instead, go to STEP 1
+        │            └── still blocked? → WAF may require CSS/font loading.
+        │                 Unblock challenge resources and retry once.
+        │                 Still fails? → try homepage instead, go to STEP 1
         └── other error → bail
 
 STEP 2: Search HTML for embedded JSON
