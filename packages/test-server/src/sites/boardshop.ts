@@ -602,5 +602,76 @@ export function createBoardshopSite(): Hono {
 	// Agents should identify this from JS bundles containing
 	// "graphql_subscription" or "graphql-ws" protocol strings.
 
+	// ─── RSS/XML feed pattern ───────────────────────────────────────
+	// Many sites expose RSS feeds discoverable from <link rel="alternate">
+	// in the HTML. Returns XML with <item> elements containing structured data.
+	app.get('/rss', (c) => {
+		const page1 = getProductPage(1, 10);
+		const items = page1.items
+			.map(
+				(p) =>
+					`  <item>
+    <title>${p.name}</title>
+    <link>http://localhost:4444/sites/boardshop/product/${p.sku}</link>
+    <description>${p.brand} ${p.category} - $${p.price.toFixed(2)}</description>
+    <pubDate>${new Date().toUTCString()}</pubDate>
+    <guid>${p.sku}</guid>
+  </item>`,
+			)
+			.join('\n');
+
+		const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>BoardShop New Arrivals</title>
+  <link>http://localhost:4444/sites/boardshop</link>
+  <description>Latest skateboard products</description>
+${items}
+</channel>
+</rss>`;
+
+		c.header('Content-Type', 'application/rss+xml; charset=utf-8');
+		return c.text(xml);
+	});
+
+	// ─── Pure SSR HTML table pattern ────────────────────────────────
+	// Server-rendered page with NO embedded JSON, NO framework markers.
+	// Data is only in HTML tables. Agents must classify as SSR and use
+	// HTML parsing (cheerio or regex) to extract structured data.
+	app.get('/ssr', (c) => {
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+		const rows = page1.items
+			.map(
+				(p) =>
+					`<tr class="product-row" data-sku="${p.sku}">
+  <td class="name">${p.name}</td>
+  <td class="brand">${p.brand}</td>
+  <td class="category">${p.category}</td>
+  <td class="price">$${p.price.toFixed(2)}</td>
+  <td class="stock">${p.stock}</td>
+  <td class="rating">${p.rating}/5</td>
+</tr>`,
+			)
+			.join('\n');
+
+		const html = `<!DOCTYPE html>
+<html><head><title>BoardShop — Product Catalog</title></head>
+<body>
+<h1>Product Catalog</h1>
+<p>Showing ${page1.items.length} of ${page1.totalCount} products</p>
+<table id="product-table">
+<thead><tr><th>Name</th><th>Brand</th><th>Category</th><th>Price</th><th>Stock</th><th>Rating</th></tr></thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+<a href="/sites/boardshop/ssr?page=2" rel="next">Next Page →</a>
+<link rel="alternate" type="application/rss+xml" title="BoardShop RSS" href="/sites/boardshop/rss">
+</body></html>`;
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
 	return app;
 }

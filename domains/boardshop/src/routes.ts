@@ -68,6 +68,12 @@
  * CUSTOM BINARY WEBSOCKET:
  * 26. GET /binary-ws-example     — Raw binary frames with header + payload
  *
+ * RSS / XML FEED:
+ * 27. GET /rss-example           — Parse RSS XML with cheerio
+ *
+ * SSR HTML TABLE PARSING:
+ * 28. GET /ssr-example           — Parse HTML tables with cheerio (pure SSR)
+ *
  * @module domain-boardshop/routes
  */
 
@@ -1024,6 +1030,86 @@ export const routes: DomainRoute[] = [
 			});
 
 			return c.json({ frames: result, count: result.length, source: wsUrl });
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// RSS / XML FEED
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 27: RSS feed parsing with cheerio ─────────────────────
+	// Discoverable from <link rel="alternate" type="application/rss+xml">
+	// in page HTML. Use cheerio to parse XML — same library handles both
+	// HTML and XML. Much more reliable than regex for structured documents.
+	{
+		method: 'GET',
+		path: '/rss-example',
+		description: 'RSS feed: parse XML with cheerio.',
+		browserRequired: false,
+		handler: async (c) => {
+			const res = await rateLimitedFetch(`${BASE_URL}/rss`);
+			if (!res.ok) return c.json({ error: `RSS returned ${res.status}` }, 502);
+			const xml = await res.text();
+
+			const { load } = await import('cheerio');
+			const $ = load(xml, { xml: true });
+
+			const items = $('item')
+				.map((_, el) => ({
+					title: $(el).find('title').text(),
+					link: $(el).find('link').text(),
+					description: $(el).find('description').text(),
+					guid: $(el).find('guid').text(),
+				}))
+				.get();
+
+			return c.json({
+				title: $('channel > title').text(),
+				description: $('channel > description').text(),
+				items,
+				count: items.length,
+			});
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// SSR HTML TABLE PARSING
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 28: Pure SSR HTML table extraction with cheerio ────────
+	// For sites with NO embedded JSON (all data in rendered HTML tables).
+	// This is transport (g) SSR — the last resort when no network
+	// request carries the data. Use cheerio to parse the HTML DOM.
+	{
+		method: 'GET',
+		path: '/ssr-example',
+		description: 'SSR HTML: parse table rows with cheerio.',
+		browserRequired: false,
+		handler: async (c) => {
+			const page = new URL(c.req.url).searchParams.get('page') ?? '1';
+			const res = await rateLimitedFetch(`${BASE_URL}/ssr?page=${page}`);
+			if (!res.ok) return c.json({ error: `SSR page returned ${res.status}` }, 502);
+			const html = await res.text();
+
+			const { load } = await import('cheerio');
+			const $ = load(html);
+
+			const products = $('tr.product-row')
+				.map((_, row) => ({
+					sku: $(row).attr('data-sku'),
+					name: $(row).find('td.name').text(),
+					brand: $(row).find('td.brand').text(),
+					category: $(row).find('td.category').text(),
+					price: $(row).find('td.price').text(),
+					stock: Number($(row).find('td.stock').text()),
+					rating: $(row).find('td.rating').text(),
+				}))
+				.get();
+
+			// Discover pagination from <a rel="next">
+			const nextLink = $('a[rel="next"]').attr('href');
+
+			return c.json({ products, count: products.length, nextPage: nextLink ?? null });
 		},
 	},
 ];
