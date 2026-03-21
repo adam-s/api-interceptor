@@ -49,6 +49,16 @@
     ],
     "PreToolUse": [
       {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-worktree-writes.sh\"",
+            "statusMessage": "Checking worktree isolation"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
