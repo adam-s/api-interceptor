@@ -24,6 +24,9 @@ data/browser-profiles/*/
 # Sub-agent worktrees (temporary, per-session)
 .claude/worktrees/
 
+# App builder temp spec
+prompts/.app-spec.md
+
 # Domain plugins (created by agents, only boardshop is the reference example)
 domains/*/
 !domains/boardshop/
