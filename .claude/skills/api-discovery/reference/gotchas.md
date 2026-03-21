@@ -8,8 +8,8 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 
 | Problem | Fix |
 |---------|-----|
-| Traffic shows 0 entries | Verify WS-connected browser (auto-start has no capture). Wait 15s. Follow the decision tree in `discovery.md`. |
-| 429 on API endpoint | Don't retry. Check if embedded JSON has the same data — if yes, use embedded JSON. If no, try browserFetch once. See `discovery.md` decision tree. |
+| Traffic shows 0 entries | Verify WS-connected browser (auto-start has no capture). Wait 15s. Follow the pipeline in `discovery.md`. |
+| 429 on API endpoint | Don't retry. Check if embedded JSON has the same data — if yes, use embedded JSON. If no, try browserFetch once. See `discovery.md` pipeline. |
 | 202 WAF challenge | Same as 429 — try browserFetch for raw HTML, or use homepage data. |
 | Token endpoint returns 429 | Token is almost always in the page HTML, cookies, or JS globals. Don't call dedicated token endpoints. |
 | Body text empty after navigate | Bot-protected — check for captcha iframe |

@@ -124,7 +124,7 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 | HLS/Media | 9 | Token → master playlist → quality variants |
 | Encoded | 10-11 | Base64 decode, MessagePack decode |
 
-Test each route with curl before building the next.
+Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 
 ---
 

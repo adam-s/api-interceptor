@@ -15,7 +15,7 @@ Discover how a website delivers data, then create a domain plugin that exposes i
 
 1. **Observe** — Connect browser via WebSocket, capture traffic, screenshot the page
 2. **Classify** — Run the discovery protocol per data type. Produce Transport Classification table (MANDATORY GATE)
-3. **Extract** — Write routes using the lightest approach (see `inspection-first.md` escalation ladder)
+3. **Extract** — Write routes using the lightest approach (rateLimitedFetch → browserFetch → page.evaluate)
 4. **Verify** — Curl every route, confirm real data (MANDATORY GATE — no dashboard until this passes)
 5. **Scaffold** — Create domain plugin, register, test end-to-end. Command: `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>`
 
