@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 # PreToolUse hook — block ALL writes to the main repo when in a worktree.
 #
-# If cwd is a worktree and file_path points to the main project dir
-# (not the worktree), deny the write. This prevents agents from
-# contaminating main with domain plugins, package.json changes, etc.
+# Derives main repo path from cwd (worktree path contains /.claude/worktrees/).
+# Any write outside the worktree cwd is blocked.
 set -euo pipefail
 
 INPUT="$(cat)"
 CWD="$(printf '%s' "$INPUT" | jq -r '.cwd')"
 FILE_PATH="$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // empty')"
-PROJECT_DIR="${CLAUDE_PROJECT_DIR:-}"
 
 # Only apply in worktrees
 if [[ "$CWD" != *"/.claude/worktrees/"* ]]; then
@@ -21,13 +19,16 @@ if [[ -z "$FILE_PATH" ]]; then
   exit 0
 fi
 
-# If the path is inside the worktree, allow it
+# If the path is inside the worktree cwd, allow it
 if [[ "$FILE_PATH" == "$CWD/"* || "$FILE_PATH" == "$CWD" ]]; then
   exit 0
 fi
 
-# If the path is inside the main project dir (not the worktree), BLOCK IT
-if [[ -n "$PROJECT_DIR" && "$FILE_PATH" == "$PROJECT_DIR/"* ]]; then
+# Derive main repo path from worktree cwd
+MAIN_REPO="${CWD%%/.claude/worktrees/*}"
+
+# If the path is inside the main repo, BLOCK IT
+if [[ "$FILE_PATH" == "$MAIN_REPO/"* ]]; then
   jq -n '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -38,5 +39,5 @@ if [[ -n "$PROJECT_DIR" && "$FILE_PATH" == "$PROJECT_DIR/"* ]]; then
   exit 0
 fi
 
-# Allow everything else (absolute paths outside both main and worktree)
+# Allow everything else
 exit 0
