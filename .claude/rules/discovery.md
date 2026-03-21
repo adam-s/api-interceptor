@@ -20,13 +20,16 @@ STEP 1: Fetch target URL with rateLimitedFetch
         │                 Still fails? → try homepage instead, go to STEP 1
         └── network error → bail
 
-STEP 2: Search HTML for embedded JSON
-        Check: __NEXT_DATA__, data-deferred-state, data-sveltekit-fetched,
-        <script type="application/json">, ytInitialData, window.__DATA__
+STEP 2: Search HTML for embedded JSON (ONE pass, don't over-search)
+        Quick check: __NEXT_DATA__, data-deferred-state, data-sveltekit-fetched,
+        <script type="application/json" id="...">, var *InitialData,
+        window.__DATA__
         ├── FOUND → extract it. This is your data.
         │           DO NOT call any API for this same data.
         │           Go to STEP 3.
-        └── NOT FOUND → this is a SPA. Go to STEP 4.
+        ├── SPA detected (data-reactroot, no embedded JSON, small HTML) →
+        │   Skip directly to STEP 4. Don't search further.
+        └── NOT FOUND → go to STEP 4.
 
 STEP 3: Do you need more data? (pagination, detail pages, other types)
         For each additional data need:
