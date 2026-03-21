@@ -102,13 +102,19 @@ Use the `dashboard-builder` skill patterns to build the page. Key requirements f
 - Per-platform loading/error states
 - The specific view the developer requested
 
+Use `debug-logs` skill when data isn't flowing correctly — add targeted DEBUG logs at each layer (route handler → API fetch → response parse → component render), read the output, narrow the problem, fix, clean up.
+
+Use `visual-dev` skill for every UI iteration — screenshot after each change, read the screenshot, fix what's wrong, re-screenshot until correct. Don't build multiple components blind then debug them all at once.
+
 ## Phase 5: Verify
 
+Use `systematic-testing` skill to validate bottom-up: route handlers → proxy endpoints → dashboard fetches → rendered UI. Each layer must pass before testing the next.
+
 1. Start `pnpm dev`
-2. Curl every API route — confirm real data
-3. Screenshot the dashboard with Patchright — empty, loading, populated, mobile
-4. Walk the full user journey: search → results → detail → compare
-5. Test with 3 different inputs
+2. Curl every API route — confirm real data with `debug-logs` if anything returns empty or errors
+3. Use `visual-dev` to screenshot the dashboard in every state: empty, loading, populated, error, mobile (375px)
+4. Walk the full user journey via Patchright: search → results → detail → compare
+5. Test with 3 different inputs that exercise different data shapes
 6. Show the developer screenshots and route outputs
 
 **Only hand off when verified working on localhost:3000.**
