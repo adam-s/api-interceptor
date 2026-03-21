@@ -1,9 +1,5 @@
 # Inspection-First Development
 
-## DEBUG Logging
-
-Every new `.ts`/`.tsx` file: `import { DEBUG } from '@interceptor/shared'`. Add `DEBUG()` calls at every decision point. Log what you receive BEFORE processing it. Check `/tmp/interceptor-debug/`. Before fixing a bug: add DEBUG → observe → confirm root cause → THEN fix.
-
 ## page.evaluate() Rules
 
 **Allowed:** navigation (clicking, typing), page metadata (URL, title), auth token extraction (CSRF from hidden inputs), reading raw HTML source for embedded JSON discovery.
