@@ -1,39 +1,33 @@
 #!/usr/bin/env bash
-# write-handoff.sh — Template for the handoff file.
+# write-handoff.sh — Generate a handoff template.
 #
-# The orchestrator fills in the results before ending a session.
+# The orchestrator fills in results before ending a session.
 # The next session reads this to pick up where the previous left off.
 #
-# Usage: bash .claude/skills/instruction-tuning/scripts/write-handoff.sh > .claude/tuning-handoff.md
+# Usage: bash .claude/skills/instruction-tuning/scripts/write-handoff.sh
 cat << 'TEMPLATE'
 # Instruction Tuning Handoff
 
 ## Current Iteration: [N]
 
-## Results Table
+## Results
 
-| Agent | Tokens | Time | Routes | Elimination (8/8?) | New transports |
-|-------|--------|------|--------|-------------------|----------------|
-| Ticketmaster | | | | | |
-| StubHub | | | | | |
-| Airbnb | | | | | |
-| Yahoo Finance | | | | | |
-| Twitch | | | | | |
-| YouTube | | | | | |
-| Hacker News | | | | | |
+| Agent | Tokens | Time | Routes | Elimination (8/8?) | Notes |
+|-------|--------|------|--------|--------------------|-|
+| [fill per agent] | | | | | |
+
+## Algorithm
+GATHER→SCAN→CLASSIFY→BUILD pipeline in .claude/rules/discovery.md
 
 ## What Changed This Session
-
-- [commit hash] [one-line summary]
+- [commit hash] [summary]
 
 ## What's Next
+- [ ] [item]
 
-- [ ] [specific item]
-
-## How to Launch Next Iteration
-
+## How to Launch
 ```bash
 bash .claude/hooks/cleanup-agents.sh
-bash .claude/skills/instruction-tuning/scripts/run-iteration.sh [N+1]
+# Launch agents per .claude/skills/instruction-tuning/SKILL.md
 ```
 TEMPLATE

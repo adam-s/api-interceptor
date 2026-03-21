@@ -42,7 +42,7 @@ The agent follows a mandatory protocol before writing any code:
 5. **Interact** — click, scroll, paginate to surface lazy-loaded endpoints
 6. **Build** typed proxy routes returning structured JSON
 
-The transport classifier checks in strict priority order — WebSocket before GraphQL before gRPC before JSON before Encoded before SSR. If any network request carries the data, even encoded or binary, the route intercepts it. DOM extraction is the absolute last resort.
+The pipeline scans all evidence sources simultaneously and fills an 8-row elimination table — every transport type marked present or absent with evidence. A route is built for every transport found, not just the first. DOM extraction is the absolute last resort.
 
 ### Instruction Tuning
 

@@ -39,35 +39,17 @@ Subagents inherit the parent session's system-reminder context, which may contai
 
 ## Session Handoff
 
-Before ending a session, write the handoff file:
+After committing all fixes at the end of an iteration, write `.claude/tuning-handoff.md` with:
 
-```bash
-# The orchestrator writes this before session end
-cat > .claude/tuning-handoff.md << 'EOF'
-# Instruction Tuning Handoff
+1. **Iteration number** — which iteration just completed and what's next
+2. **Results table** — tokens, time, routes, elimination status per agent (use numbers, not names)
+3. **What changed** — commits made during this session
+4. **Known issues** — what's still broken
+5. **What's next** — specific items for the next iteration
 
-## Current Iteration: N
+Do not include domain names, URLs, or site-specific content in the handoff. Reference agents by number and describe them by transport type coverage.
 
-## Results Table
-| Agent | Iter N Tokens | Routes | Elimination | New transports |
-|-------|--------------|--------|-------------|----------------|
-| ... | ... | ... | ... | ... |
-
-## What Changed This Session
-- [list of commits with one-line summaries]
-
-## What's Next
-- [specific items from the plan]
-
-## How to Launch Next Iteration
-1. bash .claude/hooks/cleanup-agents.sh
-2. Launch agents (see Parallel Testing below)
-3. Watch for contamination: ls domains/ and git diff
-4. Score each agent against the scorecard
-EOF
-```
-
-The new session reads this file and continues from where you left off. The subagents get clean system-reminders because the new session reads `.claude/` files fresh from disk.
+The new session reads this file to pick up context. Subagents get clean system-reminders because the fresh session reads `.claude/` files from disk.
 
 ## Parallel Testing
 
