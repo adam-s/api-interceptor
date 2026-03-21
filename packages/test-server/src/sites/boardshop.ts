@@ -602,6 +602,46 @@ export function createBoardshopSite(): Hono {
 	// Agents should identify this from JS bundles containing
 	// "graphql_subscription" or "graphql-ws" protocol strings.
 
+	// ─── FormData POST pattern (multipart search) ──────────────────
+	// Some sites send search requests as FormData (multipart/form-data)
+	// instead of JSON body. The Content-Type is different and the body
+	// must be constructed with FormData, not JSON.stringify.
+	app.post('/search/form', async (c) => {
+		const contentType = c.req.header('content-type') ?? '';
+
+		let query = '';
+		if (
+			contentType.includes('multipart/form-data') ||
+			contentType.includes('application/x-www-form-urlencoded')
+		) {
+			const body = await c.req.parseBody();
+			query = (body.query as string) ?? (body.q as string) ?? '';
+		} else {
+			const body = (await c.req.json().catch(() => ({}))) as { query?: string };
+			query = body.query ?? '';
+		}
+
+		if (!query) return c.json({ error: 'query field required' }, 400);
+
+		const results = PRODUCTS.filter(
+			(p) =>
+				p.name.toLowerCase().includes(query.toLowerCase()) ||
+				p.brand.toLowerCase().includes(query.toLowerCase()),
+		).slice(0, 20);
+
+		return c.json({
+			query,
+			results: results.map((p) => ({
+				sku: p.sku,
+				name: p.name,
+				brand: p.brand,
+				price: p.price,
+				category: p.category,
+			})),
+			totalCount: results.length,
+		});
+	});
+
 	// ─── RSS/XML feed pattern ───────────────────────────────────────
 	// Many sites expose RSS feeds discoverable from <link rel="alternate">
 	// in the HTML. Returns XML with <item> elements containing structured data.

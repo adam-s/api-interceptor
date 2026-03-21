@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 
 /** Output of the Discovery Analyzer — structured summary of page + traffic */
 export interface DiscoveryAnalysis {

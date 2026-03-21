@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
  * BoardShop API Routes (Reference Example)
  *
@@ -73,6 +72,9 @@
  *
  * SSR HTML TABLE PARSING:
  * 28. GET /ssr-example           — Parse HTML tables with cheerio (pure SSR)
+ *
+ * FORMDATA POST:
+ * 29. GET /formdata-search-example — Multipart/form-data search request
  *
  * @module domain-boardshop/routes
  */
@@ -1110,6 +1112,33 @@ export const routes: DomainRoute[] = [
 			const nextLink = $('a[rel="next"]').attr('href');
 
 			return c.json({ products, count: products.length, nextPage: nextLink ?? null });
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// FORMDATA POST
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 29: FormData POST search ──────────────────────────────
+	// Some sites send search as multipart/form-data instead of JSON.
+	// Discovered from captured traffic where Content-Type is
+	// multipart/form-data, not application/json.
+	{
+		method: 'GET',
+		path: '/formdata-search-example',
+		description: 'FormData POST: multipart search request.',
+		browserRequired: false,
+		handler: async (c) => {
+			const q = new URL(c.req.url).searchParams.get('q') ?? 'deck';
+			const formBody = new URLSearchParams({ query: q, searchType: 'all' });
+
+			const res = await rateLimitedFetch(`${BASE_URL}/search/form`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+				body: formBody.toString(),
+			});
+			if (!res.ok) return c.json({ error: `Search returned ${res.status}` }, 502);
+			return c.json(await res.json());
 		},
 	},
 ];

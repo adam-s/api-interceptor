@@ -1,8 +1,7 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
  * Data Transport Classifier
  *
- * Implements the decision tree from .claude/rules/data-transport-discovery.md
+ * Implements the elimination protocol from .claude/rules/discovery.md
  * as executable code. Given captured traffic entries, returns the classified
  * transport type for each data pattern detected.
  *
@@ -19,7 +18,7 @@
  */
 
 /**
- * Transport types matching the decision tree priorities.
+ * Transport types matching the elimination protocol.
  */
 export type TransportType =
 	| 'WEBSOCKET'

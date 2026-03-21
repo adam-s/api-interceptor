@@ -7,14 +7,14 @@ description: Discover any website's API and create domain plugins with proxy rou
 
 Discover how a website delivers data, then create a domain plugin that exposes it as a typed API.
 
-**Before writing ANY code:** follow `.claude/rules/discovery.md` and produce the Transport Classification table.
+**Before writing ANY code:** follow `.claude/rules/discovery.md` and produce the Transport Elimination table.
 
 **Reference implementation:** `domains/boardshop/src/routes.ts` has working examples of every transport type against the test server.
 
 ## Phases
 
 1. **Observe** — Connect browser via WebSocket, capture traffic, screenshot the page
-2. **Classify** — Run the discovery protocol per data type. Produce Transport Classification table (MANDATORY GATE)
+2. **Classify** — Run the discovery protocol per data type. Produce Transport Elimination table (MANDATORY GATE)
 3. **Extract** — Write routes using the lightest approach (rateLimitedFetch → browserFetch → page.evaluate)
 4. **Verify** — Curl every route, confirm real data (MANDATORY GATE — no dashboard until this passes)
 5. **Scaffold** — Create domain plugin, register, test end-to-end. Command: `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>`

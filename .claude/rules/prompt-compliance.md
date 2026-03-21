@@ -6,7 +6,7 @@ Before committing, list every requirement with evidence. Any row without evidenc
 ## Prompt Compliance Matrix
 | # | Requirement | Status | Evidence |
 |---|-------------|--------|----------|
-| 0 | Transport Classification table produced | PASS/FAIL | Link to table |
+| 0 | Transport Elimination table produced | PASS/FAIL | Link to table |
 | 1 | [from prompt] | PASS/FAIL | [curl output or screenshot] |
 ```
 

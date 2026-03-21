@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 import type { InterceptorConfig } from '@interceptor/browser/shared/config';
 import { BoardShopHeadersSchema, REQUIRED_HEADER_NAMES } from './types';
 

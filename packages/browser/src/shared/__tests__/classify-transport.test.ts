@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
  * Layer 2: Classification logic tests.
  * Pure function tests — no browser, no server. Just traffic entries → classification.

@@ -128,6 +128,9 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 | Encoded API | 10-11 | Base64 JSON, MessagePack binary |
 | JSONP | 22 | Strip callback wrapper to parse JSON |
 | Captions | 23 | Structured timed text from media endpoint |
+| RSS/XML | 27 | Parse XML feed with cheerio |
+| SSR HTML tables | 28 | Parse HTML tables with cheerio (pure SSR) |
+| FormData POST | 29 | Multipart/form-data search request |
 
 Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 

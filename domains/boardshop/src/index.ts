@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
  * BoardShop Domain Plugin (Reference Example)
  *

@@ -1,4 +1,3 @@
-// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior
 /**
  * DOM Analyzer — Extracts discovery-relevant data from the browser's live DOM.
  *

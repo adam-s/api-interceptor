@@ -18,7 +18,9 @@ Sub-agents run real tasks, take shortcuts, you observe the failure, fix the inst
 4. Inspect: did they follow the pipeline? Full elimination table?
 5. Diagnose: which instruction was too soft, missing, or contradictory?
 6. Fix the instruction (generalized, not site-specific)
-7. Commit, push, write handoff, start fresh session, repeat
+7. Commit and push all fixes
+8. Write handoff doc (.claude/tuning-handoff.md)
+9. Start fresh Claude Code session to clear stale context, repeat
 ```
 
 ## Cleanup Before EVERY Iteration

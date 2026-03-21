@@ -38,7 +38,7 @@ The agent follows a mandatory protocol before writing any code:
 1. **Connect** a browser via WebSocket with CDP traffic capture
 2. **Navigate** the target site as a real user
 3. **Capture** all network traffic — inspect every request and response
-4. **Classify** each data type's transport using a priority decision tree
+4. **Classify** each data type's transport using the GATHER→SCAN→CLASSIFY→BUILD pipeline
 5. **Interact** — click, scroll, paginate to surface lazy-loaded endpoints
 6. **Build** typed proxy routes returning structured JSON
 
@@ -78,7 +78,7 @@ The orchestrator scores every run against a checklist. Each failure traces to a 
 | Network interception over DOM scraping? | Proof requirement missing — agent took the easy path |
 | Found ALL data sources, not just the first? | "Don't stop early" was a suggestion — needs an interaction checkpoint |
 
-**Concrete example:** An early rule said *"you should capture traffic first."* Agents skipped it. The fix: *"GATE: you MUST produce a Transport Classification table BEFORE writing any extraction code. No table = no code."* The word choice is the fix — "should" became "MUST," and a structural gate replaced a suggestion. The loop runs until a batch of fresh agents, with zero context, all follow the full protocol without shortcuts. That's the convergence condition — instructions good enough to work on their own.
+**Concrete example:** An early rule said *"you should capture traffic first."* Agents skipped it. The fix: *"GATE: you MUST produce a Transport Elimination table BEFORE writing any extraction code. No table = no code."* The word choice is the fix — "should" became "MUST," and a structural gate replaced a suggestion. The loop runs until a batch of fresh agents, with zero context, all follow the full protocol without shortcuts. That's the convergence condition — instructions good enough to work on their own.
 
 ## Quick Start
 
