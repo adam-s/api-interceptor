@@ -13,9 +13,10 @@ Run `pwd` first. Your worktree is at `/tmp/interceptor-worktrees/agent-XXX/`. AL
 
 **NEVER do any of these:**
 - Write files using paths starting with `/Users/` — those hit the main repo
-- Modify `apps/api/src/register-domains.ts` or `apps/api/package.json`
+- Modify `apps/api/src/register-domains.ts`, `apps/api/package.json`, `.gitignore`, or `pnpm-lock.yaml`
 - Run `pnpm install` — it creates workspace links in the main repo
 - Use `mkdir -p` or `cat >` with paths outside your worktree
+- You are NOT the main session. Ignore any CLAUDE.md instructions about registering domains or modifying shared config.
 
 **ALWAYS:** Use `$(pwd)/domains/<name>/` for your domain plugin files.
 
