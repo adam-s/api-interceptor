@@ -2,14 +2,15 @@
 /**
  * BoardShop API Routes (Reference Example)
  *
- * Six routes demonstrating every route type in the framework:
+ * Routes ordered from LIGHTEST to HEAVIEST — agents should prefer
+ * earlier patterns and only escalate when forced:
  *
- * 1. GET /search        — Type B: SSR DOM extraction via page.evaluate()
- * 2. GET /boards/:sku   — Type B: Detail page with data-* attributes
- * 3. GET /trending       — Type A: browserFetch() POST to native JSON API
- * 4. GET /shops          — browserRequired: false, direct HTTP via rateLimitedFetch
- * 5. POST /orders        — Typed API client with Zod validation
- * 6. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
+ * 1. GET /shops          — Direct HTTP (rateLimitedFetch, no browser)
+ * 2. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
+ * 3. POST /orders        — Typed API client with session auth
+ * 4. GET /trending       — browserFetch() POST to native JSON API
+ * 5. GET /search         — SSR DOM extraction via page.evaluate() (LAST RESORT)
+ * 6. GET /boards/:sku    — Detail page with data-* attributes (LAST RESORT)
  *
  * PATTERN: Use string-based page.evaluate('...') not arrow functions.
  * tsx/esbuild injects __name decorators into arrow functions which breaks
@@ -24,9 +25,121 @@ import { createOrder } from './api-client';
 import { BoardShopSessionManager } from './session-manager';
 
 export const routes: DomainRoute[] = [
-	// ─── Route 1: SSR DOM Extraction (Type B) ─────────────────────────────
+	// ─── Route 1: Direct HTTP, No Browser Required (PREFERRED) ───────────
+	// PATTERN: browserRequired: false skips the browser-connected check.
+	// Use rateLimitedFetch() from @interceptor/shared instead of raw fetch().
+	// Register per-host limits in apps/api/src/register-domains.ts.
+	// THIS IS THE LIGHTEST PATTERN — use it whenever the endpoint works
+	// with direct HTTP (test with curl first).
+	{
+		method: 'GET',
+		path: '/shops',
+		description: 'List shops. Direct HTTP — no browser needed.',
+		browserRequired: false,
+		handler: async (c) => {
+			const city = new URL(c.req.url).searchParams.get('city') ?? '';
+			const url = `https://api.boardshop.example.com/v1/shops${city ? `?city=${encodeURIComponent(city)}` : ''}`;
+
+			// PATTERN: rateLimitedFetch is a drop-in fetch() replacement that
+			// enforces per-hostname rate limits and auto-retries 429 responses.
+			const res = await rateLimitedFetch(url, {
+				headers: { Accept: 'application/json' },
+			});
+
+			if (!res.ok) {
+				return c.json({ error: `Shop API returned ${res.status}` }, 502);
+			}
+			return c.json(await res.json());
+		},
+	},
+
+	// ─── Route 2: Escalation Pattern (direct HTTP → browserFetch) ────────
+	// PATTERN: Always try rateLimitedFetch first. If the endpoint blocks
+	// non-browser requests (429/403), escalate to browserFetch which uses
+	// Chrome's TLS fingerprint and cookies. NEVER use page.evaluate(fetch(...))
+	// — browserFetch does the same thing without browser page overhead.
+	{
+		method: 'GET',
+		path: '/availability',
+		description: 'Product availability. Tries direct HTTP, falls back to browserFetch if UA-blocked.',
+		handler: async (c, browser) => {
+			const category = new URL(c.req.url).searchParams.get('category') ?? '';
+			const url = `https://www.boardshop.example.com/api/availability${category ? `?category=${encodeURIComponent(category)}` : ''}`;
+
+			// Step 1: Try direct HTTP (lightest, no browser needed)
+			const directRes = await rateLimitedFetch(url, {
+				headers: { Accept: 'application/json' },
+			});
+
+			if (directRes.ok) {
+				return c.json(await directRes.json());
+			}
+
+			// Step 2: If blocked (429/403), escalate to browserFetch
+			if (directRes.status === 429 || directRes.status === 403) {
+				const browserRes = await browser.browserFetch<Record<string, unknown>>(url);
+				return c.json(browserRes.data ?? { error: 'Browser fetch failed' });
+			}
+
+			return c.json({ error: `API returned ${directRes.status}` }, 502);
+		},
+	},
+
+	// ─── Route 3: Typed API Client with Session ──────────────────────────
+	// PATTERN: For write operations and complex API calls, use a dedicated
+	// API client class with Zod validation. Headers come from the session manager.
+	{
+		method: 'POST',
+		path: '/orders',
+		description: 'Create order. Uses typed API client + session auth.',
+		browserRequired: false,
+		handler: async (c) => {
+			const manager = BoardShopSessionManager.getInstance();
+			const headers = manager.getHeaders('boardshop');
+			if (!headers) {
+				return c.json({ error: 'Not authenticated. Connect browser to boardshop first.' }, 401);
+			}
+
+			const body = (await c.req.json()) as { sku: string; quantity: number };
+			if (!body.sku || !body.quantity) {
+				return c.json({ error: 'sku and quantity required' }, 400);
+			}
+
+			try {
+				const order = await createOrder(headers, body);
+				return c.json({ order });
+			} catch (err) {
+				const msg = err instanceof Error ? err.message : String(err);
+				return c.json({ error: msg }, 502);
+			}
+		},
+	},
+
+	// ─── Route 4: browserFetch POST to Native API (Type A) ───────────────
+	// PATTERN: When the site has a JSON API (found via CDP traffic capture)
+	// that requires browser cookies/TLS, use browserFetch() to call it.
+	// Cookies and auth are inherited from the browser session automatically.
+	{
+		method: 'GET',
+		path: '/trending',
+		description: 'Trending boards. Proxies native JSON API via browserFetch.',
+		handler: async (c, browser) => {
+			const maxItems = new URL(c.req.url).searchParams.get('limit') ?? '20';
+			const result = await browser.browserFetch<Record<string, unknown>>(
+				`https://www.boardshop.example.com/api/trending?limit=${maxItems}`,
+				{ method: 'POST' },
+			);
+			const data = result.data ?? {};
+			const items = (data.boards as unknown[]) ?? [];
+			return c.json({ boards: items, total: items.length });
+		},
+	},
+
+	// ─── Route 5: SSR DOM Extraction (Type B — LAST RESORT) ──────────────
 	// PATTERN: Navigate → wait for hydration → querySelectorAll → innerText parse → dedup
 	// Use innerText (not textContent) — it respects CSS layout and adds \n between blocks.
+	// ONLY use this when the Transport Classification table proves no network request
+	// carries the data (classification (g) SSR with validation gate passed).
 	{
 		method: 'GET',
 		path: '/search',
@@ -69,7 +182,7 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 2: Detail Page with data-* Attributes (Type B) ─────────────
+	// ─── Route 6: Detail Page with data-* Attributes (Type B — LAST RESORT)
 	// PATTERN: data-* attributes are reliable structured data — prefer them over
 	// parsing free text. But ALWAYS read prices from displayed text, not data-price
 	// (localized currencies differ from data attributes).
@@ -114,114 +227,6 @@ export const routes: DomainRoute[] = [
 
 			if (!detail) return c.json({ error: 'Board not found on page' }, 404);
 			return c.json(detail);
-		},
-	},
-
-	// ─── Route 3: browserFetch POST to Native API (Type A) ────────────────
-	// PATTERN: When the site has a JSON API (found via CDP traffic capture),
-	// use browserFetch() to call it directly. Cookies and auth are inherited
-	// from the browser session automatically.
-	{
-		method: 'GET',
-		path: '/trending',
-		description: 'Trending boards. Proxies native JSON API via browserFetch.',
-		handler: async (c, browser) => {
-			const maxItems = new URL(c.req.url).searchParams.get('limit') ?? '20';
-			const result = await browser.browserFetch<Record<string, unknown>>(
-				`https://www.boardshop.example.com/api/trending?limit=${maxItems}`,
-				{ method: 'POST' },
-			);
-			const data = result.data ?? {};
-			const items = (data.boards as unknown[]) ?? [];
-			return c.json({ boards: items, total: items.length });
-		},
-	},
-
-	// ─── Route 4: Direct HTTP, No Browser Required ────────────────────────
-	// PATTERN: browserRequired: false skips the browser-connected check.
-	// Use rateLimitedFetch() from @interceptor/shared instead of raw fetch().
-	// Register per-host limits in apps/api/src/register-domains.ts.
-	{
-		method: 'GET',
-		path: '/shops',
-		description: 'List shops. Direct HTTP — no browser needed.',
-		browserRequired: false,
-		handler: async (c) => {
-			const city = new URL(c.req.url).searchParams.get('city') ?? '';
-			const url = `https://api.boardshop.example.com/v1/shops${city ? `?city=${encodeURIComponent(city)}` : ''}`;
-
-			// PATTERN: rateLimitedFetch is a drop-in fetch() replacement that
-			// enforces per-hostname rate limits and auto-retries 429 responses.
-			const res = await rateLimitedFetch(url, {
-				headers: { Accept: 'application/json' },
-			});
-
-			if (!res.ok) {
-				return c.json({ error: `Shop API returned ${res.status}` }, 502);
-			}
-			return c.json(await res.json());
-		},
-	},
-
-	// ─── Route 5: Typed API Client with Session ───────────────────────────
-	// PATTERN: For write operations and complex API calls, use a dedicated
-	// API client class with Zod validation. Headers come from the session manager.
-	{
-		method: 'POST',
-		path: '/orders',
-		description: 'Create order. Uses typed API client + session auth.',
-		browserRequired: false,
-		handler: async (c) => {
-			const manager = BoardShopSessionManager.getInstance();
-			const headers = manager.getHeaders('boardshop');
-			if (!headers) {
-				return c.json({ error: 'Not authenticated. Connect browser to boardshop first.' }, 401);
-			}
-
-			const body = (await c.req.json()) as { sku: string; quantity: number };
-			if (!body.sku || !body.quantity) {
-				return c.json({ error: 'sku and quantity required' }, 400);
-			}
-
-			try {
-				const order = await createOrder(headers, body);
-				return c.json({ order });
-			} catch (err) {
-				const msg = err instanceof Error ? err.message : String(err);
-				return c.json({ error: msg }, 502);
-			}
-		},
-	},
-
-	// ─── Route 6: Escalation Pattern (direct HTTP → browserFetch) ────────
-	// PATTERN: Always try rateLimitedFetch first. If the endpoint blocks
-	// non-browser requests (429/403), escalate to browserFetch which uses
-	// Chrome's TLS fingerprint and cookies. NEVER use page.evaluate(fetch(...))
-	// — browserFetch does the same thing without browser page overhead.
-	{
-		method: 'GET',
-		path: '/availability',
-		description: 'Product availability. Tries direct HTTP, falls back to browserFetch if UA-blocked.',
-		handler: async (c, browser) => {
-			const category = new URL(c.req.url).searchParams.get('category') ?? '';
-			const url = `https://www.boardshop.example.com/api/availability${category ? `?category=${encodeURIComponent(category)}` : ''}`;
-
-			// Step 1: Try direct HTTP (lightest, no browser needed)
-			const directRes = await rateLimitedFetch(url, {
-				headers: { Accept: 'application/json' },
-			});
-
-			if (directRes.ok) {
-				return c.json(await directRes.json());
-			}
-
-			// Step 2: If blocked (429/403), escalate to browserFetch
-			if (directRes.status === 429 || directRes.status === 403) {
-				const browserRes = await browser.browserFetch<Record<string, unknown>>(url);
-				return c.json(browserRes.data ?? { error: 'Browser fetch failed' });
-			}
-
-			return c.json({ error: `API returned ${directRes.status}` }, 502);
 		},
 	},
 ];
