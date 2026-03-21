@@ -78,6 +78,19 @@ Your port is XXXX.
 | Wrote files to worktree, not main repo | |
 | Stayed under 150 tool calls | |
 
+## Crash / Retry / Regression Policy
+
+**On crash:** Check the error message. If it's a fixable infrastructure issue (binary data in traffic, missing dependency, port conflict), apply the code fix and re-launch that single agent. If it's an API-level error (Claude "Could not process image"), check that static resource blocking is working and re-launch.
+
+**On timeout (>20 min):** Kill the agent. Check if it's stuck in a retry loop (429s, WAF challenges, sleep). If so, fix the instruction that allowed the loop and re-launch.
+
+**On success but regression:** Compare route count and transport coverage to the previous iteration. If an agent found fewer transports, check:
+- Did it skip browser traffic capture? (Steps 1d/1e)
+- Did it hit the tool budget before finishing?
+- Did it test through the proxy or just curl directly?
+
+Flag regressions in the handoff doc. Do not accept fewer transports without explanation.
+
 ## Deep Analysis (after each iteration)
 
 For each agent, analyze:
@@ -99,5 +112,7 @@ The loop converges when fresh agents (clean session, no hints):
 1. Follow the GATHER→SCAN→CLASSIFY→BUILD pipeline
 2. Fill all 8 elimination rows before writing code
 3. Build routes for every ✓ transport (including WebSocket, HLS, encoded)
-4. Stay under 100 tool calls
-5. Write all files to worktree, not main repo
+4. Validate each route with curl first, then test through the API server proxy
+5. Capture browser traffic (Steps 1d/1e)
+6. Stay under 150 tool calls
+7. Write all files to worktree, not main repo
