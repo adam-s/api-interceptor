@@ -18,9 +18,10 @@ Sub-agents run real tasks, take shortcuts, you observe the failure, fix the inst
 4. Inspect: did they follow the pipeline? Full elimination table?
 5. Diagnose: which instruction was too soft, missing, or contradictory?
 6. Fix the instruction (generalized, not site-specific)
-7. Commit and push all fixes
-8. Write handoff doc (.claude/tuning-handoff.md)
-9. Start fresh Claude Code session to clear stale context, repeat
+7. Add any new patterns to test-server + boardshop reference routes
+8. Commit and push all fixes
+9. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
+10. Start fresh Claude Code session to clear stale context, repeat
 ```
 
 ## Cleanup Before EVERY Iteration
@@ -29,43 +30,37 @@ Sub-agents run real tasks, take shortcuts, you observe the failure, fix the inst
 bash .claude/hooks/cleanup-agents.sh
 ```
 
-This kills all agent processes, removes all worktrees, cleans untracked domains, and reverts contaminated shared files.
+Kills all agent processes, removes all worktrees, cleans untracked domains, reverts contaminated shared files.
 
 ## Stale Context Problem
 
 Subagents inherit the parent session's system-reminder context, which may contain OLD file contents from deleted/modified rules files. This causes agents to reference files that no longer exist.
 
-**Fix: start a fresh Claude Code session before each iteration batch.** Write a handoff doc first so the new session can pick up where you left off.
+**Fix: start a fresh Claude Code session before each iteration batch.** Write a handoff doc so the new session can pick up where you left off.
 
 ## Session Handoff
 
-After committing all fixes at the end of an iteration, write `.claude/tuning-handoff.md` with:
+After committing all fixes, write `.claude/tuning-handoff.md` (gitignored) with:
 
-1. **Iteration number** — which iteration just completed and what's next
-2. **Results table** — tokens, time, routes, elimination status per agent (use numbers, not names)
-3. **What changed** — commits made during this session
+1. **Iteration number** — which iteration completed and what's next
+2. **Results table** — tokens, time, routes, elimination status per agent
+3. **Test sites and ports** — domain names are OK here (file is temporary, gitignored)
 4. **Known issues** — what's still broken
-5. **What's next** — specific items for the next iteration
-
-Do not include domain names, URLs, or site-specific content in the handoff. Reference agents by number and describe them by transport type coverage.
+5. **What changed** — commits made during this session
+6. **What's next** — specific items for the next iteration
 
 The new session reads this file to pick up context. Subagents get clean system-reminders because the fresh session reads `.claude/` files from disk.
 
 ## Parallel Testing
 
-Launch agents with worktree isolation. Each gets a unique port.
-
-```
-Agent 1: PORT=3011  (isolation: "worktree", run_in_background: true)
-Agent 2: PORT=3012  ...
-Agent N: PORT=3010+N  ...
-```
+Launch agents with worktree isolation. Each gets a unique port (3010 + N).
 
 Agent prompt template:
 ```
 Discover ALL transport types that [site] uses. Build a route for EVERY transport found.
 Target: [url]
-Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD. Fill ALL 8 elimination rows before writing code.
+Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
+Fill ALL 8 elimination rows before writing code.
 PORT=XXXX pnpm --filter @interceptor/api dev > /tmp/api-server-XXXX.log 2>&1 &
 .claude/hooks/track-pid.sh $! XXXX "api-server"
 sleep 8 && curl -s http://localhost:XXXX/health
@@ -73,8 +68,6 @@ sleep 8 && curl -s http://localhost:XXXX/health
 ```
 
 ## Scorecard
-
-For each completed agent:
 
 | Check | Pass/Fail |
 |-------|-----------|
@@ -86,9 +79,20 @@ For each completed agent:
 | Wrote files to worktree, not main repo | |
 | Stayed under 100 tool calls | |
 
+## Deep Analysis (after each iteration)
+
+For each agent, analyze:
+- Tool call breakdown: how many in GATHER vs SCAN vs CLASSIFY vs BUILD?
+- Infrastructure waste: pnpm install, sleep, server retries
+- Did the agent follow the pipeline in order or interleave?
+- What new patterns did it discover not in test-server/boardshop?
+- Where did it waste the most tool calls?
+
+Add any new patterns to test-server endpoints + boardshop reference routes before the next iteration.
+
 ## Generalization Rule
 
-Every instruction change must work for ANY website. If a fix only helps for a specific site, it's overfitting. Never put specific website names, URLs, or transport classifications in instruction files.
+Every instruction change must work for ANY website. If a fix only helps for a specific site, it's overfitting. Never put specific website names, URLs, or transport classifications in instruction files (test-server, boardshop, and CLAUDE.md are the only places for working code examples).
 
 ## Convergence
 
