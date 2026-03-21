@@ -16,6 +16,10 @@ Every new `.ts`/`.tsx` file: `import { DEBUG } from '@interceptor/shared'`. Add 
 2. **`browserFetch`** — browser TLS + cookies. Use only if direct HTTP returns 429/403/WAF.
 3. **`page.evaluate` for DOM** — last resort. Requires SSR proof from classification table.
 
+## Rate Limiting — Bail Fast
+
+If an endpoint returns 429 three times, **stop retrying and move on.** The data is available elsewhere — embedded JSON, a different endpoint, or a different transport. Retrying a rate-limited endpoint wastes tokens and time. Document it in the Transport Classification table as "rate-limited" and find an alternative.
+
 ## When Something Goes Wrong
 
 - Empty API response: STOP. Add DEBUG logs, read output, understand WHY. Don't guess.

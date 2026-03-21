@@ -28,7 +28,7 @@ Domain plugins registered, `pnpm run dev` (ports 3000/3001).
 
 **Verify the data layer returns real data before building UI.** For HTTP routes: curl. For WebSocket streams: connect and observe messages. For any protocol: the verification must produce observable output proving real data flows end-to-end. If you can't verify it, you can't build on it.
 
-**Routes must use network interception, not DOM extraction.** Every route that serves data must intercept a network request (XHR, WebSocket, GraphQL, etc.) — not parse rendered HTML via `page.evaluate()`. If a route uses `page.evaluate()` for data extraction, it violates the discovery protocol and must be rewritten. The Transport Classification table from `data-transport-discovery.md` must exist before any route is created.
+**Routes must use network interception, not DOM extraction.** Every route that serves data must intercept a network request (XHR, WebSocket, GraphQL, etc.) — not parse rendered HTML via `page.evaluate()`. If a route uses `page.evaluate()` for data extraction, it violates the discovery protocol and must be rewritten. The Transport Classification table from `discovery.md` must exist before any route is created.
 
 If any endpoint returns empty or errors, stop and fix the API layer using debug-logs skill. If data looks wrong or encoded, see CLAUDE.md "Unexpected Output Is Information, Not Failure" — investigate the transformation before concluding something is broken.
 

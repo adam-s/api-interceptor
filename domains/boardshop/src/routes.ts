@@ -44,6 +44,9 @@
  * BASE64 CURSOR PAGINATION:
  * 18. GET /cursor-example       — Base64-encoded cursor pagination (boardshop /catalog/cursor)
  *
+ * RATE-LIMIT BAIL-OUT:
+ * 19. GET /chart/:sku           — 429 after first call, falls back to embedded JSON
+ *
  * @module domain-boardshop/routes
  */
 
@@ -673,6 +676,52 @@ export const routes: DomainRoute[] = [
 			const res = await rateLimitedFetch(url);
 			if (!res.ok) return c.json({ error: `Cursor API returned ${res.status}` }, 502);
 			return c.json(await res.json());
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// RATE-LIMIT BAIL-OUT
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 19: Rate-limited endpoint with embedded JSON fallback ─
+	// The /api/chart/:sku endpoint returns 429 after the first request.
+	// Instead of retrying, fall back to embedded JSON from the main page
+	// which has the same data. This teaches: bail on 429, find alternatives.
+	{
+		method: 'GET',
+		path: '/chart/:sku',
+		description: 'Rate-limited chart: tries API first, falls back to embedded JSON.',
+		browserRequired: false,
+		handler: async (c) => {
+			const sku = (c.req.param() as Record<string, string>).sku;
+
+			// Step 1: Try the chart API (will 429 after first call)
+			DEBUG('boardshop', `chart: trying API for ${sku}`);
+			const apiRes = await rateLimitedFetch(`${BASE_URL}/api/chart/${sku}`);
+
+			if (apiRes.ok) {
+				DEBUG('boardshop', `chart: API returned data for ${sku}`);
+				return c.json(await apiRes.json());
+			}
+
+			if (apiRes.status === 429) {
+				// Step 2: BAIL — don't retry. Fall back to embedded JSON.
+				DEBUG('boardshop', `chart: 429 — falling back to embedded JSON for ${sku}`);
+				const pageRes = await rateLimitedFetch(`${BASE_URL}/product/${sku}`);
+				if (!pageRes.ok) return c.json({ error: `Fallback page returned ${pageRes.status}` }, 502);
+				const html = await pageRes.text();
+				const data = extractScript(html, 'product-data') as {
+					product: Record<string, unknown>;
+				} | null;
+				if (!data) return c.json({ error: 'Fallback embedded JSON not found' }, 404);
+				return c.json({
+					...data.product,
+					_source: 'embedded-json-fallback',
+					_note: 'Chart API rate-limited. Data from product page embedded JSON.',
+				});
+			}
+
+			return c.json({ error: `Chart API returned ${apiRes.status}` }, 502);
 		},
 	},
 ];

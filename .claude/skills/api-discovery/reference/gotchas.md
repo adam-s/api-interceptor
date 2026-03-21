@@ -12,7 +12,7 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 
 | Problem | Fix |
 |---------|-----|
-| Traffic shows 0 entries | **Do NOT immediately assume SSR.** First verify you are using a WS-connected browser (auto-start has no capture). Then wait 15s and re-check. Then run Steps (a)-(f) of the decision tree in `data-transport-discovery.md`. Only if all checks fail AND Steps 2g validation passes, classify as SSR. |
+| Traffic shows 0 entries | **Do NOT immediately assume SSR.** First verify you are using a WS-connected browser (auto-start has no capture). Then wait 15s and re-check. Then run Steps (a)-(f) of the decision tree in `discovery.md`. Only if all checks fail AND Steps 2g validation passes, classify as SSR. |
 | Body text empty after navigate | Bot-protected — check for captcha iframe |
 | `textContent` concatenates everything | Use `innerText` instead |
 | `browserFetch` loses session cookies | Use `navigateTo` for CORS subdomains, or Type B2 if no CORS |
@@ -20,7 +20,7 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | Real-time 429, cached 200 | CDN passes cached (no bot check); origin blocks headless. `age > 0` = CDN |
 | Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see anti-bot.md Step 0) |
 | Direct `fetch()` 429 but browser 200 | TLS fingerprinting (JA3/JA4) — use `browserFetch()` instead |
-| Token endpoint returns 429 | **Don't retry the endpoint.** The token (crumb, CSRF) is almost always embedded in the page HTML, cookies, or JS globals. Extract it from there instead. Dedicated token endpoints are aggressively rate-limited. See discovery-process.md Step 2. |
+| Token endpoint returns 429 | **Don't retry the endpoint.** The token (crumb, CSRF) is almost always embedded in the page HTML, cookies, or JS globals. Extract it from there instead. Dedicated token endpoints are aggressively rate-limited. See discovery.md Step 3. |
 | Route 404 after editing routes.ts | Kill port 3001, rerun `pnpm dev` |
 | ID regex misses alphanumeric IDs | Use `[A-Z0-9]+` not `\d+` |
 | `data-*` attr != displayed value | Always read from displayed text |

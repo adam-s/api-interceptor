@@ -275,6 +275,38 @@ export function createBoardshopSite(): Hono {
 		});
 	});
 
+	// ─── Rate-limited endpoint (Yahoo Finance pattern) ─────────────
+	// Returns 429 on every 2nd+ request per session. Teaches agents to
+	// bail after 3 retries and use embedded JSON fallback instead.
+	// The SAME data is available via embedded JSON on GET / — agents
+	// should discover this and stop retrying the rate-limited endpoint.
+	const rateLimitHits = new Map<string, number>();
+	app.get('/api/chart/:sku', (c) => {
+		const ip = c.req.header('x-forwarded-for') ?? 'default';
+		const hits = (rateLimitHits.get(ip) ?? 0) + 1;
+		rateLimitHits.set(ip, hits);
+
+		// First request succeeds, subsequent get 429
+		if (hits > 1) {
+			c.header('Retry-After', '60');
+			return c.json({ error: 'Too many requests' }, 429);
+		}
+
+		const sku = c.req.param('sku');
+		const product = PRODUCTS.find((p) => p.sku === sku);
+		if (!product) return c.json({ error: 'Not found' }, 404);
+
+		return c.json({
+			sku: product.sku,
+			name: product.name,
+			price: product.price,
+			priceHistory: Array.from({ length: 30 }, (_, i) => ({
+				date: `2026-02-${String(i + 1).padStart(2, '0')}`,
+				price: Math.round((product.price + (Math.random() - 0.5) * 10) * 100) / 100,
+			})),
+		});
+	});
+
 	// ─── __NEXT_DATA__ page (Ticketmaster/Next.js pattern) ──────────
 	// Same catalog data, but wrapped in __NEXT_DATA__ Redux state.
 	// Agents must navigate: props.pageProps.initialReduxState.api.queries

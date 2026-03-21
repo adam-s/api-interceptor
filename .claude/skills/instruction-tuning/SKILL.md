@@ -3,6 +3,8 @@ name: instruction-tuning
 description: Use sub-agents as test subjects to iteratively improve .claude/ instruction files. Run agent → inspect → fix instructions → re-run until agents follow the protocol correctly without hints.
 ---
 
+> **DO NOT write memory files.** This skill produces throwaway agent runs. All learnings go into `.claude/rules/`, `.claude/agents/`, test-server code, or boardshop reference routes — NOT into memory. Memory pollutes future agent contexts.
+
 # Instruction Tuning via Sub-Agent Testing
 
 Use sub-agents as test subjects to iteratively improve `.claude/` instruction files. The sub-agent runs a real task, takes shortcuts, you observe the failure, fix the instructions, re-run. The sub-agent's code is throwaway — the instruction improvements are the product.
@@ -85,7 +87,7 @@ The sub-agent prompt should:
 
 ```
 Discover the internal APIs that [website] uses to serve [data type].
-Follow the discovery protocol in .claude/rules/data-transport-discovery.md.
+Follow the discovery protocol in .claude/rules/discovery.md.
 Create a domain plugin with proxy routes. Prove each route works with curl.
 Do NOT use publicly documented APIs — we don't have API keys.
 Do NOT build any dashboard UI. API routes + curl proof only.
