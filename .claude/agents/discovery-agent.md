@@ -19,6 +19,27 @@ Run `pwd` first. Your worktree is at `/tmp/interceptor-worktrees/agent-XXX/`. AL
 
 **ALWAYS:** Use `$(pwd)/domains/<name>/` for your domain plugin files.
 
+## Process Tracking
+
+Track every process you start so cleanup can find and kill it:
+
+```bash
+# After starting any background process:
+some-command &
+.claude/hooks/track-pid.sh $! PORT "purpose"
+```
+
+Example:
+```bash
+PORT=3011 pnpm --filter @interceptor/api dev > /tmp/api-server-3011.log 2>&1 &
+.claude/hooks/track-pid.sh $! 3011 "api-server"
+```
+
+Before exiting, kill your own processes:
+```bash
+kill $(jobs -p) 2>/dev/null
+```
+
 ## Discovery Protocol
 
 Read `.claude/rules/discovery.md` for the decision tree.
