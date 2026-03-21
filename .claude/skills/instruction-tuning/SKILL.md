@@ -38,9 +38,12 @@ echo "Remaining domains:" && ls domains/
 # 3. Verify working tree is clean (no uncommitted .claude/ changes)
 git status --short .claude/
 
-# 4. Kill orphaned servers
+# 4. Kill orphaned servers and zombie browsers
 pkill -f "connect-browser" 2>/dev/null
 pkill -f "tsx.*src/index" 2>/dev/null
+pkill -f "chromium" 2>/dev/null
+pkill -f "chrome" 2>/dev/null
+pkill -f "patchright" 2>/dev/null
 for port in 3001 3011 3012 3013 3014 3015 3016 3017; do
   lsof -ti:$port | xargs kill 2>/dev/null
 done
