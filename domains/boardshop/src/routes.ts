@@ -2,13 +2,14 @@
 /**
  * BoardShop API Routes (Reference Example)
  *
- * Five routes demonstrating every route type in the framework:
+ * Six routes demonstrating every route type in the framework:
  *
  * 1. GET /search        — Type B: SSR DOM extraction via page.evaluate()
  * 2. GET /boards/:sku   — Type B: Detail page with data-* attributes
  * 3. GET /trending       — Type A: browserFetch() POST to native JSON API
  * 4. GET /shops          — browserRequired: false, direct HTTP via rateLimitedFetch
  * 5. POST /orders        — Typed API client with Zod validation
+ * 6. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
  *
  * PATTERN: Use string-based page.evaluate('...') not arrow functions.
  * tsx/esbuild injects __name decorators into arrow functions which breaks
@@ -189,6 +190,38 @@ export const routes: DomainRoute[] = [
 				const msg = err instanceof Error ? err.message : String(err);
 				return c.json({ error: msg }, 502);
 			}
+		},
+	},
+
+	// ─── Route 6: Escalation Pattern (direct HTTP → browserFetch) ────────
+	// PATTERN: Always try rateLimitedFetch first. If the endpoint blocks
+	// non-browser requests (429/403), escalate to browserFetch which uses
+	// Chrome's TLS fingerprint and cookies. NEVER use page.evaluate(fetch(...))
+	// — browserFetch does the same thing without browser page overhead.
+	{
+		method: 'GET',
+		path: '/availability',
+		description: 'Product availability. Tries direct HTTP, falls back to browserFetch if UA-blocked.',
+		handler: async (c, browser) => {
+			const category = new URL(c.req.url).searchParams.get('category') ?? '';
+			const url = `https://www.boardshop.example.com/api/availability${category ? `?category=${encodeURIComponent(category)}` : ''}`;
+
+			// Step 1: Try direct HTTP (lightest, no browser needed)
+			const directRes = await rateLimitedFetch(url, {
+				headers: { Accept: 'application/json' },
+			});
+
+			if (directRes.ok) {
+				return c.json(await directRes.json());
+			}
+
+			// Step 2: If blocked (429/403), escalate to browserFetch
+			if (directRes.status === 429 || directRes.status === 403) {
+				const browserRes = await browser.browserFetch<Record<string, unknown>>(url);
+				return c.json(browserRes.data ?? { error: 'Browser fetch failed' });
+			}
+
+			return c.json({ error: `API returned ${directRes.status}` }, 502);
 		},
 	},
 ];

@@ -79,7 +79,7 @@ FIXTURE_DIR=data/fixtures pnpm --filter @interceptor/api dev  # Instant response
 - **Traffic capture:** `GET /browser/traffic` — captured request/response entries
 - **Transport classifier:** `classifyEntry()` / `classifyPage()` from `@interceptor/browser/shared` — automates the data transport decision tree
 - **Domain proxy:** `GET /api/<domain>/<path>` — routes through browser session
-- **Test server:** `pnpm --filter @interceptor/test-server start` — composable fake websites on port 4444. Validate discovery approach here before targeting real sites. Sites: `boardshop` (embedded JSON + POST pagination + CSRF), `liveboard` (WebSocket + protobuf + crumb token), `streamshop` (GraphQL + HLS + IRC chat), `databoard` (gRPC-Web + encoded responses + Bearer auth)
+- **Test server:** `pnpm --filter @interceptor/test-server start` — composable fake websites on port 4444. Validate discovery approach here before targeting real sites. Sites: `boardshop` (embedded JSON + POST pagination + CSRF + WAF-protected path + custom-header API + UA-gated endpoint), `liveboard` (WebSocket + protobuf + crumb token), `streamshop` (GraphQL + HLS + IRC chat), `databoard` (gRPC-Web + encoded responses + Bearer auth)
 - **Debug logging:** `import { DEBUG } from "@interceptor/shared"` → `/tmp/interceptor-debug/`
 - **Python bridge:** IPC via stdin/stdout JSON-RPC at `services/python/worker.py`
 - **Auth:** NextAuth v5 (Credentials provider, JWT strategy) at `apps/web/src/auth.ts`

@@ -207,5 +207,72 @@ export function createBoardshopSite(): Hono {
 		return c.json(getProductPage(page, pageSize, category));
 	});
 
+	// ─── WAF-protected path (same data, requires session cookie) ──
+	// Pattern: Some sites serve the same data at both a public path and
+	// a protected path. Agents should discover the public path works
+	// without a browser and use rateLimitedFetch (direct HTTP).
+	app.get('/secure/catalog', (c) => {
+		const sessionCookie = c.req.header('cookie')?.match(/_sid=([^;]+)/)?.[1];
+		if (!sessionCookie || !sessions.has(sessionCookie)) {
+			// WAF challenge — returns HTML with JS challenge, not the data
+			c.header('Content-Type', 'text/html; charset=utf-8');
+			return c.html(
+				'<html><body><script src="/challenge.js"></script><p>Checking your browser...</p></body></html>',
+				202,
+			);
+		}
+		// Same data as public catalog, but requires browser session
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+		return c.json({ items: page1.items, totalCount: page1.totalCount });
+	});
+
+	// ─── Custom-header API (returns 404 without required headers) ──
+	// Pattern: Some internal APIs require specific custom headers that
+	// are discoverable in browser traffic or JS bundles. Without them
+	// the endpoint returns 404/empty, not an auth error.
+	app.get('/api/inventory/:sku', (c) => {
+		const platform = c.req.header('x-app-platform');
+		const region = c.req.header('x-app-region');
+		if (!platform || !region) {
+			return c.json({ error: 'Not found' }, 404);
+		}
+		const sku = c.req.param('sku');
+		const product = PRODUCTS.find((p) => p.sku === sku);
+		if (!product) return c.json({ error: 'Product not found' }, 404);
+		return c.json({
+			sku: product.sku,
+			stock: product.stock,
+			warehouses: [
+				{ id: 'WH-01', name: 'East', available: Math.floor(product.stock * 0.6) },
+				{ id: 'WH-02', name: 'West', available: Math.ceil(product.stock * 0.4) },
+			],
+			lastUpdated: new Date().toISOString(),
+		});
+	});
+
+	// ─── UA-gated endpoint (simulates TLS fingerprint blocking) ────
+	// Pattern: Some APIs reject non-browser requests (Node fetch gets
+	// 429, browser fetch works). Agents should try direct HTTP first,
+	// then escalate to browserFetch when blocked.
+	app.get('/api/availability', (c) => {
+		const ua = c.req.header('user-agent') ?? '';
+		const isLikelyBrowser = ua.includes('Chrome/') || ua.includes('Firefox/') || ua.includes('Safari/');
+		if (!isLikelyBrowser) {
+			return c.json({ error: 'Too many requests' }, 429);
+		}
+		const category = c.req.query('category') as
+			| 'decks'
+			| 'trucks'
+			| 'wheels'
+			| 'accessories'
+			| undefined;
+		const result = getProductPage(1, MAX_PAGE_SIZE, category);
+		return c.json({
+			available: result.items.filter((p) => p.stock > 0).length,
+			totalProducts: result.totalCount,
+			items: result.items.map((p) => ({ sku: p.sku, name: p.name, stock: p.stock })),
+		});
+	});
+
 	return app;
 }
