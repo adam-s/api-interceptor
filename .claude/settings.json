@@ -27,7 +27,13 @@
       "Bash(git:*)",
       "Bash(docker build:*)",
       "Edit(.claude/**)",
-      "Write(.claude/**)"
+      "Write(.claude/**)",
+      "Edit(domains/**)",
+      "Write(domains/**)",
+      "Edit(apps/**)",
+      "Write(apps/**)",
+      "Edit(packages/**)",
+      "Write(packages/**)"
     ]
   },
   "hooks": {
