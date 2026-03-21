@@ -596,7 +596,7 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 16: data-deferred-state (Airbnb Niobe pattern) ────────
+	// ─── Route 16: data-deferred-state (deferred state pattern) ────────
 	// Data nested deeply: clientData[0][1].data.presentation.searchResults
 	// The structure is an array of [controllerName, {data: ...}] tuples.
 	{
@@ -631,7 +631,7 @@ export const routes: DomainRoute[] = [
 	// QUERY-PARAM METHOD DISPATCH
 	// ═══════════════════════════════════════════════════════════════════
 
-	// ─── Route 17: POST ?method=X (StubHub pattern) ──────────────────
+	// ─── Route 17: POST ?method=X (query param dispatch pattern) ──────────────────
 	// Same URL, different ?method= values return different data.
 	// Discovered from captured traffic: POST requests all go to the same
 	// path but with different method query params.
@@ -664,7 +664,7 @@ export const routes: DomainRoute[] = [
 	// BASE64 CURSOR PAGINATION
 	// ═══════════════════════════════════════════════════════════════════
 
-	// ─── Route 18: Base64-encoded cursor pagination (Airbnb pattern) ─
+	// ─── Route 18: Base64-encoded cursor pagination (base64 cursor pattern) ─
 	// Cursor is base64(JSON), e.g. eyJvZmZzZXQiOjIwfQ== → {"offset":20}
 	// First page: no cursor. Response includes nextCursor for next page.
 	{
@@ -757,6 +757,42 @@ export const routes: DomainRoute[] = [
 			if (!data) return c.json({ error: 'index-data not found in raw HTML' }, 404);
 
 			return c.json(data);
+		},
+	},
+
+	// ─── Route 21: SvelteKit data-sveltekit-fetched (SvelteKit fetched data pattern) ──
+	// SvelteKit wraps fetched data in an extra JSON envelope:
+	// {"status":200,"body":"\"stringified-json\""}
+	// You must unwrap twice: parse the outer JSON, then parse body.
+	{
+		method: 'GET',
+		path: '/sveltekit-example',
+		description: 'SvelteKit fetched data: JSON-wrapped responses with double parse.',
+		browserRequired: false,
+		handler: async (c) => {
+			const res = await rateLimitedFetch(`${BASE_URL}/sveltekit`);
+			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
+			const html = await res.text();
+
+			// Find all data-sveltekit-fetched script tags
+			const matches = html.matchAll(
+				/<script[^>]*data-sveltekit-fetched[^>]*>([\s\S]*?)<\/script>/g,
+			);
+
+			const results: unknown[] = [];
+			for (const match of matches) {
+				try {
+					// Outer parse: {"status":200,"body":"..."}
+					const envelope = JSON.parse(match[1]) as { status: number; body: string };
+					// Inner parse: the body is a stringified JSON value
+					const data = JSON.parse(envelope.body);
+					results.push(data);
+				} catch {
+					// skip malformed
+				}
+			}
+
+			return c.json({ fetched: results, count: results.length });
 		},
 	},
 ];

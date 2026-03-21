@@ -275,7 +275,7 @@ export function createBoardshopSite(): Hono {
 		});
 	});
 
-	// ─── Rate-limited endpoint (Yahoo Finance pattern) ─────────────
+	// ─── Rate-limited endpoint (rate-limited API pattern) ─────────────
 	// Returns 429 on every 2nd+ request per session. Teaches agents to
 	// bail after 3 retries and use embedded JSON fallback instead.
 	// The SAME data is available via embedded JSON on GET / — agents
@@ -307,7 +307,7 @@ export function createBoardshopSite(): Hono {
 		});
 	});
 
-	// ─── __NEXT_DATA__ page (Ticketmaster/Next.js pattern) ──────────
+	// ─── __NEXT_DATA__ page (Next.js SSR pattern) ──────────
 	// Same catalog data, but wrapped in __NEXT_DATA__ Redux state.
 	// Agents must navigate: props.pageProps.initialReduxState.api.queries
 	app.get('/nextjs', (c) => {
@@ -352,7 +352,7 @@ export function createBoardshopSite(): Hono {
 		return c.html(html);
 	});
 
-	// ─── Deferred state page (Airbnb/Niobe pattern) ─────────────────
+	// ─── Deferred state page (deferred state pattern) ─────────────────
 	// Data nested at clientData[0][1].data.presentation.searchResults
 	// Different nesting depth than standard embedded JSON.
 	app.get('/deferred', (c) => {
@@ -387,7 +387,7 @@ export function createBoardshopSite(): Hono {
 		return c.html(html);
 	});
 
-	// ─── POST ?method= dispatch (StubHub pattern) ───────────────────
+	// ─── POST ?method= dispatch (query param dispatch pattern) ───────────────────
 	// Same URL, different ?method= query param selects the operation.
 	app.post('/methods', async (c) => {
 		const method = c.req.query('method');
@@ -424,7 +424,7 @@ export function createBoardshopSite(): Hono {
 		return c.json({ error: `Unknown method: ${method}` }, 400);
 	});
 
-	// ─── Base64 cursor pagination (Airbnb pattern) ──────────────────
+	// ─── Base64 cursor pagination (base64 cursor pattern) ──────────────────
 	// Accepts ?cursor=base64({"offset":20}) alongside existing ?after= string cursors.
 	// Returns nextCursor as a base64-encoded JSON object.
 	app.get('/catalog/cursor', (c) => {
@@ -457,7 +457,45 @@ export function createBoardshopSite(): Hono {
 		});
 	});
 
-	// ─── Hydrated page (StubHub/React pattern) ─────────────────────
+	// ─── SvelteKit page (rate-limited API pattern) ────────────────────
+	// SvelteKit wraps embedded data in <script data-sveltekit-fetched>
+	// with an extra JSON envelope: {"status":200,"body":"\"value\""}
+	// Also has a rate-limited API that returns the SAME data — agents
+	// should use the embedded data, not fight the rate-limited API.
+	app.get('/sveltekit', (c) => {
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+
+		// SvelteKit fetched data — JSON-wrapped responses
+		const tickerData = JSON.stringify(
+			page1.items.slice(0, 10).map((p) => ({
+				symbol: p.sku,
+				name: p.name,
+				price: p.price,
+				change: Math.round((Math.random() - 0.5) * 10 * 100) / 100,
+				volume: p.stock * 100,
+			})),
+		);
+
+		const configData = JSON.stringify({
+			crumb: randomUUID().slice(0, 11),
+			apiHost: 'query.boardshop.example.com',
+		});
+
+		const html = `<!DOCTYPE html>
+<html><head><title>BoardShop — SvelteKit</title>
+<link rel="modulepreload" href="/_app/immutable/entry/start.js">
+</head>
+<body>
+<div id="app"><p>Loading tickers...</p></div>
+<script id="ticker-data" type="application/json" data-sveltekit-fetched>${JSON.stringify({ status: 200, body: tickerData })}</script>
+<script type="application/json" data-sveltekit-fetched>${JSON.stringify({ status: 200, body: configData })}</script>
+</body></html>`;
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// ─── Hydrated page (hydration-stripped pattern) ─────────────────────
 	// Simulates React hydration removing <script type="application/json">
 	// from the DOM. The raw HTTP response has the data, but if you use
 	// page.evaluate(document.outerHTML) after hydration, the script tags
