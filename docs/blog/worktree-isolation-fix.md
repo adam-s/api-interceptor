@@ -132,6 +132,32 @@ If you are running in a worktree:
 | `pnpm workspace` doesn't see worktree domains | PASS |
 | Worktree on latest local commit | PASS |
 
+## Iteration History
+
+We discovered these problems through 5 iterations of instruction tuning, running 6 agents in parallel against real websites.
+
+**Iteration 1-2:** Worktrees inside repo at `.claude/worktrees/`. Agents contaminated main every run. Write/Edit hook didn't fire (`$CLAUDE_PROJECT_DIR` empty). `pnpm install` created workspace links.
+
+**Iteration 3-4:** Added PreToolUse guard. Blocked Write/Edit to main, but agents used Bash (`mkdir -p && cat >`) to bypass. Still contaminated.
+
+**Iteration 5:** Moved worktrees outside repo to `/tmp/interceptor-worktrees/`. Guard hook updated. Write to main blocked, write to worktree allowed. First clean run.
+
+Each iteration ran 6 discovery agents against: a ticket marketplace, an event resale site, a property rental platform, a financial data site, a streaming platform, and a video platform. The worktree contamination was invisible in early iterations because results looked correct — agents worked in their worktrees but side-effected main via absolute paths and `pnpm install`.
+
+## Anthropic's Own Approach
+
+Searching Anthropic's public repos (`gh search code "worktree" --owner anthropics`) revealed consistent patterns:
+
+**eval_engine.py** — Creates worktrees at `~/code/audit/` (external to repo). Uses `git worktree add -b <branch> <path> FETCH_HEAD` to control the exact commit. Cleans up with `git worktree remove --force` + `shutil.rmtree`.
+
+**multi-agent-swarm plugin** — Uses `$WORKTREE_PATH` variable for all file writes (`cat > "$WORKTREE_PATH/.claude/..."`) — never relative paths.
+
+**clean_gone.md** — Cleanup command that finds worktrees by branch name, removes them with `--force`, then deletes the branch.
+
+**sessions.py (SDK)** — `_get_worktree_paths()` uses `git worktree list --porcelain` for detection. Worktree-aware session management.
+
+**CHANGELOG v2.1.81** — "Fixed `--worktree` flag not loading skills and hooks from the worktree directory" — confirms this was a known bug that was fixed.
+
 ## Key Takeaways
 
 1. **Create worktrees outside the repo.** Anthropic's eval engine does this. It prevents workspace tools, gitignore, and path resolution from interfering.
@@ -140,7 +166,9 @@ If you are running in a worktree:
 
 3. **Instructions aren't enough.** Agents ignore "never modify X" when their workflow requires it. Structural guardrails (hooks, external paths) are necessary.
 
-4. **Check Anthropic's repos for patterns.** `claude-code-security-review`, `claude-agent-sdk-python`, `claude-plugins-official`, and the `claude-code` CHANGELOG all have production worktree patterns.
+4. **PreToolUse hooks can't catch Bash file creation.** The `Write|Edit` matcher blocks tool-based writes, but agents can always use Bash to create files. External worktree paths are the structural fix because Bash commands run in the worktree cwd.
+
+5. **Search Anthropic's repos with `gh search code`.** The `claude-code-security-review`, `claude-agent-sdk-python`, `claude-plugins-official`, and `claude-code` repos all have production patterns for worktree handling.
 
 ## References
 
@@ -148,6 +176,8 @@ If you are running in a worktree:
 - [GitHub Issue #28041](https://github.com/anthropics/claude-code/issues/28041) — Missing .claude/ subdirectories
 - [GitHub Issue #28248](https://github.com/anthropics/claude-code/issues/28248) — Permission scoping shows wrong path
 - [GitHub Issue #15044](https://github.com/anthropics/claude-code/issues/15044) — @file autocomplete broken in worktrees
+- [GitHub Issue #24188](https://github.com/anthropics/claude-code/issues/24188) — Session resume fails with worktree paths
 - [Anthropic eval engine](https://github.com/anthropics/claude-code-security-review/blob/main/claudecode/evals/eval_engine.py) — External worktree pattern
 - [Multi-agent-swarm plugin](https://github.com/anthropics/claude-plugins-official/blob/main/plugins/plugin-dev/skills/plugin-settings/references/real-world-examples.md) — $WORKTREE_PATH usage
 - [Claude Code hooks docs](https://code.claude.com/docs/en/hooks) — PreToolUse and WorktreeCreate reference
+- [Claude Code CHANGELOG](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md) — Worktree skills/hooks fix in v2.1.81
