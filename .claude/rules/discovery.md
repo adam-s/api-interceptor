@@ -113,6 +113,8 @@ For EACH ✓ row, build a route using the cheapest approach:
 2. `browserFetch` — if direct HTTP returns 429/403/404/202.
 3. `page.evaluate` — last resort, only for SSR with no network data.
 
+**Every ✓ row requires a route. No exceptions.** If the cheapest approach fails, escalate to the next. Only change ✓ to ✗ if all three approaches fail. "Bot-protected" or "signed URLs" is not ✗ — it means escalate.
+
 Reference patterns in `domains/boardshop/src/routes.ts`:
 
 | Transport | Boardshop routes | Pattern |
