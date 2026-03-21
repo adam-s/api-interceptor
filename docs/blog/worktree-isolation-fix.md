@@ -8,7 +8,7 @@ We're building an instruction-tuning loop: launch sub-agents in worktree isolati
 
 **Bug 1: Agents got old instructions.** Worktrees branched from `origin/HEAD` (stale), not local `HEAD`. Agents loaded deleted files because origin was behind.
 
-**Bug 2: File path leaks.** Write/Edit tools accept absolute paths. Agents writing to `/Users/.../api-interceptor/domains/foo/` bypassed the worktree and hit main. The PreToolUse hook we added to block this didn't fire because `$CLAUDE_PROJECT_DIR` was empty in worktree contexts.
+**Bug 2: File path leaks.** Write/Edit tools accept absolute paths. Agents writing to the main repo's `domains/` directory bypassed the worktree entirely. Every run left behind untracked domain directories in main. The PreToolUse hook we added to block this didn't fire because `$CLAUDE_PROJECT_DIR` was empty in worktree contexts.
 
 **Bug 3: Workspace interference.** Worktrees inside the repo (`.claude/worktrees/`) were detected by `pnpm-workspace.yaml` (`domains/*`), causing `pnpm install` to create links between worktree domains and main repo `node_modules`.
 
