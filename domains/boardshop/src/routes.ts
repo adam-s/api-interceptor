@@ -5,12 +5,14 @@
  * Routes ordered from LIGHTEST to HEAVIEST — agents should prefer
  * earlier patterns and only escalate when forced:
  *
- * 1. GET /shops          — Direct HTTP (rateLimitedFetch, no browser)
- * 2. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
- * 3. POST /orders        — Typed API client with session auth
- * 4. GET /trending       — browserFetch() POST to native JSON API
- * 5. GET /search         — SSR DOM extraction via page.evaluate() (LAST RESORT)
- * 6. GET /boards/:sku    — Detail page with data-* attributes (LAST RESORT)
+ * 1. GET /catalog        — Embedded JSON: fetch HTML, parse <script> tag, return JSON (MOST COMMON)
+ * 2. GET /product/:sku   — Embedded JSON: detail page with different script tag ID
+ * 3. GET /shops          — Direct HTTP to JSON API (rateLimitedFetch, no browser)
+ * 4. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
+ * 5. POST /orders        — Typed API client with session auth
+ * 6. GET /trending       — browserFetch() POST to native JSON API
+ * 7. GET /search         — SSR DOM extraction via page.evaluate() (LAST RESORT)
+ * 8. GET /boards/:sku    — Detail page with data-* attributes (LAST RESORT)
  *
  * PATTERN: Use string-based page.evaluate('...') not arrow functions.
  * tsx/esbuild injects __name decorators into arrow functions which breaks
@@ -25,7 +27,85 @@ import { createOrder } from './api-client';
 import { BoardShopSessionManager } from './session-manager';
 
 export const routes: DomainRoute[] = [
-	// ─── Route 1: Direct HTTP, No Browser Required (PREFERRED) ───────────
+	// ─── Route 1: Embedded JSON Extraction (MOST COMMON PATTERN) ─────────
+	// PATTERN: Modern sites (Next.js, SvelteKit, React SSR) embed structured
+	// JSON in <script type="application/json"> tags in the HTML. Fetch the
+	// page with rateLimitedFetch, find the script tag, JSON.parse it.
+	// No browser, no page.evaluate, no DOM — just HTTP + string parsing.
+	// This is the #1 pattern on the web. Try it FIRST for every site.
+	{
+		method: 'GET',
+		path: '/catalog',
+		description: 'Product catalog. Fetches HTML, extracts embedded JSON from <script> tag.',
+		browserRequired: false,
+		handler: async (c) => {
+			const q = new URL(c.req.url).searchParams.get('q') ?? '';
+			const page = new URL(c.req.url).searchParams.get('page') ?? '1';
+			const url = `https://www.boardshop.example.com/${q ? `?q=${encodeURIComponent(q)}` : ''}`;
+
+			// Step 1: Fetch the HTML page (direct HTTP, no browser)
+			const res = await rateLimitedFetch(url);
+			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
+			const html = await res.text();
+
+			// Step 2: Find the embedded JSON script tag by ID
+			// Sites use various IDs: "catalog-data", "__NEXT_DATA__", "index-data",
+			// "data-deferred-state-0", or data-sveltekit-fetched attributes.
+			// Search the HTML for <script type="application/json"> tags.
+			const scriptMatch = html.match(
+				/<script\s+id="catalog-data"\s+type="application\/json">([\s\S]*?)<\/script>/,
+			);
+			if (!scriptMatch) return c.json({ error: 'Embedded JSON not found in page' }, 404);
+
+			// Step 3: Parse the JSON — this is the structured data, no DOM needed
+			const data = JSON.parse(scriptMatch[1]) as {
+				catalog: { items: unknown[]; totalCount: number; pageSize: number; filterSessionId: string };
+			};
+
+			return c.json({
+				items: data.catalog.items,
+				total: data.catalog.totalCount,
+				page: Number(page),
+				pageSize: data.catalog.pageSize,
+			});
+		},
+	},
+
+	// ─── Route 2: Embedded JSON — Detail Page (different script tag) ─────
+	// PATTERN: Detail pages often use a DIFFERENT script tag ID than listing
+	// pages. The listing page has <script id="catalog-data">, the detail page
+	// has <script id="product-data">. You must visit a detail page during
+	// discovery to find its script tag ID.
+	{
+		method: 'GET',
+		path: '/product/:sku',
+		description: 'Product detail. Fetches HTML, extracts embedded JSON from detail-page script tag.',
+		browserRequired: false,
+		handler: async (c) => {
+			const params = c.req.param() as Record<string, string>;
+			const sku = params.sku;
+			const url = `https://www.boardshop.example.com/product/${sku}`;
+
+			const res = await rateLimitedFetch(url);
+			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
+			const html = await res.text();
+
+			// Detail pages use a different script tag ID
+			const scriptMatch = html.match(
+				/<script\s+id="product-data"\s+type="application\/json">([\s\S]*?)<\/script>/,
+			);
+			if (!scriptMatch) return c.json({ error: 'Product data not found' }, 404);
+
+			const data = JSON.parse(scriptMatch[1]) as {
+				product: Record<string, unknown>;
+				relatedSkus: string[];
+			};
+
+			return c.json(data);
+		},
+	},
+
+	// ─── Route 3: Direct HTTP to JSON API (No Browser) ───────────────────
 	// PATTERN: browserRequired: false skips the browser-connected check.
 	// Use rateLimitedFetch() from @interceptor/shared instead of raw fetch().
 	// Register per-host limits in apps/api/src/register-domains.ts.
