@@ -39,7 +39,8 @@ If you are running in a worktree (`pwd` contains `/tmp/interceptor-worktrees/`):
 - **ALL files go in YOUR worktree.** Never write to the original repo.
 - **NEVER modify** `apps/api/src/register-domains.ts`, `apps/api/package.json`, or `pnpm-lock.yaml`
 - **NEVER run** `pnpm install` — it creates workspace links in the main repo
-- Your domain plugin is standalone. Test with curl directly against the target site.
+- Your domain plugin is standalone. Test routes with curl against the target site.
+- You MUST still start the API server and connect a browser for traffic capture (see discovery-agent.md).
 
 ## Conventions
 

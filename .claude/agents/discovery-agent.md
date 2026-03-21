@@ -38,6 +38,19 @@ some-command &
 
 Before exiting: `kill $(jobs -p) 2>/dev/null`
 
+## API Server + Browser (MANDATORY)
+
+You MUST start the API server and connect a browser for traffic capture. This is how you discover WebSocket, JSONP, lazy-loaded endpoints, and other transports invisible to curl.
+
+```bash
+PORT=XXXX pnpm --filter @interceptor/api dev > /tmp/api-server-XXXX.log 2>&1 &
+.claude/hooks/track-pid.sh $! XXXX "api-server"
+sleep 8 && curl -s http://localhost:XXXX/health
+./scripts/connect-browser.sh --profile DOMAIN --url TARGET --port XXXX
+```
+
+Steps 1d and 1e in discovery.md (browser traffic capture + interaction) are NOT optional. Curl-only discovery misses transport types.
+
 ## Discovery Protocol
 
 Follow `.claude/rules/discovery.md` — the GATHER→SCAN→CLASSIFY→BUILD pipeline.
