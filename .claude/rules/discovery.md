@@ -11,12 +11,14 @@ Follow this tree top-to-bottom. At every branch, take the cheapest path that wor
 ```
 STEP 1: Fetch target URL with rateLimitedFetch
         ├── 200 → go to STEP 2
-        ├── 429/202 → try browserFetch ONCE
+        ├── non-200 (429, 202, 403, 404) → try browserFetch ONCE
+        │   browserFetch returns RAW HTML (pre-hydration, script tags intact).
+        │   Do NOT use page.evaluate(document.outerHTML) — hydration strips data.
         │            ├── 200 → go to STEP 2 (mark: needs browser)
         │            └── still blocked? → WAF may require CSS/font loading.
         │                 Unblock challenge resources and retry once.
         │                 Still fails? → try homepage instead, go to STEP 1
-        └── other error → bail
+        └── network error → bail
 
 STEP 2: Search HTML for embedded JSON
         Check: __NEXT_DATA__, data-deferred-state, data-sveltekit-fetched,
