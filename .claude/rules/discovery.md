@@ -47,6 +47,11 @@ STEP 4: Connect browser, capture traffic
         │                      ├── YES → use embedded JSON. STOP.
         │                      └── NO → browserFetch. Done.
         └── Nothing? → Interact (click, scroll). Re-check traffic.
+                       Still nothing after interaction?
+                       → Confirm: no loading spinners appeared,
+                         page has real content (not blank/error),
+                         you waited 15+ seconds.
+                       → Only then classify as SSR (DOM extraction).
 ```
 
 **Critical rule:** If embedded JSON has data X, NEVER call an API for data X. One 429 is enough signal — escalate or use embedded JSON. Never retry.
