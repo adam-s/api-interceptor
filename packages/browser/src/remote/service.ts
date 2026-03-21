@@ -143,7 +143,7 @@ const DEFAULT_CONFIG: Omit<Required<StreamConfig>, 'userDataDir'> & { userDataDi
 	viewportWidth: 1024,
 	viewportHeight: 576,
 	headless: false,
-	enableAdBlocking: true,
+	enableAdBlocking: false,
 	userDataDir: undefined,
 	proxyType: 'none',
 };
