@@ -457,5 +457,49 @@ export function createBoardshopSite(): Hono {
 		});
 	});
 
+	// ─── Hydrated page (StubHub/React pattern) ─────────────────────
+	// Simulates React hydration removing <script type="application/json">
+	// from the DOM. The raw HTTP response has the data, but if you use
+	// page.evaluate(document.outerHTML) after hydration, the script tags
+	// are gone. Teaches: fetch raw HTML, don't rely on DOM after JS runs.
+	//
+	// GET /hydrated returns HTML where a <script> tag at the bottom
+	// simulates removing the data script (like React hydration does).
+	// The data IS in the raw response — agents must use rateLimitedFetch
+	// or browserFetch to get the raw HTML, not page.evaluate().
+	app.get('/hydrated', (c) => {
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+		const indexData = {
+			events: page1.items.map((p) => ({
+				id: p.sku,
+				name: p.name,
+				price: p.price,
+				venue: `${p.brand} Arena`,
+				date: '2026-04-15',
+			})),
+			totalCount: page1.totalCount,
+			pageSize: page1.pageSize,
+		};
+
+		const html = `<!DOCTYPE html>
+<html><head><title>BoardShop — Hydrated Page</title></head>
+<body>
+<div id="root"><p>Loading events...</p></div>
+<script id="index-data" type="application/json">${JSON.stringify(indexData)}</script>
+<script>
+// Simulate React hydration — removes the data script tag from DOM
+// This is what React/Vue/Svelte frameworks do after reading the data
+(function() {
+  var el = document.getElementById('index-data');
+  if (el) el.remove();
+  document.getElementById('root').innerHTML = '<p>Events loaded via hydration</p>';
+})();
+</script>
+</body></html>`;
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
 	return app;
 }

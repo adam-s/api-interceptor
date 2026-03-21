@@ -47,6 +47,9 @@
  * RATE-LIMIT BAIL-OUT:
  * 19. GET /chart/:sku           — 429 after first call, falls back to embedded JSON
  *
+ * HYDRATION-STRIPPED EMBEDDED JSON:
+ * 20. GET /hydrated-example     — Script tags removed by JS hydration, use raw HTTP
+ *
  * @module domain-boardshop/routes
  */
 
@@ -722,6 +725,38 @@ export const routes: DomainRoute[] = [
 			}
 
 			return c.json({ error: `Chart API returned ${apiRes.status}` }, 502);
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// HYDRATION-STRIPPED EMBEDDED JSON
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 20: Hydrated page — script tags removed by JS ─────────
+	// React/Vue/Svelte hydration removes <script type="application/json">
+	// from the DOM after reading the data. If you use page.evaluate() to
+	// get document.outerHTML AFTER hydration, the data is gone.
+	// Fix: fetch the raw HTML with rateLimitedFetch (before JS runs).
+	{
+		method: 'GET',
+		path: '/hydrated-example',
+		description: 'Hydrated page: script tags stripped by JS. Use raw HTTP, not DOM.',
+		browserRequired: false,
+		handler: async (c) => {
+			// rateLimitedFetch gets the raw HTML BEFORE JavaScript runs.
+			// The <script id="index-data"> is in the response but would be
+			// removed from the DOM by the hydration script.
+			const res = await rateLimitedFetch(`${BASE_URL}/hydrated`);
+			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
+			const html = await res.text();
+
+			const data = extractScript(html, 'index-data') as {
+				events: unknown[];
+				totalCount: number;
+			} | null;
+			if (!data) return c.json({ error: 'index-data not found in raw HTML' }, 404);
+
+			return c.json(data);
 		},
 	},
 ];
