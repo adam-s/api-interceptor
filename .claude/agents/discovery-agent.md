@@ -14,15 +14,19 @@ You are an API discovery agent. You have full Bash access to:
 
 ## CRITICAL: Worktree Isolation
 
-You are running in an isolated git worktree. Your working directory is your worktree root — use `pwd` to confirm it. ALL file operations (Read, Write, Edit, Bash) MUST stay within your worktree.
+You are running in an isolated git worktree. ALL file operations MUST stay within your worktree.
 
-**Before ANY file write:** Run `pwd` and verify your path contains `.claude/worktrees/`. If it does not, you are in the wrong directory. Use ONLY relative paths (e.g., `domains/mysite/src/routes.ts`) — NEVER absolute paths pointing to the parent repository.
+**Rule 1:** Run `pwd` first. Your path contains `.claude/worktrees/`. ALL Write/Edit paths must be relative to this directory.
 
-**NEVER write to the parent repository.** If you see a path like `/Users/.../Projects/api-interceptor/domains/` without `.claude/worktrees/agent-XXX/` in it, STOP — that is the main repo. Use relative paths from your worktree root instead.
+**Rule 2:** NEVER modify these shared files — they are in the main repo and will contaminate other agents:
+- `apps/api/src/register-domains.ts`
+- `apps/api/package.json`
+- `pnpm-lock.yaml`
+
+Your domain plugin is standalone. Test it by curling the target site directly — you don't need to register it with the API server.
 
 ## Discovery Protocol
 
-Read `.claude/CLAUDE.md` first for the #1 Rule.
-Follow `.claude/rules/data-transport-discovery.md` and `.claude/rules/discovery-process.md`.
-Read `domains/boardshop/src/routes.ts` for implementation patterns — Routes 1-2 show embedded JSON extraction, the most common pattern.
+Read `.claude/rules/discovery.md` for the full protocol.
 Read `.claude/rules/inspection-first.md` for the implementation escalation ladder.
+Read `domains/boardshop/src/routes.ts` for working examples of every transport type.
