@@ -44,6 +44,8 @@ Get the full HTML — not DOM text, the actual response body.
 
 This is the most common data source on modern sites. React, Next.js, and similar frameworks embed structured JSON in the HTML for hydration. The data you need is often already there — no XHR required for the initial load.
 
+**⚠️ Finding embedded JSON here does NOT mean you can skip to writing routes.** The embedded data is typically page 1 only. Pagination, ticket/listing grids, and real-time data load via XHR on user interaction. You MUST complete Section 3 (Interact) and pass the Interaction Proof gate before writing any route code.
+
 ```
 Example: boardshop.example.com product listing page
   <script id="catalog-data" type="application/json">
@@ -84,7 +86,14 @@ When you later need to construct a POST request, you already know where every re
 
 **Interaction is NEVER optional — even when you already found embedded JSON.** Finding data in a `<script>` tag or inline JSON does NOT complete discovery. The embedded data is often just the initial page load. You must still interact to discover: pagination APIs, additional data endpoints, filtering/sorting APIs, and real-time data streams. If your initial capture shows only DOCUMENT entries, interaction is how you discover the XHR endpoints. Kill the browser, reconnect fresh, and interact before classifying.
 
-**GATE: You may not write route code until you have interacted with the page AND checked traffic after each interaction.** Finding embedded JSON is Step 1 of discovery, not the end.
+**STRUCTURAL GATE — Interaction Proof Required Before Writing Routes:**
+1. Capture traffic count BEFORE interaction: `curl -s http://localhost:PORT/browser/traffic | jq '.total'`
+2. Perform at least 3 interactions (click next page, scroll to bottom, click a result)
+3. Capture traffic count AFTER interaction: `curl -s http://localhost:PORT/browser/traffic | jq '.total'`
+4. **Paste both counts in the conversation.** If the count increased, new XHR endpoints were discovered — classify them. If the count did NOT increase, explain why (pure SSR site, no interactive elements).
+5. You may NOT write route code until you have pasted both traffic counts.
+
+**Why this exists:** Agents repeatedly find embedded JSON and skip to route code without interacting. The embedded data is page 1 only — pagination, ticket listings, and real-time data load via XHR that only fires on user interaction. Skipping interaction means missing half the API surface.
 
 Click every interactive element. After each interaction, check what network requests fired.
 
