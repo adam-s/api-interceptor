@@ -19,53 +19,58 @@ Use sub-agents as test subjects to iteratively improve `.claude/` instruction fi
 7. Go to step 1
 ```
 
-## Contamination Isolation — CRITICAL
+## ⛔ CRITICAL: Clean Base Before EVERY Iteration
 
-**Any prior discovery artifacts invalidate results.** Sub-agents can read everything on disk. Two contamination sources:
-
-### 1. Memory files
-If a memory file describes a specific site's transport type, auth mechanism, or data structure, the agent doesn't need to discover it — it already knows.
-
-### 2. Domain plugin directories
-Sub-agents leave `domains/<site>/` directories with complete route implementations, transport classifications, and auth token extraction code. A fresh agent can `ls domains/` and read the answer. **Clean `domains/` before every test run.**
+**If you skip this, all results are invalid.** Run this cleanup before launching ANY sub-agents:
 
 ```bash
-# Remove sub-agent domain artifacts (keep only committed reference examples)
+# 1. Remove ALL untracked domain dirs (agents leave these behind)
 ls domains/ | while read d; do
   if ! git ls-files --error-unmatch "domains/$d" > /dev/null 2>&1; then
     echo "REMOVING untracked domain: $d"
     rm -rf "domains/$d"
   fi
 done
+
+# 2. Verify only committed domains remain (should be just boardshop)
+echo "Remaining domains:" && ls domains/
+
+# 3. Verify working tree is clean (no uncommitted .claude/ changes)
+git status --short .claude/
+
+# 4. Kill orphaned servers
+pkill -f "connect-browser" 2>/dev/null
+pkill -f "tsx.*src/index" 2>/dev/null
+for port in 3001 3011 3012 3013 3014 3015 3016 3017; do
+  lsof -ti:$port | xargs kill 2>/dev/null
+done
+
+# 5. Clean stale worktrees
+for wt in .claude/worktrees/agent-*; do
+  git worktree remove --force "$wt" 2>/dev/null
+done
+git worktree prune
 ```
 
-**Before every sub-agent run:**
+**Why this exists:** Agents in worktrees inherit EVERYTHING from the working tree — including untracked `domains/` directories from prior runs. An agent that finds `domains/youtube/src/routes.ts` already on disk will read the answer instead of discovering it. This contamination is silent and makes results look better than they are.
+
+**The first run of every tuning session must be a baseline with zero `.claude/` changes.** Compare subsequent iterations against this clean baseline, not against contaminated prior runs.
+
+## Memory Contamination
+
+Memory files with domain-specific content also invalidate results. Before every run:
 
 ```bash
-# IMPORTANT: Only target THIS project's memory, not other projects
 MEMORY_DIR="$HOME/.claude/projects/$(pwd | tr '/' '-' | sed 's/^-//')/memory"
-BACKUP_DIR="/tmp/memory-backup-$(basename $(pwd))"
-mkdir -p "$BACKUP_DIR"
-cp "$MEMORY_DIR"/*.md "$BACKUP_DIR/" 2>/dev/null
-
-# Remove files with domain-specific content (transport types, auth details, site names)
-# Keep: operational files (tool usage, permission fixes, effort level)
+# Remove domain-specific memories (keep operational ones)
 for f in "$MEMORY_DIR"/*.md; do
-  [ "$(basename "$f")" = "MEMORY.md" ] && continue  # Never delete the index
-  content=$(cat "$f" 2>/dev/null)
-  # Check if file contains discovery findings, transport types, or domain-specific patterns
-  if echo "$content" | grep -qiE "transport|embedded.json|websocket|graphql|crumb|csrf|XHR|DOM extraction|page\.evaluate|SSR|protobuf"; then
-    echo "REMOVING (domain-specific): $(basename $f)"
+  [ "$(basename "$f")" = "MEMORY.md" ] && continue
+  if grep -qiE "transport|embedded.json|websocket|graphql|crumb|csrf|XHR|SSR|protobuf" "$f" 2>/dev/null; then
+    echo "REMOVING: $(basename $f)"
     rm "$f"
   fi
 done
-
-# Restore after tuning: cp "$BACKUP_DIR"/*.md "$MEMORY_DIR/"
 ```
-
-**After every run:** Check if the agent wrote new memory files. Remove any with domain-specific hints before the next test.
-
-**Safe to keep:** operational memories (how to use tools, permission fixes). **Must remove:** anything naming specific websites, transport types, auth mechanisms, or discovery findings.
 
 ## Prompt Design
 
