@@ -8,118 +8,38 @@ paths:
 
 # Autonomous Iteration Mode
 
-The user has granted full autonomous operation. You may:
-
-- Commit on `base` without asking (run `./scripts/ci-local.sh` first — must pass)
-- Create and switch between test branches without asking
-- Make architectural and implementation decisions without asking
-- Keep iterating until the prompt is fully solved (all phases verified)
-- **Skip `EnterPlanMode`** — don't wait for human approval to start coding. This does NOT mean skip self-verification gates in the skills. Those gates are mandatory checkpoints you enforce on yourself.
-- **Skipping plan mode does NOT mean skipping the Prompt Compliance Matrix.** The matrix in Step 5 is a self-verification gate, not a human review gate. You produce it for yourself as proof that you checked every requirement. Autonomous mode means you don't wait for human approval — it does NOT mean you skip proving to yourself that the prompt is fully solved.
-- **Skipping plan mode does NOT mean skipping observation.** The api-discovery skill's Phase 1 (Observe) is a MANDATORY gate — connect a browser via WebSocket, capture traffic, see what the site sends. Guessing DOM structure without observation is the #1 failure mode. If extracted data doesn't match the rendered DOM (wrong names, category labels instead of real names, prices off by 100x), see "Decoding Encoded API Responses" in api-discovery/SKILL.md.
-- **You MUST produce the Transport Classification table (`.claude/rules/data-transport-discovery.md` Step 4) BEFORE writing any fetcher or extraction code.** No table in the conversation = no code. This is a structural gate, not a suggestion. Discovery means navigating the site in a real browser and capturing traffic — not searching for or using publicly documented developer APIs.
-
-**You MUST update the "Current Iteration State" block below before every `git checkout`.** This is how you preserve state across context resets and branch switches. When you resume a session, read this block first.
+Full autonomous operation granted. You may commit, create branches, and make decisions without asking. Skip `EnterPlanMode` — but do NOT skip self-verification gates.
 
 ## The Iteration Loop
 
 ```text
 FOR each prompt:
-  0. READ THE PROMPT + VALIDATE + OBSERVE
-     a. Read the prompt file. Extract every requirement into a numbered list:
-        features, views, interactions, data sources, layout specs, behaviors.
-        Paste this list into the conversation as "REQUIREMENTS EXTRACTED FROM PROMPT".
-        This list is your contract. You are done when every item has evidence, not before.
-     b. Validate discovery approach against the test server first (port 4444).
-        Pick the test server site that matches the prompt's likely transport pattern
-        (boardshop for embedded JSON, liveboard for WebSocket, streamshop for GraphQL,
-        databoard for encoded). Run your discovery process there. If it works, proceed.
-     c. Connect browser via WebSocket
-        (ws://localhost:PORT/browser/stream?profile=<domain>&url=<target>).
-        Follow the full discovery process in `.claude/rules/discovery-process.md` — read the page
-        source, catalog tokens, interact and watch traffic, check JS bundles for WebSocket/GraphQL
-        endpoints, document the DOM. This is how you find the data before classifying it.
-        ⚠️  The auto-start browser has NO CDP traffic capture. Only WS-connected browsers
-        capture traffic. If you skip this step, /browser/traffic returns empty and you are guessing.
-  1. Build API routes → curl each route → paste response proving real data
-  1b. CACHE FIXTURES: After routes are proven, save ALL curl responses to data/fixtures/{domain}/.
-      `curl -s http://localhost:3001/api/{domain}/{route} > data/fixtures/{domain}/{route}.json`
-      Then develop UI with `FIXTURE_DIR=data/fixtures pnpm dev` — instant responses, no browser needed.
-      This step is MANDATORY — UI development without fixtures wastes 30-60s per reload.
-      → ONLY THEN proceed to UI
-     ⚠️  Classification is per-ENDPOINT, not per-site. Even a SINGLE PAGE can be hybrid:
-     the shell and metadata load via SSR while the primary data (prices, inventory,
-     listings) loads via XHR after the initial HTML. A page showing "Loading..." for its
-     main content is NOT SSR for that content. Verify EACH data type independently
-     before writing extraction code. See api-discovery SKILL.md Phase 2 gate.
-     CHECKPOINT: re-read the requirements list from Step 0a. Does every data requirement
-     have a working route? If not, build the missing routes before touching UI.
-  2. Build UI component → screenshot it → describe what you see → fix if wrong → re-screenshot → repeat until correct
-     CHECKPOINT: re-read the requirements list from Step 0a. Does every view and layout
-     requirement appear in the UI? If not, build missing views before wiring interactions.
-  3. Wire interactions → click each button with Patchright → verify the response → fix if broken
-  4. Full QA pass → screenshot every state (empty, loading, populated, error, detail, mobile 375px)
-     → walk every user journey end-to-end → fix everything → re-screenshot → zero issues = done
-  5. PROMPT COMPLIANCE MATRIX — produce the matrix (see prompt-compliance rule)
-     in the conversation. One row per requirement from Step 0a. Fill in Status and Evidence.
-     ANY FAIL row = go back to the step that would fix it. Re-do the matrix after fixing.
-     Loop until all rows are PASS with specific evidence.
-  6. Commit only after Step 5 matrix shows ALL PASS with zero FAIL rows.
-     If no matrix exists in the conversation above, STOP — you skipped Step 5.
+  0. READ + OBSERVE
+     a. Extract every requirement into a numbered list. This is your contract.
+     b. Validate against the test server first (port 4444).
+     c. Connect browser via WebSocket. Follow `.claude/rules/discovery.md`.
+  1. Build API routes → curl each → paste response proving real data
+     Cache fixtures: curl responses → data/fixtures/{domain}/
+     FIXTURE_DIR=data/fixtures pnpm dev for instant UI development.
+  2. Build UI → screenshot → fix → re-screenshot → repeat
+  3. Wire interactions → verify with Patchright
+  4. Full QA → screenshot every state → zero issues
+  5. Prompt Compliance Matrix (see prompt-compliance rule) → all PASS
+  6. Commit only after Step 5 shows ALL PASS
 ```
-
-**The prompt is fully solved when:** (1) every feature mentioned in the prompt is implemented, (2) every verification gate passes, and (3) the Definition of Done checklist passes.
-
-## The Rule That Makes This Work
-
-**Verification output is required input for the next step. You cannot skip it because the next step needs it.**
-
-- You cannot build UI until you have curl output proving the API returns real data
-- You cannot add the next component until you have a screenshot proving the current component renders correctly
-- You cannot commit until you have screenshots of every state showing zero visual/functional issues
-- You cannot call a button "done" until you have Patchright output showing you clicked it and it responded correctly
-
-**DEBUG logging is mandatory, not optional.** Import `DEBUG` from `@interceptor/shared` and add `DEBUG('component-name', () => ({ ... }))` calls at every decision point: when you capture traffic, read response bodies, find tokens, extract data, test endpoints, or encounter unexpected results. Log what you receive BEFORE processing it. On hard problems (WAF, encoded responses, multi-transport sites), debug logging reduces total tokens by 8-15% because you observe and pivot instead of guessing and retrying.
-
-**If something is wrong — read the debug logs first.** Check `/tmp/interceptor-debug/debug-*.log`. Don't guess, observe. The runtime tells you exactly what's wrong.
-
-**If something looks wrong — use visual-dev skill immediately.** Screenshot it, read it, describe the problem, fix it, re-screenshot. Repeat until zero issues.
 
 ## Server Startup
 
 ```bash
-# Kill any existing servers first
 lsof -ti:3001 | xargs kill -9 2>/dev/null; lsof -ti:3000 | xargs kill -9 2>/dev/null
-# Start API (port 3001)
 pnpm --filter api dev > /tmp/api-server.log 2>&1 &
-# Start web (port 3000)
 pnpm --filter web dev > /tmp/web-server.log 2>&1 &
-# Wait and verify
-sleep 6 && curl -s http://localhost:3001/health && curl -s http://localhost:3000 | head -5
+sleep 6 && curl -s http://localhost:3001/health
 ```
 
-Tail logs: `tail -f /tmp/api-server.log` or `tail -f /tmp/web-server.log`
+## Returning to Base
 
-## Returning to Base After a Test Iteration
-
-1. On test branch: commit domain work, append all discoveries to `memory/base-fixes-needed.md`
-2. `git checkout base` -- strip domain artifacts (`rm -rf domains/<name>/`, revert `register-domains.ts`, `nav-main.tsx`, `pnpm-lock.yaml`, browser profiles, screenshots)
-3. Apply `memory/base-fixes-needed.md` to: skills, CLAUDE.md, ROADMAP.md, DEVELOPER_PROMPTS.md
-4. Clear the file, run `./scripts/ci-local.sh`, commit
-5. `git branch -D test/<id>-v<n>` -- delete the old test branch (it has no lasting value)
-6. `git checkout -b test/<id>-v<n+1>` -- inherits all learnings
-
-## Current Iteration State
-
-Iteration state lives **outside git** in the project memory system so it never pollutes `base`:
-
-```
-~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/iteration_state.md
-```
-
-**Rules:**
-- **Before every `git checkout`:** update `iteration_state.md` with branch, phase, and notes.
-- **When resuming a session:** read `iteration_state.md` first — it is the source of truth.
-- **Before starting a new iteration from `base`:** check if `iteration_state.md` exists. If it contains stale state from a finished iteration, delete it. A clean start means no leftover state.
-- **After returning to `base` and committing fixes:** delete `iteration_state.md`. By this point all generalized learnings have already flowed through `base-fixes-needed.md` into committed skill files. The iteration state is purely navigational ("where am I, what phase") and has no value after the iteration ends.
-- **Never write iteration-specific content into CLAUDE.md.** CLAUDE.md is permanent on `base`; iteration state is ephemeral in memory.
+1. Commit domain work, append discoveries to `memory/base-fixes-needed.md`
+2. `git checkout base` — strip domain artifacts
+3. Apply fixes, clear file, run CI, commit
+4. Delete old test branch, cut new one
