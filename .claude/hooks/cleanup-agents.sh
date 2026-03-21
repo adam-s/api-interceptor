@@ -1,48 +1,57 @@
 #!/usr/bin/env bash
-# cleanup-agents.sh — Kill all tracked agent processes and clean worktrees.
+# cleanup-agents.sh — Nuclear cleanup of all agent processes and artifacts.
 #
-# Uses Anthropic's pattern: PID array + trap cleanup.
-# Reads PIDs from /tmp/interceptor-agent-pids.txt (written by agents).
-# Run before launching new agents to ensure clean state.
+# Run BEFORE every iteration to ensure clean state.
+# Follows Anthropic's eval engine pattern: always cleanup, even on error.
+#
+# Usage: bash .claude/hooks/cleanup-agents.sh
 set -euo pipefail
-
-PID_FILE="/tmp/interceptor-agent-pids.txt"
 
 echo "=== Agent Cleanup ==="
 
-# 1. Kill tracked PIDs from registry
+# 1. Kill tracked PIDs from registry (if any)
+PID_FILE="/tmp/interceptor-agent-pids.txt"
 if [[ -f "$PID_FILE" ]]; then
-  echo "Killing tracked processes..."
+  echo "Killing tracked PIDs..."
   while IFS='|' read -r pid port purpose; do
-    if kill -0 "$pid" 2>/dev/null; then
-      echo "  Killing PID $pid (port $port, $purpose)"
-      kill -TERM "$pid" 2>/dev/null || true
-    fi
+    kill -TERM "$pid" 2>/dev/null && echo "  TERM $pid ($purpose)" || true
   done < "$PID_FILE"
   sleep 2
-  # Force kill any survivors
   while IFS='|' read -r pid port purpose; do
-    if kill -0 "$pid" 2>/dev/null; then
-      echo "  Force killing PID $pid"
-      kill -9 "$pid" 2>/dev/null || true
-    fi
+    kill -9 "$pid" 2>/dev/null && echo "  KILL $pid ($purpose)" || true
   done < "$PID_FILE"
   rm -f "$PID_FILE"
 fi
 
-# 2. Kill any remaining agent-related processes (safety net)
+# 2. Kill agent API servers by port range (3011-3021)
+echo "Clearing agent ports..."
+for port in $(seq 3011 3021); do
+  pids=$(lsof -ti:"$port" 2>/dev/null || true)
+  if [[ -n "$pids" ]]; then
+    echo "$pids" | xargs kill -9 2>/dev/null || true
+    echo "  Port $port: killed"
+  fi
+done
+
+# 3. Kill agent-related processes (NOT user's Chrome)
+echo "Killing agent processes..."
+pkill -9 -f "tsx.*src/index" 2>/dev/null || true
 pkill -9 -f "connect-browser" 2>/dev/null || true
 pkill -9 -f "patchright" 2>/dev/null || true
-# DO NOT kill chrome/chromium — user's browser
+# NEVER: pkill chrome, pkill chromium
 
-# 3. Remove worktrees
+sleep 2
+
+# 4. Remove ALL worktrees (external + internal)
+echo "Removing worktrees..."
 rm -rf /tmp/interceptor-worktrees/ 2>/dev/null || true
 if [[ -d ".claude/worktrees" ]]; then
   rm -rf .claude/worktrees/ 2>/dev/null || true
 fi
 git worktree prune 2>/dev/null || true
 
-# 4. Clean untracked domains
+# 5. Remove untracked domains
+echo "Cleaning domains..."
 ls domains/ 2>/dev/null | while read -r d; do
   if ! git ls-files --error-unmatch "domains/$d" > /dev/null 2>&1; then
     echo "  Removing: domains/$d"
@@ -50,11 +59,31 @@ ls domains/ 2>/dev/null | while read -r d; do
   fi
 done
 
-# 5. Revert contaminated files
-git checkout HEAD -- apps/api/src/register-domains.ts apps/api/package.json pnpm-lock.yaml 2>/dev/null || true
+# 6. Revert contaminated shared files
+echo "Reverting shared files..."
+git checkout HEAD -- apps/api/src/register-domains.ts apps/api/package.json pnpm-lock.yaml .gitignore 2>/dev/null || true
 
+# 7. Remove stale symlinks from old worktree pnpm
+for link in packages/shared/shared packages/browser/browser; do
+  [[ -L "$link" ]] && rm -f "$link" && echo "  Removed symlink: $link"
+done
+
+# 8. Verify
 echo ""
-echo "=== Verified ==="
-echo "Domains: $(ls domains/)"
-echo "Node: $(pgrep -f 'node.*src/index' | wc -l | tr -d ' ') processes"
-echo "PID file: $(test -f "$PID_FILE" && echo "exists" || echo "removed")"
+echo "=== Verification ==="
+echo "Domains: $(ls domains/ | tr '\n' ' ')"
+echo "Modified: $(git diff --name-only 2>/dev/null | grep -v browser.log | tr '\n' ' ')"
+
+NODE_COUNT=$(pgrep -f "tsx\|node.*src/index" 2>/dev/null | wc -l | tr -d ' ')
+echo "Agent processes: $NODE_COUNT"
+
+WORKTREE_COUNT=$(git worktree list 2>/dev/null | wc -l | tr -d ' ')
+echo "Worktrees: $WORKTREE_COUNT (should be 1)"
+
+if [[ "$NODE_COUNT" -eq 0 && "$WORKTREE_COUNT" -eq 1 ]]; then
+  echo ""
+  echo "=== CLEAN ==="
+else
+  echo ""
+  echo "=== WARNING: Not fully clean ==="
+fi
