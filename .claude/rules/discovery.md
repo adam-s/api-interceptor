@@ -4,46 +4,67 @@
 
 Discover endpoints by navigating as a real user and capturing browser traffic. Do NOT search for public APIs, scraping guides, or external documentation. The ONLY valid source is captured traffic from `/browser/traffic`.
 
-## Step 0: Identify the Framework
+## The Decision Tree
+
+Follow this tree top-to-bottom. At every branch, take the cheapest path that works. Never retry a failed path if a cheaper alternative already has the data.
+
+```
+STEP 1: Fetch target URL with rateLimitedFetch
+        ├── 200 → go to STEP 2
+        ├── 429/202 → try browserFetch ONCE
+        │            ├── 200 → go to STEP 2 (mark: needs browser)
+        │            └── fail → try homepage instead, go to STEP 1
+        └── other error → bail
+
+STEP 2: Search HTML for embedded JSON
+        Check: __NEXT_DATA__, data-deferred-state, data-sveltekit-fetched,
+        <script type="application/json">, ytInitialData, window.__DATA__
+        ├── FOUND → extract it. This is your data.
+        │           DO NOT call any API for this same data.
+        │           Go to STEP 3.
+        └── NOT FOUND → this is a SPA. Go to STEP 4.
+
+STEP 3: Do you need more data? (pagination, detail pages, other types)
+        For each additional data need:
+        ├── Different PAGE on same site?
+        │   ├── rateLimitedFetch → 200? Parse embedded JSON.
+        │   ├── 429/202? browserFetch raw HTML → parse embedded JSON.
+        │   └── Both fail? Use homepage data. Don't fight WAF.
+        ├── Pagination of same page?
+        │   └── Check embedded JSON for cursor/page/offset params.
+        │       Try next URL with rateLimitedFetch.
+        └── Different data type (real-time, streaming)?
+            └── Go to STEP 4 for this data type only.
+
+STEP 4: Connect browser, capture traffic
+        Wait 15 seconds. Check /browser/traffic.
+        ├── GraphQL? → Extract auth (Client-ID, etc) from page source.
+        │               rateLimitedFetch → 200? Done.
+        │               429? → browserFetch. Done.
+        ├── WebSocket? → Note URL from JS bundles. Build WS route.
+        ├── JSON API? → rateLimitedFetch → 200? Done.
+        │               429? → Same data in embedded JSON?
+        │                      ├── YES → use embedded JSON. STOP.
+        │                      └── NO → browserFetch. Done.
+        └── Nothing? → Interact (click, scroll). Re-check traffic.
+```
+
+**Critical rule:** If embedded JSON has data X, NEVER call an API for data X. One 429 is enough signal — escalate or use embedded JSON. Never retry.
+
+## Framework Identification
 
 Check the HTML source for these markers — they tell you where data lives:
 
 | Marker | Framework | Data location |
 |--------|-----------|--------------|
-| `__NEXT_DATA__` or `/_next/` | Next.js | `<script id="__NEXT_DATA__">`, `/api/` routes |
-| `data-sveltekit-fetched` | SvelteKit | `<script type="application/json" data-sveltekit-fetched>` |
+| `__NEXT_DATA__` or `/_next/` | Next.js | `<script id="__NEXT_DATA__">`, often with Redux/RTK Query state |
+| `data-sveltekit-fetched` | SvelteKit | `<script data-sveltekit-fetched>` — JSON envelope, double-parse |
+| `data-deferred-state` | Custom SSR | `<script id="data-deferred-state-0">` — deep nested arrays |
 | `__NUXT_DATA__` | Nuxt | `<script id="__NUXT_DATA__">` or `/_payload.json` |
-| `data-reactroot` (no `__NEXT_DATA__`) | React SPA | XHR after hydration — all data in traffic |
+| `data-reactroot` (no `__NEXT_DATA__`) | React SPA | No embedded data — all data in traffic (STEP 4) |
 | `__remixContext` | Remix | Loader data in `<script>` tags |
 
-## Step 1: Connect Browser and Capture Traffic
-
-```bash
-./scripts/connect-browser.sh --profile <domain> --url <target-url>
-# Wait 15 seconds for hydration, lazy loads, deferred API calls
-./scripts/capture-traffic.sh --summary
-```
-
-The auto-started browser does NOT capture traffic — only WS-connected browsers do. Read the full page source for embedded JSON (`<script type="application/json">`).
-
-## Step 2: Classify Transport — Check in This EXACT Order
-
-Run this FOR EACH data type on the page. One page can use multiple transports.
-
-| Priority | Check | Transport | Working example in `domains/boardshop/src/routes.ts` |
-|----------|-------|-----------|------------------------------------------------------|
-| **(a)** | WebSocket? Search JS for `wss://`, `new WebSocket(` | WebSocket | Routes 13-14: JSON + protobuf WS frames |
-| **(b)** | Requests to `/graphql` or body has `query`/`mutation`? | GraphQL | Route 8: inline query with Client-ID |
-| **(c)** | Content-Type `application/grpc-web`? | gRPC-Web | Route 10: decode protobuf |
-| **(d)** | Content-Type `text/event-stream`? | SSE | (no example yet) |
-| **(e)** | JSON response? Also: POST `?method=X` dispatch | JSON API | Routes 4-7, 12, 17: cursors, CSRF, custom headers, crumb, ?method= |
-| **(e2)** | `<script type="application/json">` in HTML? Also check `__NEXT_DATA__`, `data-deferred-state` | Embedded JSON | Routes 1-2, 15-16: standard, Next.js Redux, deferred state |
-| **(f)** | Non-JSON body (binary, base64, msgpack)? | Encoded API | Routes 10-11: base64 JSON, MessagePack |
-| **(g)** | ZERO relevant network requests after 15s | SSR | Last resort — DOM extraction |
-
-Before accepting (g) SSR: confirm no loading indicators appeared, no requests were filtered, and the page has content.
-
-## Step 3: Catalog Tokens
+## Catalog Tokens
 
 Scan every source for auth values BEFORE you need them:
 
@@ -54,24 +75,21 @@ Scan every source for auth values BEFORE you need them:
 5. JS globals: `window.__CONFIG__`, `window.__SESSION__`
 6. **Last:** dedicated token endpoints (`/api/crumb`) — often rate-limited
 
-## Step 4: Interact and Watch Network
+## Working Examples
 
-**Interaction is NEVER optional — even when you found embedded JSON.** Embedded data is page 1 only. You MUST:
+Every transport type has a working route in `domains/boardshop/src/routes.ts`:
 
-1. Record traffic count BEFORE interaction
-2. Perform at least 3 interactions: click next page, scroll to bottom, click a result/detail link
-3. Record traffic count AFTER interaction
-4. Paste both counts. If count increased, classify the new endpoints
+| Transport | Routes | Pattern |
+|-----------|--------|---------|
+| Embedded JSON | 1-2, 15-16, 20-21 | Standard, Next.js Redux, deferred state, hydration-stripped, SvelteKit |
+| JSON API | 4-7, 12, 17 | Cursor pagination, CSRF POST, API key, custom headers, crumb auth, ?method= |
+| GraphQL | 8 | Inline query with Client-ID header |
+| HLS media | 9 | Token → master playlist → quality variants |
+| Encoded API | 10-11 | Base64 JSON, MessagePack binary |
+| WebSocket | 13-14 | JSON frames, protobuf frames |
+| Rate-limit fallback | 19 | API returns 429, fall back to embedded JSON |
 
-Visit at least one detail page (click a result) — detail pages often use a different transport than listing pages.
-
-## Step 5: Read JS Bundles
-
-Fetch `<script src="...">` bundles. Search for endpoint URLs, field names, parameter names from request payloads. Trace values backwards to find where tokens and IDs originate.
-
-For HLS/media streams: search for `.m3u8`, `MediaSource`, `RTCPeerConnection`. See `domains/boardshop/src/routes.ts` hls-example route.
-
-## Step 6: Produce the Transport Classification Table
+## Produce the Transport Classification Table
 
 ```
 ## Transport Classification: [domain]
@@ -87,4 +105,4 @@ Detail page visited: [URL]
 New endpoints discovered: [list or "none"]
 ```
 
-**This table is mandatory. No routes without it.** Evidence must come from captured traffic or JS bundle analysis — never from external research.
+**This table is mandatory. No routes without it.** Evidence must come from captured traffic or page source analysis — never from external research.
