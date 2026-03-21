@@ -85,14 +85,42 @@ Do NOT build any dashboard UI. API routes + curl proof only.
 
 ## Parallel Testing
 
-Launch agents against sites with different transport patterns simultaneously:
+Launch all agents simultaneously in worktree isolation. Each agent gets a unique port to avoid conflicts.
+
+**Port assignment:** Agent N uses port `3010 + N`. The API server reads `PORT` env var. The `connect-browser.sh` and `capture-traffic.sh` scripts accept `--port`.
+
+```
+Agent 1: PORT=3011  (isolation: "worktree", run_in_background: true)
+Agent 2: PORT=3012  (isolation: "worktree", run_in_background: true)
+Agent 3: PORT=3013  (isolation: "worktree", run_in_background: true)
+Agent 4: PORT=3014  (isolation: "worktree", run_in_background: true)
+Agent 5: PORT=3015  (isolation: "worktree", run_in_background: true)
+Agent 6: PORT=3016  (isolation: "worktree", run_in_background: true)
+```
+
+**Each agent's prompt must include:**
+```
+Start the API server on port XXXX:
+  PORT=XXXX pnpm --filter @interceptor/api dev > /tmp/api-server-XXXX.log 2>&1 &
+  sleep 8 && curl -s http://localhost:XXXX/health
+
+Use port XXXX for ALL browser connections and traffic capture:
+  ./scripts/connect-browser.sh --profile <domain> --url <target> --port XXXX
+  curl -s http://localhost:XXXX/browser/traffic
+```
+
+**After all agents complete:** clean up worktrees with `git worktree prune`. Kill any orphaned servers with `lsof -ti:3011-3016 | xargs kill`.
+
+**Transport diversity:** pick sites that exercise different transport types to maximize coverage per iteration:
 
 | Transport | What it tests |
 |-----------|--------------|
-| Embedded JSON + XHR pagination | Hybrid discovery — does agent find BOTH sources? |
-| WebSocket + protobuf | WebSocket detection — does agent check JS bundles? |
-| GraphQL + HLS + WebSocket chat | Multi-protocol — does agent find all 3? |
-| Encoded/protobuf responses | Decode protocol — does agent decode instead of DOM scraping? |
+| Embedded JSON (SSR frameworks) | Framework identification, `__NEXT_DATA__` and inline scripts |
+| WebSocket + protobuf | Binary decode, JS bundle analysis, subscription messages |
+| GraphQL | Query extraction, persisted queries, operation discovery |
+| Multi-protocol (WS + GQL + streaming) | Does agent find all transports on one site? |
+| WAF-protected SSR | Alternate URL paths, bot detection bypass |
+| Encoded/binary responses | Decode protocol — does agent decode instead of DOM scraping? |
 
 ## A/B Testing
 
@@ -102,7 +130,7 @@ Run the same prompt with one variable changed:
 - Different effort levels
 - Different models (Sonnet vs Opus)
 
-Measure: tokens used, time, retry loops, correctness.
+Measure: tokens used, time, tool uses, scorecard results.
 
 ## Scorecard
 

@@ -64,7 +64,7 @@ Sources to check (in priority order):
 - **HTML hidden inputs:** `<input type="hidden" id="x-csrf-token" value="...">`
 - **HTML meta tags:** `<meta name="api-key" content="...">`
 - **Cookies:** both request cookies and `Set-Cookie` response headers
-- **JavaScript globals:** `window.__CONFIG__`, `window.__SESSION__`, `window.ytcfg`
+- **JavaScript globals:** `window.__CONFIG__`, `window.__SESSION__`, and other site-specific config objects
 - **Inline script assignments:** `<script>var API_TOKEN = "...";</script>`
 - **Response headers:** `X-Request-Id`, `X-Session-Token`, custom headers
 - **Dedicated token endpoints (LAST):** Only call `/api/crumb` or `/api/token` if the token isn't available in any of the above sources — these endpoints are frequently rate-limited
@@ -82,7 +82,9 @@ When you later need to construct a POST request, you already know where every re
 
 ## 3. Interact with the Page and Watch the Network
 
-**If your initial capture shows only DOCUMENT entries, interaction is not optional — it's how you discover the XHR endpoints.** A page with visible data and no XHR means you haven't interacted yet or your capture is stale, not that the site is SSR. Kill the browser, reconnect fresh, and interact before classifying.
+**Interaction is NEVER optional — even when you already found embedded JSON.** Finding data in a `<script>` tag or inline JSON does NOT complete discovery. The embedded data is often just the initial page load. You must still interact to discover: pagination APIs, additional data endpoints, filtering/sorting APIs, and real-time data streams. If your initial capture shows only DOCUMENT entries, interaction is how you discover the XHR endpoints. Kill the browser, reconnect fresh, and interact before classifying.
+
+**GATE: You may not write route code until you have interacted with the page AND checked traffic after each interaction.** Finding embedded JSON is Step 1 of discovery, not the end.
 
 Click every interactive element. After each interaction, check what network requests fired.
 
