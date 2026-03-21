@@ -1,250 +1,163 @@
-# Interceptor
+<h1 align="center">Interceptor</h1>
 
-Paste a natural-language prompt. Claude Code discovers the target site's API through browser traffic interception, generates a typed domain plugin with proxy routes, and builds a working dashboard — no manual work beyond the initial prompt.
+<p align="center">
+  Turn any website into a typed JSON API — discovered by AI agents through browser traffic interception.
+</p>
 
-The browser IS the API client. Patchright drives a real browser session, captures network traffic via CDP, and discovers API endpoints — no documentation required. Proxy routes then serve that data through the browser's authenticated session, so cookies and auth are automatic.
+<p align="center">
+  <a href="#how-it-works">How It Works</a> &middot;
+  <a href="#quick-start">Quick Start</a> &middot;
+  <a href="#instruction-tuning">Instruction Tuning</a> &middot;
+  <a href="#architecture">Architecture</a>
+</p>
+
+---
+
+Paste a natural-language prompt. An AI agent connects a real browser, navigates the target site as a user, captures every network request via CDP, classifies each data transport (JSON, WebSocket, GraphQL, protobuf, embedded SSR), and generates typed proxy routes that return clean JSON. No API keys. No scraping guides. Just the real requests the browser makes.
+
+```
+$ curl localhost:3001/api/example/search?q=boards
+
+{
+  "results": [
+    { "sku": "DECK-001", "name": "Street Destroyer 8.25", "price": 64.99 },
+    { "sku": "DECK-002", "name": "Park Rider Pro 8.0", "price": 72.50 }
+  ],
+  "total": 847
+}
+```
 
 ## How It Works
 
-```mermaid
-flowchart LR
-    subgraph Base ["base branch — skills accumulate"]
-        Skills["Skills + Framework"]
-    end
+Two systems work together: **API discovery** turns websites into typed endpoints, and **instruction tuning** iteratively improves the agent rules that drive discovery.
 
-    Skills -->|"branch"| Build
+### API Discovery
 
-    subgraph Iteration ["test branch — disposable"]
-        Build["Observe → Build → Verify"]
-        Build -->|"fix"| Build
-    end
+The agent follows a mandatory protocol before writing any code:
 
-    Build -->|"learnings"| Skills
-```
+1. **Connect** a browser via WebSocket with CDP traffic capture
+2. **Navigate** the target site as a real user
+3. **Capture** all network traffic — inspect every request and response
+4. **Classify** each data type's transport using a priority decision tree
+5. **Interact** — click, scroll, paginate to surface lazy-loaded endpoints
+6. **Build** typed proxy routes returning structured JSON
 
-The outer loop improves the skills. The inner loop builds each app. Every test branch is disposable — only the skills grow.
+The transport classifier checks in strict priority order — WebSocket before GraphQL before gRPC before JSON before Encoded before SSR. If any network request carries the data, even encoded or binary, the route intercepts it. DOM extraction is the absolute last resort.
 
-## Architecture
+### Instruction Tuning
 
-```mermaid
-sequenceDiagram
-    actor Dev as Developer
-    participant Skill as api-discovery Skill
-    participant WS as WebSocket /browser/stream
-    participant Browser as Patchright Browser
-    participant Site as Target Website
-    participant Traffic as Traffic Buffer
-    participant Proxy as Domain Proxy /api/*
-    participant UI as Dashboard /tickets
+The `.claude/` directory is inspired by [reflective programming](https://en.wikipedia.org/wiki/Reflective_programming) — Claude Code examining, introspecting, and modifying its own instructions each iteration.
 
-    Note over Dev,UI: Phase 1 — Observe
-    Dev->>Skill: Paste prompt
-    Skill->>WS: Connect (profile=domain, url=target)
-    WS->>Browser: Launch with CDP Network.enable
-    Browser->>Site: Navigate as real user
-    Site-->>Browser: HTML + JS + API calls
-    Browser-->>Traffic: Capture all XHR/Fetch
-    Skill->>Traffic: GET /browser/traffic
-    Traffic-->>Skill: Endpoint patterns + response shapes
-
-    Note over Dev,UI: Phase 1.5 — Classify Transport
-    Skill->>Skill: Run Data Transport Discovery Protocol
-    Skill->>Skill: classifyPage(trafficEntries)
-    Skill->>Skill: If encoded → DECODE, never fall back to DOM
-
-    Note over Dev,UI: Phase 2-3 — Extract Routes
-    Skill->>Skill: Write DomainRoute[] per classified transport
-
-    Note over Dev,UI: Phase 4 — Verify (every route, real data)
-    Skill->>Proxy: curl /api/domain/search?q=test
-    Proxy->>Browser: browserFetch() or decode() or page.evaluate()
-    Browser->>Site: Fetch with inherited cookies
-    Site-->>Browser: JSON response
-    Browser-->>Proxy: {status, data}
-    Proxy-->>Skill: Real data ✓
-
-    Note over Dev,UI: Phase 5 — Build Dashboard
-    Skill->>UI: Create Next.js page
-    UI->>Proxy: fetch('/api/domain/search?q=knicks')
-    Proxy->>Browser: browserFetch()
-    Browser->>Site: GET https://api.example.com/search
-    Site-->>Browser: JSON
-    Browser-->>Proxy: Response
-    Proxy-->>UI: Render results
-```
-
-## Data Transport Discovery
-
-**The most important capability in the project.** Before writing any route, the agent must classify how the target site serves each data type. The full protocol is at `.claude/rules/data-transport-discovery.md`.
+An orchestrator agent runs the tuning loop automatically. It launches sub-agents in clean, isolated worktrees with **no memory, no prior results, nothing but the `.claude/` rules**. Each sub-agent must complete a real discovery task using only the instructions it's given. If it takes a shortcut — using as search engine for API docs instead of capturing browser traffic, scraping the DOM instead of intercepting the JSON endpoint — the instructions allowed it. The sub-agent isn't broken. The rule is broken. The rule needs to be fixed.
 
 ```mermaid
-flowchart TD
-    Start["Capture traffic<br/>CDP Network.enable<br/>Wait 15s"] --> WS{"(a) WebSocket<br/>frames?"}
-    WS -->|Yes| WSRoute["Intercept WS<br/>Replay subscription"]
-    WS -->|No| GQL{"(b) GraphQL?<br/>/graphql URL or<br/>query in body"}
-    GQL -->|Yes| GQLRoute["Proxy GraphQL query<br/>Forward variables"]
-    GQL -->|No| GRPC{"(c) gRPC-Web?<br/>application/grpc-web"}
-    GRPC -->|Yes| GRPCRoute["Decode protobuf<br/>Proxy RPC call"]
-    GRPC -->|No| SSE{"(d) SSE?<br/>text/event-stream"}
-    SSE -->|Yes| SSERoute["Subscribe + relay<br/>event stream"]
-    SSE -->|No| JSON{"(e) JSON API?<br/>application/json"}
-    JSON -->|Yes| JSONRoute["Type A proxy<br/>browserFetch()"]
-    JSON -->|No| ENC{"(f) Encoded XHR?<br/>Non-JSON body"}
-    ENC -->|Yes| ENCRoute["⚠️ DECODE IT<br/>protobuf/msgpack/b64<br/>NEVER skip to DOM"]
-    ENC -->|No| CHECK{"Loading state<br/>appeared?"}
-    CHECK -->|Yes| WARN["⚠️ MISSED IT<br/>Increase wait time<br/>Re-capture"]
-    WARN --> Start
-    CHECK -->|No| SSR["(g) SSR<br/>DOM extraction<br/>LAST RESORT"]
+graph TD
+    O[Orchestrator] -->|launches 6 parallel agents| A1[Agent 1<br/>Embedded JSON site]
+    O --> A2[Agent 2<br/>WebSocket site]
+    O --> A3[Agent 3<br/>GraphQL site]
+    O --> AN[Agent N<br/>...]
 
-    style ENCRoute fill:#ff6b6b,color:#fff
-    style WARN fill:#ff6b6b,color:#fff
-    style SSR fill:#868e96,color:#fff
-    style WSRoute fill:#51cf66,color:#fff
-    style GQLRoute fill:#51cf66,color:#fff
-    style GRPCRoute fill:#51cf66,color:#fff
-    style SSERoute fill:#51cf66,color:#fff
-    style JSONRoute fill:#51cf66,color:#fff
+    A1 --> S[Score each agent]
+    A2 --> S
+    A3 --> S
+    AN --> S
+
+    S --> D{All passed?}
+    D -- Yes --> C[Instructions converged<br/>Commit to base]
+    D -- No --> F[Diagnose which rule<br/>was too soft or missing]
+    F --> R[Add general gate<br/>not a site-specific patch]
+    R --> O
 ```
 
-**The golden rule:** If ANY network request carries the data — even encoded, even obfuscated — the route MUST intercept it. DOM extraction is the absolute last resort.
+The orchestrator scores every run against a checklist. Each failure traces to a specific instruction gap:
 
-The framework includes:
-- **`classifyTransport()`** utility in `packages/browser/` — automates this decision tree on captured traffic
-- **`packages/test-server/`** — serves canonical data via all 12 transport types for development and testing
+| Gate | Failure means... |
+|---|---|
+| Captured traffic before writing code? | Discovery gate language too soft — agent guessed instead of observing |
+| Transport classification table produced? | Protocol was advisory, not mandatory — needs a structural gate |
+| Network interception over DOM scraping? | Proof requirement missing — agent took the easy path |
+| Found ALL data sources, not just the first? | "Don't stop early" was a suggestion — needs an interaction checkpoint |
 
-## Proxy Request Flow
-
-```mermaid
-flowchart LR
-    A["Dashboard<br/>fetch('/api/boardshop/boards')"] -->|rewrite| B["Next.js :3000<br/>/api/* → :3001/api/*"]
-    B --> C{"Route Type?"}
-    C -->|"Type A: targetUrl"| D["browserFetch(targetUrl)<br/>Cookies inherited"]
-    C -->|"Type B: handler"| E["handler(c, browser)<br/>navigate + evaluate"]
-    C -->|"browserRequired: false"| F["Direct fetch()<br/>No browser needed"]
-    D --> G["Patchright Page<br/>page.evaluate(fetch)"]
-    E --> G
-    F --> H["Target API"]
-    G --> H
-    H --> I["JSON Response"]
-    I --> J["Dashboard Component"]
-```
+**Concrete example:** An early rule said *"you should capture traffic first."* Agents skipped it. The fix: *"GATE: you MUST produce a Transport Classification table BEFORE writing any extraction code. No table = no code."* The word choice is the fix — "should" became "MUST," and a structural gate replaced a suggestion. The loop runs until a batch of fresh agents, with zero context, all follow the full protocol without shortcuts. That's the convergence condition — instructions good enough to work on their own.
 
 ## Quick Start
 
 ```bash
 pnpm install
-pnpm dev          # API on :3001, Web on :3000
+pnpm dev                    # API on :3001, Web on :3000
 ```
 
-Give Claude Code a prompt like:
+Connect a browser and capture traffic:
 
-> Search both BoardShop and DeckMarket for Element 8.0" decks. Match listings across platforms by brand, size, and colorway. Build a dashboard that shows a side-by-side price comparison — rows are products, columns are platforms, cheapest option highlighted in green.
-
-The skills handle domain scaffolding, API discovery, route creation, dashboard building, and visual verification.
+```bash
+./scripts/connect-browser.sh --profile example --url https://example.com
+./scripts/capture-traffic.sh --summary
+```
 
 ### Test Server
 
+Validate the discovery protocol against controlled fake sites before targeting real ones:
+
 ```bash
 pnpm --filter @interceptor/test-server start   # Port 4444
-curl http://localhost:4444/                      # List all transport endpoints
-curl http://localhost:4444/api/json/performers?q=taylor   # JSON
-curl http://localhost:4444/graphql -X POST -d '{"query":"{ performers(query: \"taylor\") { name } }"}'  # GraphQL
-curl http://localhost:4444/ssr/search?q=taylor   # SSR HTML
 ```
 
-## Structure
+| Test Site | Transport Pattern |
+|---|---|
+| `/boardshop` | Embedded JSON + POST pagination + CSRF |
+| `/liveboard` | WebSocket + protobuf + crumb token |
+| `/streamshop` | GraphQL + HLS + IRC WebSocket |
+| `/databoard` | gRPC-Web + encoded responses + Bearer auth |
+
+## Architecture
 
 ```
-.claude/
-  CLAUDE.md               Agent instructions (loaded every session)
-  rules/                  Process rules (loaded automatically)
-    data-transport-discovery.md   THE core rule — transport classification protocol
-    inspection-first.md           Observe before guessing
-    prompt-compliance.md          Compliance matrix before every commit
-    base-branch.md                Base accumulates learning
-    workflow.md                   Verification, git hygiene
-    iteration-loop.md             Autonomous mode, build loop
-  skills/                 Skills that drive the whole process
-    api-discovery/        Discover APIs, create domain plugins
-    dashboard-builder/    Build Next.js pages from proxy APIs
-    visual-dev/           Screenshot-based UI iteration
-    debug-logs/           Runtime debugging with DEBUG()
-
-prompts/                  Natural-language prompts (one per domain iteration)
-docs/
-  testing/
-
-domains/                  Domain plugins (one per website)
-packages/
-  browser/                Patchright browser automation + transport classifier
-  shared/                 Types, validation, debug logging
-  test-server/            Multi-transport test server (12 transport types)
-apps/
-  api/                    Hono server with WebSocket + proxy routes
-  web/                    Next.js dashboard
-services/
-  python/                 Python worker for IPC bridge
+interceptor/
+├── apps/
+│   ├── api/            Hono server — WebSocket, browser streaming, domain proxy
+│   └── web/            Next.js dashboard with auth
+├── packages/
+│   ├── browser/        Patchright automation + transport classifier
+│   ├── shared/         Types, validation, debug logging
+│   └── test-server/    Multi-transport fake sites for protocol validation
+├── domains/            Generated domain plugins (ephemeral, per-branch)
+├── .claude/
+│   ├── CLAUDE.md       Agent mission, rules, constraints
+│   ├── rules/          Process gates (discovery, compliance, workflow)
+│   └── skills/         Reusable agent capabilities
+└── services/
+    └── python/         IPC bridge worker
 ```
 
-## Key Endpoints
+```mermaid
+graph TD
+    subgraph Instructions
+        CM[CLAUDE.md] --> R[Rules]
+        CM --> SK[Skills]
+        IT[instruction-tuning] -.->|refines| CM
+    end
+
+    subgraph Runtime
+        API[Hono API :3001]
+        BR[Patchright Browser]
+        CDP[CDP Traffic Capture]
+    end
+
+    SK -->|api-discovery| API
+    API <--> BR
+    BR <--> CDP
+```
 
 | Endpoint | Purpose |
-|----------|---------|
-| `GET /health` | Server health |
-| `GET /browser/health` | Browser connection status |
-| `GET /browser/traffic` | Captured API traffic (CDP, WS browser only) |
-| `GET /api` | List all domains and routes |
+|---|---|
+| `ws://localhost:3001/browser/stream` | CDP browser connection for traffic capture |
+| `GET /browser/traffic` | Captured request/response entries |
 | `GET /api/<domain>/<path>` | Proxy through browser session |
+| `GET /api` | List all registered domains and routes |
 
-## Test Server Transports
+## Tech Stack
 
-The test server at `packages/test-server/` serves identical canonical data (5 events, 3 performers) via every transport type, enabling development and testing of the capture + classification pipeline without external sites.
-
-| Priority | Transport | Test Endpoint |
-|----------|-----------|--------------|
-| (a) | WebSocket | `WS /ws/prices` |
-| (b) | GraphQL | `POST /graphql` |
-| (b) | GraphQL Persisted | `POST /api/v3/:op/:hash` |
-| (c) | gRPC-Web | `POST /grpc/testserver.EventService/*` |
-| (d) | SSE | `GET /sse/prices` |
-| (e) | JSON API | `GET /api/json/*` |
-| (e) | JSON + Crumb Auth | `GET /api/crumb/*` |
-| (f) | Base64 Encoded | `GET /api/encoded/b64/*` |
-| (f) | Protobuf | `GET /api/encoded/proto/*` |
-| (f) | MessagePack | `GET /api/encoded/msgpack/*` |
-| (g) | Pure SSR | `GET /ssr/*` |
-| (g) | Hybrid SSR | `GET /hybrid/*` |
-
-## Autonomous Mode Setup
-
-If using Claude Code autonomously (no human reviewing each step), add the prompt compliance gate to your project memory so it loads into every conversation:
-
-1. Create `feedback_prompt_compliance.md` in your Claude Code memory directory:
-
-```markdown
----
-name: prompt_compliance_gate
-description: Before committing, list every prompt requirement with evidence. Any without evidence = not done.
-type: feedback
----
-
-Before committing: list every prompt requirement, state evidence for each (curl output, screenshot,
-Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
-
-**Why:** An agent can build something that looks correct in screenshots but silently misses half the
-prompt's requirements. Visual QA verifies quality; the compliance matrix verifies completeness.
-
-**How to apply:** At the start of work, extract requirements from the prompt into a numbered list.
-Before committing, produce a Prompt Compliance Matrix with PASS/FAIL and evidence for each row.
-```
-
-2. Add a pointer in your `MEMORY.md`:
-
-```
-- [Prompt compliance gate](feedback_prompt_compliance.md) — BEFORE COMMITTING: list every prompt requirement, state evidence for each. Any without evidence = not done.
-```
-
-This is a third layer of enforcement (alongside CLAUDE.md and skill files) ensuring the agent verifies completeness before committing.
+TypeScript &middot; Hono &middot; Next.js &middot; Patchright &middot; Turborepo &middot; pnpm &middot; Vitest &middot; Biome
 
 ## License
 
