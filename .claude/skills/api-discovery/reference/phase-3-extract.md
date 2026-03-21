@@ -2,33 +2,29 @@
 
 ## Implementation Order — Lightest First
 
-For every endpoint, **test with direct HTTP (curl) before assuming browser is needed.** Most endpoints work without a browser session.
+For every endpoint, **test with direct HTTP (curl) before assuming browser is needed.** Most endpoints work without a browser session. See `domains/boardshop/src/routes.ts` for reference implementations of every pattern below.
 
-### Type A0: Direct HTTP (preferred)
+All implementation patterns are demonstrated in `domains/boardshop/src/routes.ts` with working code tested against the test server (`pnpm --filter @interceptor/test-server start`).
 
-Route with custom `handler` using `rateLimitedFetch`. No browser, no cookies, fastest.
+### Type E: Embedded JSON (MOST COMMON — try this first)
 
-```typescript
-{
-  method: 'GET', path: '/search', browserRequired: false,
-  handler: async (c) => {
-    const resp = await rateLimitedFetch(`https://example.com/api/search?q=${q}`);
-    return c.json(await resp.json());
-  }
-}
-```
+Modern sites embed structured JSON in `<script>` tags. Fetch the page with `rateLimitedFetch`, find the script tag, `JSON.parse` it. No browser needed. This is the #1 pattern on the web — try it before anything else. Detail pages use different script tag IDs than listing pages. See boardshop Routes 1-2.
 
-### Type A1: Browser-proxied HTTP
+### Type A: Direct HTTP to JSON API
 
-Use only if direct HTTP returns 429/403/WAF. Route with `targetUrl` — proxied through `browserFetch()`. Cookies and TLS fingerprint inherited.
+Endpoint returns JSON directly. Use `rateLimitedFetch`. See boardshop Route 3.
 
-```typescript
-{ method: 'GET', path: '/search', targetUrl: 'https://api.example.com/v1/search', description: 'Search' }
-```
+### Type A + Escalation: Direct HTTP → browserFetch
+
+Try direct HTTP first. If blocked (429/403/WAF), escalate to `browserFetch` which uses Chrome's TLS fingerprint and cookies. See boardshop Route 4.
 
 ### NEVER: `page.evaluate(fetch(...))`
 
-Do not call `fetch()` inside `page.evaluate()`. It does the same thing as `browserFetch` but runs in the browser page context, consuming page memory and blocking navigation. Use `browserFetch` instead.
+Do not call `fetch()` inside `page.evaluate()`. `browserFetch` does the same thing without browser page overhead.
+
+### Type B: SSR DOM extraction (LAST RESORT)
+
+Only when the Transport Classification table proves no network request carries the data. See boardshop Routes 7-8.
 
 ## Type B: SSR extraction via `page.evaluate()` (LAST RESORT — requires proof)
 
@@ -81,9 +77,11 @@ handler: async (c, browser) => {
 
 ## Data source preference order
 
-1. **Type A (direct proxy)** — clean JSON, no browser needed. Best case.
-2. **Type B2 (traffic capture)** — JSON from CORS-blocked endpoints.
-3. **Type B (DOM extraction)** — last resort.
+1. **Type E (embedded JSON)** — fetch HTML, parse `<script>` tag. Most common on modern sites. No browser.
+2. **Type A0 (direct JSON API)** — clean JSON endpoint. No browser.
+3. **Type A1 (browser-proxied)** — same as A0 but through Chrome TLS. Use when A0 gets 429/403.
+4. **Type B2 (traffic capture)** — JSON from CORS-blocked endpoints.
+5. **Type B (DOM extraction)** — last resort. Requires SSR proof.
 
 **Type A sources can die without warning.** Write defensively — if 403/429, fall to Type B2 or B.
 

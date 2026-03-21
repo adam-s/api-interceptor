@@ -2,101 +2,110 @@
 /**
  * BoardShop API Routes (Reference Example)
  *
- * Routes ordered from LIGHTEST to HEAVIEST — agents should prefer
- * earlier patterns and only escalate when forced:
+ * Routes ordered LIGHTEST to HEAVIEST — prefer earlier patterns:
  *
- * 1. GET /catalog        — Embedded JSON: fetch HTML, parse <script> tag, return JSON (MOST COMMON)
- * 2. GET /product/:sku   — Embedded JSON: detail page with different script tag ID
- * 3. GET /shops          — Direct HTTP to JSON API (rateLimitedFetch, no browser)
- * 4. GET /availability   — Escalation: rateLimitedFetch → browserFetch fallback
+ * 1. GET /catalog        — Embedded JSON: fetch HTML, parse <script> tag (MOST COMMON)
+ * 2. GET /product/:sku   — Embedded JSON: detail page, different script tag ID
+ * 3. GET /shops          — Direct HTTP to JSON API (rateLimitedFetch)
+ * 4. GET /availability   — Escalation: rateLimitedFetch → browserFetch on 429/403
  * 5. POST /orders        — Typed API client with session auth
- * 6. GET /trending       — browserFetch() POST to native JSON API
+ * 6. GET /trending       — browserFetch() to browser-proxied JSON API
  * 7. GET /search         — SSR DOM extraction via page.evaluate() (LAST RESORT)
- * 8. GET /boards/:sku    — Detail page with data-* attributes (LAST RESORT)
+ * 8. GET /boards/:sku    — Detail DOM extraction with data-* attributes (LAST RESORT)
  *
- * PATTERN: Use string-based page.evaluate('...') not arrow functions.
- * tsx/esbuild injects __name decorators into arrow functions which breaks
- * when serialized to the browser context.
+ * Routes 1-2 work against the test server (port 4444):
+ *   pnpm --filter @interceptor/test-server start
+ *   curl http://localhost:3001/api/boardshop/catalog
+ *   curl http://localhost:3001/api/boardshop/product/DECK-001
  *
  * @module domain-boardshop/routes
  */
 
 import type { DomainRoute } from '@interceptor/browser/handler/domain-loader';
-import { rateLimitedFetch } from '@interceptor/shared';
+import { DEBUG, rateLimitedFetch } from '@interceptor/shared';
 import { createOrder } from './api-client';
 import { BoardShopSessionManager } from './session-manager';
 
+/** Test server base URL. Override with BOARDSHOP_URL env var for real targets. */
+const BASE_URL = process.env.BOARDSHOP_URL ?? 'http://localhost:4444/sites/boardshop';
+
 export const routes: DomainRoute[] = [
-	// ─── Route 1: Embedded JSON Extraction (MOST COMMON PATTERN) ─────────
-	// PATTERN: Modern sites (Next.js, SvelteKit, React SSR) embed structured
-	// JSON in <script type="application/json"> tags in the HTML. Fetch the
-	// page with rateLimitedFetch, find the script tag, JSON.parse it.
-	// No browser, no page.evaluate, no DOM — just HTTP + string parsing.
-	// This is the #1 pattern on the web. Try it FIRST for every site.
+	// ─── Route 1: Embedded JSON from HTML page (MOST COMMON PATTERN) ─────
+	// Fetch the page HTML with rateLimitedFetch (no browser).
+	// Find the <script id="catalog-data" type="application/json"> tag.
+	// JSON.parse it. Return structured data. Done.
 	{
 		method: 'GET',
 		path: '/catalog',
-		description: 'Product catalog. Fetches HTML, extracts embedded JSON from <script> tag.',
+		description: 'Product catalog via embedded JSON extraction.',
 		browserRequired: false,
 		handler: async (c) => {
 			const q = new URL(c.req.url).searchParams.get('q') ?? '';
-			const page = new URL(c.req.url).searchParams.get('page') ?? '1';
-			const url = `https://www.boardshop.example.com/${q ? `?q=${encodeURIComponent(q)}` : ''}`;
+			const url = `${BASE_URL}/${q ? `?q=${encodeURIComponent(q)}` : ''}`;
 
-			// Step 1: Fetch the HTML page (direct HTTP, no browser)
+			DEBUG('boardshop', `catalog: fetching ${url}`);
 			const res = await rateLimitedFetch(url);
 			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
 			const html = await res.text();
+			DEBUG('boardshop', `catalog: HTML ${html.length} chars`);
 
-			// Step 2: Find the embedded JSON script tag by ID
-			// Sites use various IDs: "catalog-data", "__NEXT_DATA__", "index-data",
-			// "data-deferred-state-0", or data-sveltekit-fetched attributes.
-			// Search the HTML for <script type="application/json"> tags.
-			const scriptMatch = html.match(
-				/<script\s+id="catalog-data"\s+type="application\/json">([\s\S]*?)<\/script>/,
+			// Find embedded JSON — the script tag ID varies by site
+			const match = html.match(
+				/<script\s+id="catalog-data"\s+type="application\/json"[^>]*>([\s\S]*?)<\/script>/,
 			);
-			if (!scriptMatch) return c.json({ error: 'Embedded JSON not found in page' }, 404);
+			if (!match) {
+				DEBUG('boardshop', 'catalog: no catalog-data script tag found');
+				return c.json({ error: 'Embedded JSON not found' }, 404);
+			}
 
-			// Step 3: Parse the JSON — this is the structured data, no DOM needed
-			const data = JSON.parse(scriptMatch[1]) as {
-				catalog: { items: unknown[]; totalCount: number; pageSize: number; filterSessionId: string };
+			const data = JSON.parse(match[1]) as {
+				catalog: {
+					items: unknown[];
+					totalCount: number;
+					pageSize: number;
+					currentPage: number;
+					filterSessionId: string;
+					itemsRemaining: number;
+				};
+				searchQuery: string;
 			};
 
 			return c.json({
 				items: data.catalog.items,
 				total: data.catalog.totalCount,
-				page: Number(page),
+				page: data.catalog.currentPage,
 				pageSize: data.catalog.pageSize,
+				remaining: data.catalog.itemsRemaining,
+				query: data.searchQuery,
 			});
 		},
 	},
 
-	// ─── Route 2: Embedded JSON — Detail Page (different script tag) ─────
-	// PATTERN: Detail pages often use a DIFFERENT script tag ID than listing
-	// pages. The listing page has <script id="catalog-data">, the detail page
-	// has <script id="product-data">. You must visit a detail page during
-	// discovery to find its script tag ID.
+	// ─── Route 2: Embedded JSON — Detail page (different script ID) ──────
+	// Detail pages embed data in a DIFFERENT script tag than listing pages.
+	// You must visit a detail page during discovery to find its tag ID.
 	{
 		method: 'GET',
 		path: '/product/:sku',
-		description: 'Product detail. Fetches HTML, extracts embedded JSON from detail-page script tag.',
+		description: 'Product detail via embedded JSON extraction.',
 		browserRequired: false,
 		handler: async (c) => {
 			const params = c.req.param() as Record<string, string>;
 			const sku = params.sku;
-			const url = `https://www.boardshop.example.com/product/${sku}`;
+			const url = `${BASE_URL}/product/${sku}`;
 
+			DEBUG('boardshop', `product: fetching ${url}`);
 			const res = await rateLimitedFetch(url);
-			if (!res.ok) return c.json({ error: `Page returned ${res.status}` }, 502);
+			if (!res.ok) return c.json({ error: `Product page returned ${res.status}` }, 502);
 			const html = await res.text();
 
-			// Detail pages use a different script tag ID
-			const scriptMatch = html.match(
-				/<script\s+id="product-data"\s+type="application\/json">([\s\S]*?)<\/script>/,
+			// Detail page uses "product-data" not "catalog-data"
+			const match = html.match(
+				/<script\s+id="product-data"\s+type="application\/json"[^>]*>([\s\S]*?)<\/script>/,
 			);
-			if (!scriptMatch) return c.json({ error: 'Product data not found' }, 404);
+			if (!match) return c.json({ error: 'Product data not found' }, 404);
 
-			const data = JSON.parse(scriptMatch[1]) as {
+			const data = JSON.parse(match[1]) as {
 				product: Record<string, unknown>;
 				relatedSkus: string[];
 			};
@@ -105,12 +114,9 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 3: Direct HTTP to JSON API (No Browser) ───────────────────
-	// PATTERN: browserRequired: false skips the browser-connected check.
-	// Use rateLimitedFetch() from @interceptor/shared instead of raw fetch().
-	// Register per-host limits in apps/api/src/register-domains.ts.
-	// THIS IS THE LIGHTEST PATTERN — use it whenever the endpoint works
-	// with direct HTTP (test with curl first).
+	// ─── Route 3: Direct HTTP to JSON API ────────────────────────────────
+	// When an endpoint returns JSON directly (not embedded in HTML).
+	// Test every endpoint with curl first — most work without a browser.
 	{
 		method: 'GET',
 		path: '/shops',
@@ -120,8 +126,6 @@ export const routes: DomainRoute[] = [
 			const city = new URL(c.req.url).searchParams.get('city') ?? '';
 			const url = `https://api.boardshop.example.com/v1/shops${city ? `?city=${encodeURIComponent(city)}` : ''}`;
 
-			// PATTERN: rateLimitedFetch is a drop-in fetch() replacement that
-			// enforces per-hostname rate limits and auto-retries 429 responses.
 			const res = await rateLimitedFetch(url, {
 				headers: { Accept: 'application/json' },
 			});
@@ -133,20 +137,18 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 2: Escalation Pattern (direct HTTP → browserFetch) ────────
-	// PATTERN: Always try rateLimitedFetch first. If the endpoint blocks
-	// non-browser requests (429/403), escalate to browserFetch which uses
-	// Chrome's TLS fingerprint and cookies. NEVER use page.evaluate(fetch(...))
-	// — browserFetch does the same thing without browser page overhead.
+	// ─── Route 4: Escalation (rateLimitedFetch → browserFetch) ───────────
+	// Try direct HTTP first. If blocked (429/403), escalate to browserFetch.
+	// NEVER use page.evaluate(fetch(...)) — browserFetch does the same thing.
 	{
 		method: 'GET',
 		path: '/availability',
-		description: 'Product availability. Tries direct HTTP, falls back to browserFetch if UA-blocked.',
+		description: 'Product availability. Direct HTTP, falls back to browserFetch if blocked.',
 		handler: async (c, browser) => {
 			const category = new URL(c.req.url).searchParams.get('category') ?? '';
-			const url = `https://www.boardshop.example.com/api/availability${category ? `?category=${encodeURIComponent(category)}` : ''}`;
+			const url = `${BASE_URL}/api/availability${category ? `?category=${encodeURIComponent(category)}` : ''}`;
 
-			// Step 1: Try direct HTTP (lightest, no browser needed)
+			// Step 1: Try direct HTTP
 			const directRes = await rateLimitedFetch(url, {
 				headers: { Accept: 'application/json' },
 			});
@@ -155,8 +157,12 @@ export const routes: DomainRoute[] = [
 				return c.json(await directRes.json());
 			}
 
-			// Step 2: If blocked (429/403), escalate to browserFetch
+			// Step 2: If blocked, escalate to browserFetch (Chrome TLS + cookies)
 			if (directRes.status === 429 || directRes.status === 403) {
+				DEBUG(
+					'boardshop',
+					`availability: blocked (${directRes.status}), escalating to browserFetch`,
+				);
 				const browserRes = await browser.browserFetch<Record<string, unknown>>(url);
 				return c.json(browserRes.data ?? { error: 'Browser fetch failed' });
 			}
@@ -165,9 +171,7 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 3: Typed API Client with Session ──────────────────────────
-	// PATTERN: For write operations and complex API calls, use a dedicated
-	// API client class with Zod validation. Headers come from the session manager.
+	// ─── Route 5: Typed API Client with Session Auth ─────────────────────
 	{
 		method: 'POST',
 		path: '/orders',
@@ -195,14 +199,12 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 4: browserFetch POST to Native API (Type A) ───────────────
-	// PATTERN: When the site has a JSON API (found via CDP traffic capture)
-	// that requires browser cookies/TLS, use browserFetch() to call it.
-	// Cookies and auth are inherited from the browser session automatically.
+	// ─── Route 6: browserFetch to JSON API ───────────────────────────────
+	// When the endpoint requires browser cookies/TLS that can't be replicated.
 	{
 		method: 'GET',
 		path: '/trending',
-		description: 'Trending boards. Proxies native JSON API via browserFetch.',
+		description: 'Trending boards. Proxies JSON API via browserFetch.',
 		handler: async (c, browser) => {
 			const maxItems = new URL(c.req.url).searchParams.get('limit') ?? '20';
 			const result = await browser.browserFetch<Record<string, unknown>>(
@@ -215,15 +217,13 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 5: SSR DOM Extraction (Type B — LAST RESORT) ──────────────
-	// PATTERN: Navigate → wait for hydration → querySelectorAll → innerText parse → dedup
-	// Use innerText (not textContent) — it respects CSS layout and adds \n between blocks.
-	// ONLY use this when the Transport Classification table proves no network request
-	// carries the data (classification (g) SSR with validation gate passed).
+	// ─── Route 7: SSR DOM Extraction (LAST RESORT) ───────────────────────
+	// Only use when Transport Classification proves no network request carries
+	// the data. Requires SSR proof — classification (g) with validation gate.
 	{
 		method: 'GET',
 		path: '/search',
-		description: 'Search skateboards by brand/model. Extracts from SSR DOM.',
+		description: 'Search. SSR DOM extraction — last resort.',
 		handler: async (c, browser) => {
 			const q = new URL(c.req.url).searchParams.get('q') ?? '';
 			if (!q) return c.json({ error: 'q param required' }, 400);
@@ -232,9 +232,8 @@ export const routes: DomainRoute[] = [
 			if (!page) return c.json({ error: 'Browser page not available' }, 503);
 
 			await browser.navigate(`https://www.boardshop.example.com/search?q=${encodeURIComponent(q)}`);
-			await new Promise((r) => setTimeout(r, 4000)); // Hydration wait
+			await new Promise((r) => setTimeout(r, 4000));
 
-			// PATTERN: String-based evaluate to avoid esbuild __name injection
 			const boards = await page.evaluate(`
 				(function() {
 					var links = Array.from(document.querySelectorAll('a[href*="/board/"]'));
@@ -247,9 +246,7 @@ export const routes: DomainRoute[] = [
 						var sku = skuMatch ? skuMatch[1] : null;
 						if (!sku || seen[sku]) continue;
 						seen[sku] = true;
-						// PATTERN: innerText splits child elements with \\n — split and parse each line
 						var text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
-						// Strip CSS class fragments that leak into innerText on some SSR sites
 						text = text.replace(/\\.cls-\\d+\\s*\\{[^}]*\\}/g, '').trim();
 						if (!text) continue;
 						results.push({ sku: sku, name: text.slice(0, 120), url: href.split('?')[0] });
@@ -262,14 +259,11 @@ export const routes: DomainRoute[] = [
 		},
 	},
 
-	// ─── Route 6: Detail Page with data-* Attributes (Type B — LAST RESORT)
-	// PATTERN: data-* attributes are reliable structured data — prefer them over
-	// parsing free text. But ALWAYS read prices from displayed text, not data-price
-	// (localized currencies differ from data attributes).
+	// ─── Route 8: Detail DOM Extraction (LAST RESORT) ────────────────────
 	{
 		method: 'GET',
 		path: '/boards/:sku',
-		description: 'Board detail. Extracts specs from data-* attributes + displayed text.',
+		description: 'Board detail. DOM extraction — last resort.',
 		handler: async (c, browser) => {
 			const page = browser.getPage();
 			if (!page) return c.json({ error: 'Browser page not available' }, 503);
@@ -284,23 +278,14 @@ export const routes: DomainRoute[] = [
 				(function() {
 					var el = document.querySelector('[data-board-sku]');
 					if (!el) return null;
-
-					// PATTERN: Structured data from attributes (reliable)
 					var sku = el.getAttribute('data-board-sku');
 					var brand = el.getAttribute('data-brand');
 					var deckSize = el.getAttribute('data-deck-size');
-
-					// PATTERN: Price from DISPLAYED TEXT, not data-price attribute.
-					// data-price may use localized currency (S/.668 = 668 Soles, not $0.668).
-					// The displayed text is what the user sees — always ground truth.
 					var text = el.innerText || '';
 					var priceMatch = text.match(/\\$([0-9,]+(?:\\.[0-9]{2})?)/);
 					var price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : null;
-
-					// PATTERN: innerText line-by-line parsing for structured cards
 					var lines = text.split('\\n').map(function(l) { return l.trim(); }).filter(Boolean);
 					var inStock = lines.some(function(l) { return /in stock/i.test(l); });
-
 					return { sku: sku, brand: brand, deckSize: deckSize, price: price, inStock: inStock };
 				})()
 			`);
