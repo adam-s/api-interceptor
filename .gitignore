@@ -24,6 +24,10 @@ data/browser-profiles/*/
 # Sub-agent worktrees (temporary, per-session)
 .claude/worktrees/
 
+# Domain plugins (created by agents, only boardshop is the reference example)
+domains/*/
+!domains/boardshop/
+
 # Haiku's cache directory
 .cache/
 
