@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse hook — block Write/Edit to shared files when in a worktree.
+# PreToolUse hook — block ALL writes to the main repo when in a worktree.
 #
-# Agents in worktrees must NOT modify:
-#   - apps/api/src/register-domains.ts
-#   - apps/api/package.json
-#   - pnpm-lock.yaml
-#   - packages/**
-#
-# These files are in the main repo and contaminate other agents.
+# If cwd is a worktree and file_path points to the main project dir
+# (not the worktree), deny the write. This prevents agents from
+# contaminating main with domain plugins, package.json changes, etc.
 set -euo pipefail
 
 INPUT="$(cat)"
@@ -25,52 +21,22 @@ if [[ -z "$FILE_PATH" ]]; then
   exit 0
 fi
 
-# Block writes to shared files (check if path points to main repo)
-BLOCKED=false
-
-# Check if the path is in the main repo (not the worktree)
-if [[ -n "$PROJECT_DIR" && "$FILE_PATH" == "$PROJECT_DIR/"* ]]; then
-  # Path points to main repo root — check if it's a protected file
-  RELATIVE="${FILE_PATH#"$PROJECT_DIR"/}"
-  case "$RELATIVE" in
-    apps/api/src/register-domains.ts|apps/api/package.json|pnpm-lock.yaml)
-      BLOCKED=true
-      ;;
-    packages/*)
-      BLOCKED=true
-      ;;
-  esac
+# If the path is inside the worktree, allow it
+if [[ "$FILE_PATH" == "$CWD/"* || "$FILE_PATH" == "$CWD" ]]; then
+  exit 0
 fi
 
-# Also block if the relative path within the worktree targets these files
-# (the tool might resolve the worktree path but the file is still wrong to modify)
-case "$FILE_PATH" in
-  */apps/api/src/register-domains.ts|*/apps/api/package.json|*/pnpm-lock.yaml)
-    # Allow if writing within the worktree (worktree copy is OK)
-    if [[ "$FILE_PATH" == "$CWD/"* ]]; then
-      # Writing to worktree's own copy — this is fine for the agent's own testing
-      # but we still block register-domains.ts because agents don't need it
-      case "$FILE_PATH" in
-        */register-domains.ts|*/pnpm-lock.yaml)
-          BLOCKED=true
-          ;;
-      esac
-    else
-      BLOCKED=true
-    fi
-    ;;
-esac
-
-if [[ "$BLOCKED" == "true" ]]; then
+# If the path is inside the main project dir (not the worktree), BLOCK IT
+if [[ -n "$PROJECT_DIR" && "$FILE_PATH" == "$PROJECT_DIR/"* ]]; then
   jq -n '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
-      permissionDecisionReason: "Worktree agents must not modify shared files (register-domains.ts, package.json, pnpm-lock.yaml). Your domain plugin is standalone — test with curl directly."
+      permissionDecisionReason: "You are in a worktree. Write to your worktree path, not the main repo. Use relative paths from your pwd."
     }
   }'
   exit 0
 fi
 
-# Allow everything else
+# Allow everything else (absolute paths outside both main and worktree)
 exit 0
