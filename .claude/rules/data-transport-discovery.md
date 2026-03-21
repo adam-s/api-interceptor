@@ -91,9 +91,16 @@ Before writing any route, produce this log in the conversation:
 | events    | SSR       | (document) | /browser/traffic: zero XHR after 15s wait, no loading state observed |
 | tickets   | ENCODED_XHR | POST /api/explore/v1/listings | /browser/traffic entry #7: binary response, 48KB, protobuf |
 | prices    | WEBSOCKET | wss://prices.example.com | JS bundle search: found WebSocket URL in main.js line 4521 |
+
+## Interaction Evidence (REQUIRED — table is invalid without this)
+Traffic count BEFORE interaction: ___
+Interactions performed: [list at least 3: e.g., clicked next page, scrolled to bottom, clicked a result/detail link]
+Traffic count AFTER interaction: ___
+Detail page visited: [URL of at least one item/event/listing detail page]
+New endpoints discovered: [list any new XHR/API calls, or "none — confirmed embedded-only"]
 ```
 
-**This table is a MANDATORY gate. No routes without it.**
+**This table is a MANDATORY gate. No routes without it.** The Interaction Evidence section is equally mandatory — if it is missing or blank, the table is incomplete and no route code may be written. Agents that find embedded JSON on the search/listing page MUST still visit a detail page (click a result) to discover whether detail data uses a different transport.
 
 **Evidence MUST come from captured browser traffic or JS bundle analysis — NEVER from external research.** Valid evidence sources:
 - `/browser/traffic` entry showing the request/response

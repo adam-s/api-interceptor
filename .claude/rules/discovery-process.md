@@ -44,7 +44,13 @@ Get the full HTML — not DOM text, the actual response body.
 
 This is the most common data source on modern sites. React, Next.js, and similar frameworks embed structured JSON in the HTML for hydration. The data you need is often already there — no XHR required for the initial load.
 
-**⚠️ Finding embedded JSON here does NOT mean you can skip to writing routes.** The embedded data is typically page 1 only. Pagination, ticket/listing grids, and real-time data load via XHR on user interaction. You MUST complete Section 3 (Interact) and pass the Interaction Proof gate before writing any route code.
+**⚠️ STOP — you may NOT write routes yet.** Finding embedded JSON here means you found page 1. You have NOT found: pagination endpoints, detail page data, filtering APIs, or real-time streams. Those only appear when you interact with the page. You MUST complete ALL of the following before writing any route code:
+1. **Section 2** (catalog tokens)
+2. **Section 3** (interact — click next page, click a result to visit a detail page, scroll)
+3. **Section 4** (read JS bundles for hidden endpoints)
+4. **The Transport Classification table** with the **Interaction Evidence** section filled in
+
+Skipping to route code after finding embedded JSON is the #1 agent failure mode. The embedded data is a search/listing page — but the prompt usually also needs detail pages (event details, listing details, product pages). Those are separate URLs with their own embedded JSON or XHR APIs. You must visit at least one.
 
 ```
 Example: boardshop.example.com product listing page
@@ -97,6 +103,8 @@ When you later need to construct a POST request, you already know where every re
 
 Click every interactive element. After each interaction, check what network requests fired.
 
+**Required interactions (do ALL of these):**
+- **Click a result** to visit a detail/item/event page — this is a DIFFERENT URL with its own data. Read its page source for embedded JSON. Check traffic for new XHR. Many sites serve detail data via a different transport than the listing page.
 - **Click:** Load More, Show All, Next Page, pagination buttons
 - **Scroll:** to the bottom — triggers infinite scroll / lazy loading
 - **Filter/Sort:** change dropdowns, checkboxes, search within results
