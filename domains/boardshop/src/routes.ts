@@ -50,6 +50,18 @@
  * HYDRATION-STRIPPED EMBEDDED JSON:
  * 20. GET /hydrated-example     — Script tags removed by JS hydration, use raw HTTP
  *
+ * SVELTEKIT FETCHED DATA:
+ * 21. GET /sveltekit-example    — JSON envelope double-parse (boardshop /sveltekit)
+ *
+ * JSONP CALLBACK:
+ * 22. GET /jsonp-example        — Strip callback wrapper to parse JSON
+ *
+ * CAPTIONS / TIMED TEXT:
+ * 23. GET /captions-example/:sku — Structured timed text from media endpoint
+ *
+ * PUBSUB NOTIFICATION WEBSOCKET:
+ * 24. GET /notifications-example — Secondary WS for push notifications
+ *
  * @module domain-boardshop/routes
  */
 
@@ -793,6 +805,107 @@ export const routes: DomainRoute[] = [
 			}
 
 			return c.json({ fetched: results, count: results.length });
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// JSONP CALLBACK
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 22: JSONP callback wrapper ────────────────────────────
+	// Response is JavaScript: callback([data]). Strip the wrapper to
+	// get the JSON. Common in autocomplete/suggest APIs.
+	{
+		method: 'GET',
+		path: '/jsonp-example',
+		description: 'JSONP: strip callback wrapper to parse JSON.',
+		browserRequired: false,
+		handler: async (c) => {
+			const q = new URL(c.req.url).searchParams.get('q') ?? 'Street';
+			const res = await rateLimitedFetch(
+				`${BASE_URL}/api/suggest?q=${encodeURIComponent(q)}&callback=parseResults`,
+			);
+			if (!res.ok) return c.json({ error: `JSONP returned ${res.status}` }, 502);
+
+			const raw = await res.text();
+			// Strip JSONP wrapper: parseResults([...]) → [...]
+			const jsonStr = raw.replace(/^[^(]+\(/, '').replace(/\);?\s*$/, '');
+			const data = JSON.parse(jsonStr) as Array<[string, string]>;
+
+			return c.json({
+				suggestions: data.map(([name, sku]) => ({ name, sku })),
+				count: data.length,
+				query: q,
+			});
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// CAPTIONS / TIMED TEXT
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 23: Captions/subtitle extraction ──────────────────────
+	// Media sites embed caption URLs in player config. Fetch them
+	// separately for structured timed text data.
+	{
+		method: 'GET',
+		path: '/captions-example/:sku',
+		description: 'Captions: structured timed text from media endpoint.',
+		browserRequired: false,
+		handler: async (c) => {
+			const sku = (c.req.param() as Record<string, string>).sku;
+			const lang = new URL(c.req.url).searchParams.get('lang') ?? 'en';
+
+			const res = await rateLimitedFetch(`${BASE_URL}/api/captions/${sku}?lang=${lang}`);
+			if (!res.ok) return c.json({ error: `Captions returned ${res.status}` }, 502);
+			return c.json(await res.json());
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// PUBSUB / NOTIFICATION WEBSOCKET
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 24: PubSub notification WebSocket ─────────────────────
+	// Secondary WebSocket for push notifications, separate from the
+	// main data stream. Common on sites with real-time events.
+	{
+		method: 'GET',
+		path: '/notifications-example',
+		description: 'PubSub WS: capture push notifications.',
+		browserRequired: false,
+		handler: async (c) => {
+			const count = Math.min(Number(new URL(c.req.url).searchParams.get('count') ?? '3'), 10);
+			const wsUrl = 'ws://localhost:4444/sites/boardshop/ws/notifications';
+
+			const { default: WebSocket } = await import('ws');
+			const updates: unknown[] = [];
+
+			const result = await new Promise<unknown[]>((resolve) => {
+				const ws = new WebSocket(wsUrl);
+				const timeout = setTimeout(() => {
+					ws.close();
+					resolve(updates);
+				}, 10000);
+
+				ws.on('message', (data: Buffer) => {
+					const frame = JSON.parse(data.toString()) as Record<string, unknown>;
+					if (frame.type === 'price_update' && frame.data) {
+						updates.push(frame.data);
+						if (updates.length >= count) {
+							clearTimeout(timeout);
+							ws.close();
+							resolve(updates);
+						}
+					}
+				});
+				ws.on('error', () => {
+					clearTimeout(timeout);
+					resolve(updates);
+				});
+			});
+
+			return c.json({ notifications: result, count: result.length, source: wsUrl });
 		},
 	},
 ];

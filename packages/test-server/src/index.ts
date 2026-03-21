@@ -36,6 +36,7 @@ const WS_ROUTES: WSRoute[] = [
 	{ path: '/sites/liveboard/stream', mode: 'protobuf' },
 	{ path: '/sites/liveboard/ws/json', mode: 'json' },
 	{ path: '/sites/streamshop/chat', mode: 'irc', channel: 'boardshop-live' },
+	{ path: '/sites/boardshop/ws/notifications', mode: 'json' },
 ];
 
 export async function createTestServer(

@@ -16,14 +16,17 @@ Run `pwd` first. Your worktree is at `/tmp/interceptor-worktrees/agent-XXX/`.
 **NEVER:**
 - Write to paths starting with `/Users/` — those hit the main repo
 - Modify `register-domains.ts`, `package.json`, `.gitignore`, or `pnpm-lock.yaml`
-- Run `pnpm install`
+- Run `pnpm install` — dependencies are already available from the main repo
 - Use `mkdir -p` or `cat >` with paths outside your worktree
 
 **ALWAYS:** `$(pwd)/domains/<name>/` for your domain plugin files.
 
-## Tool Call Budget
+## Efficiency
 
-Stay under **120 tool calls**. If you're at 100 and haven't finished, stop building new routes and produce your final results. Diminishing returns means stop — don't retry failed endpoints.
+- Stay under **100 tool calls**. Diminishing returns means stop.
+- Do NOT run `pnpm install` — it wastes 5-20 tool calls and dependencies already exist.
+- Do NOT `sleep` longer than 15 seconds. If something isn't working after 15s, try a different approach.
+- The only rules file is `discovery.md`. Do not look for other rules files.
 
 ## Process Management
 

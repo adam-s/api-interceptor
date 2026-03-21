@@ -387,12 +387,23 @@ export function createBoardshopSite(): Hono {
 		return c.html(html);
 	});
 
-	// ─── POST ?method= dispatch (query param dispatch pattern) ───────────────────
+	// ─── POST ?method= dispatch with CSRF (query param dispatch pattern) ────────
 	// Same URL, different ?method= query param selects the operation.
+	// Requires x-csrf-token header (extracted from hidden input on page).
 	app.post('/methods', async (c) => {
 		const method = c.req.query('method');
 		if (!method) {
 			return c.json({ error: 'method query param required' }, 400);
+		}
+
+		// Validate CSRF token if provided (optional for backward compat)
+		const csrfHeader = c.req.header('x-csrf-token');
+		const sessionCookie = c.req.header('cookie')?.match(/_sid=([^;]+)/)?.[1];
+		if (csrfHeader && sessionCookie && sessions.has(sessionCookie)) {
+			const session = sessions.get(sessionCookie)!;
+			if (csrfHeader !== session.csrf) {
+				return c.json({ error: 'Invalid CSRF token' }, 403);
+			}
 		}
 
 		if (method === 'GetProducts') {
@@ -538,6 +549,58 @@ export function createBoardshopSite(): Hono {
 		c.header('Content-Type', 'text/html; charset=utf-8');
 		return c.html(html);
 	});
+
+	// ─── JSONP callback wrapper pattern ─────────────────────────────
+	// Some APIs return data wrapped in a callback function:
+	// callback({"results":[...]})
+	// Agents must strip the wrapper to parse the JSON.
+	app.get('/api/suggest', (c) => {
+		const q = c.req.query('q') ?? '';
+		const callback = c.req.query('callback') ?? 'callback';
+		const results = PRODUCTS.filter(
+			(p) =>
+				p.name.toLowerCase().includes(q.toLowerCase()) ||
+				p.brand.toLowerCase().includes(q.toLowerCase()),
+		).slice(0, 10);
+
+		const data = JSON.stringify(results.map((p) => [p.name, p.sku]));
+		c.header('Content-Type', 'application/javascript');
+		return c.text(`${callback}(${data})`);
+	});
+
+	// ─── Captions/subtitle endpoint pattern ─────────────────────────
+	// Media sites provide captions as JSON with timestamps.
+	// Discoverable from embedded data (signed URLs in player config).
+	app.get('/api/captions/:sku', (c) => {
+		const sku = c.req.param('sku');
+		const product = PRODUCTS.find((p) => p.sku === sku);
+		if (!product) return c.json({ error: 'Not found' }, 404);
+
+		const lang = c.req.query('lang') ?? 'en';
+		return c.json({
+			language: lang,
+			events: [
+				{ start: 0, end: 3000, text: `Introducing the ${product.name}` },
+				{ start: 3000, end: 6000, text: `Made by ${product.brand}` },
+				{ start: 6000, end: 9000, text: `Category: ${product.category}` },
+				{ start: 9000, end: 12000, text: `Price: $${product.price.toFixed(2)}` },
+			],
+			availableLanguages: ['en', 'es', 'fr', 'de'],
+		});
+	});
+
+	// ─── PubSub/notification WebSocket pattern ──────────────────────
+	// Some sites use a secondary WebSocket for push notifications,
+	// events, or state updates (separate from the main data WS).
+	// This is registered as a WS route in the test server index.
+	// Agents should discover it via preconnect hints or JS bundle search.
+
+	// ─── GraphQL subscription pattern ───────────────────────────────
+	// Some sites use WebSocket for GraphQL subscriptions (real-time
+	// updates over a persistent connection). The transport is
+	// "graphql-ws" protocol over WebSocket, not standard JSON frames.
+	// Agents should identify this from JS bundles containing
+	// "graphql_subscription" or "graphql-ws" protocol strings.
 
 	return app;
 }
