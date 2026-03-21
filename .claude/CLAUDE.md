@@ -91,7 +91,7 @@ FIXTURE_DIR=data/fixtures pnpm --filter @interceptor/api dev  # Instant response
 - TypeScript: strict mode in all `tsconfig.json`
 - Tests: Vitest with workspace mode
 - Frontend API URLs: use **relative URLs** (`/api/...`), not `http://localhost:3001/...`. Next.js rewrites proxy in `apps/web/next.config.ts`.
-- Rate-limited outbound fetch: use `rateLimitedFetch` from `@interceptor/shared` for `browserRequired: false` routes.
+- Rate-limited outbound fetch: use `rateLimitedFetch` from `@interceptor/shared` for `browserRequired: false` routes. **Test every endpoint with curl first** — most work without a browser. Only upgrade to `browserFetch` if direct HTTP returns 429/403/WAF.
 - `page.evaluate()` for data extraction: **FORBIDDEN without proof.** See The #1 Rule above. Allowed uses: navigation actions (clicking, typing), page metadata (URL, title), auth token extraction (CSRF from hidden inputs), and reading the full HTML source for embedded JSON discovery.
 - Every new `.ts`/`.tsx` file: add `// DEBUG: invoke .claude/skills/debug-logs/SKILL.md to verify runtime behavior` as first line.
 - Before fixing any bug: add DEBUG() calls first, observe the actual state, confirm root cause, THEN fix. Never commit a fix without proof.

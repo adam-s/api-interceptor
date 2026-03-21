@@ -1,12 +1,34 @@
 # Phase 3: Extract
 
-## Type A: JSON API routes
+## Implementation Order — Lightest First
 
-Route with `targetUrl` — proxied through `browserFetch()` automatically. Cookies and auth are inherited.
+For every endpoint, **test with direct HTTP (curl) before assuming browser is needed.** Most endpoints work without a browser session.
+
+### Type A0: Direct HTTP (preferred)
+
+Route with custom `handler` using `rateLimitedFetch`. No browser, no cookies, fastest.
+
+```typescript
+{
+  method: 'GET', path: '/search', browserRequired: false,
+  handler: async (c) => {
+    const resp = await rateLimitedFetch(`https://example.com/api/search?q=${q}`);
+    return c.json(await resp.json());
+  }
+}
+```
+
+### Type A1: Browser-proxied HTTP
+
+Use only if direct HTTP returns 429/403/WAF. Route with `targetUrl` — proxied through `browserFetch()`. Cookies and TLS fingerprint inherited.
 
 ```typescript
 { method: 'GET', path: '/search', targetUrl: 'https://api.example.com/v1/search', description: 'Search' }
 ```
+
+### NEVER: `page.evaluate(fetch(...))`
+
+Do not call `fetch()` inside `page.evaluate()`. It does the same thing as `browserFetch` but runs in the browser page context, consuming page memory and blocking navigation. Use `browserFetch` instead.
 
 ## Type B: SSR extraction via `page.evaluate()` (LAST RESORT — requires proof)
 

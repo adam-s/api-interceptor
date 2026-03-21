@@ -36,8 +36,17 @@ These failure modes have caused repeated iteration failures. They are structural
 
 4. **When an API returns empty/zero results, STOP and debug.** Do not guess. Do not tweak CSS selectors. Add DEBUG logs, read the output, understand WHY it's empty, then fix based on observed evidence.
 
+## Implementation Escalation — Lightest First
+
+Every route must use the lightest working approach. Test each level before escalating:
+
+1. **`rateLimitedFetch`** — direct HTTP. Test every discovered endpoint with curl first. If it returns data, use this. Most endpoints work without a browser.
+2. **`browserFetch`** — browser TLS + cookies. Use only if direct HTTP returns 429, 403, or a WAF challenge page. Same server-side processing, just routed through Chrome's network stack.
+3. **`page.evaluate(fetch(...))`** — **NEVER use this.** It does the same thing as `browserFetch` but runs inside the browser page context, consuming memory and blocking the page. Replace with `browserFetch` in every case.
+4. **`page.evaluate` for DOM extraction** — last resort. Requires proof from the Transport Classification table that no network request carries the data.
+
 ## page.evaluate() Rules
 
 **Allowed:** navigation (clicking, typing), page metadata (URL, title), auth token extraction (CSRF), reading raw HTML source for embedded JSON discovery.
 
-**Forbidden without proof:** extracting rendered text, prices, listings, or any user-visible data. Requires evidence from captured traffic that no network request carries the data. DOM extraction = 60–90s loads, locale issues, fragile parsing. Network interception = clean JSON in 1–3s.
+**Forbidden:** `page.evaluate(fetch(...))` — use `browserFetch` instead. Extracting rendered text, prices, listings, or any user-visible data — requires SSR proof from classification table.
