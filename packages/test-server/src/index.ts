@@ -37,6 +37,8 @@ const WS_ROUTES: WSRoute[] = [
 	{ path: '/sites/liveboard/ws/json', mode: 'json' },
 	{ path: '/sites/streamshop/chat', mode: 'irc', channel: 'boardshop-live' },
 	{ path: '/sites/boardshop/ws/notifications', mode: 'json' },
+	{ path: '/sites/boardshop/ws/subscriptions', mode: 'graphql-ws' },
+	{ path: '/sites/boardshop/ws/binary', mode: 'binary' },
 ];
 
 export async function createTestServer(

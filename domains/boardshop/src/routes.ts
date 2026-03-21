@@ -62,6 +62,12 @@
  * PUBSUB NOTIFICATION WEBSOCKET:
  * 24. GET /notifications-example — Secondary WS for push notifications
  *
+ * GRAPHQL SUBSCRIPTION:
+ * 25. GET /gql-subscription-example — graphql-ws protocol over WebSocket
+ *
+ * CUSTOM BINARY WEBSOCKET:
+ * 26. GET /binary-ws-example     — Raw binary frames with header + payload
+ *
  * @module domain-boardshop/routes
  */
 
@@ -906,6 +912,118 @@ export const routes: DomainRoute[] = [
 			});
 
 			return c.json({ notifications: result, count: result.length, source: wsUrl });
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// GRAPHQL SUBSCRIPTION OVER WEBSOCKET
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 25: GraphQL subscription (graphql-ws protocol) ────────
+	// Protocol: connection_init → connection_ack → subscribe → next → complete
+	{
+		method: 'GET',
+		path: '/gql-subscription-example',
+		description: 'GraphQL subscription over WebSocket (graphql-ws protocol).',
+		browserRequired: false,
+		handler: async (c) => {
+			const count = Math.min(Number(new URL(c.req.url).searchParams.get('count') ?? '3'), 10);
+			const wsUrl = 'ws://localhost:4444/sites/boardshop/ws/subscriptions';
+
+			const { default: WebSocket } = await import('ws');
+			const updates: unknown[] = [];
+
+			const result = await new Promise<unknown[]>((resolve) => {
+				const ws = new WebSocket(wsUrl, 'graphql-transport-ws');
+				const timeout = setTimeout(() => {
+					ws.close();
+					resolve(updates);
+				}, 15000);
+
+				ws.on('open', () => {
+					ws.send(JSON.stringify({ type: 'connection_init' }));
+				});
+
+				ws.on('message', (data: Buffer) => {
+					const msg = JSON.parse(data.toString()) as Record<string, unknown>;
+					if (msg.type === 'connection_ack') {
+						ws.send(
+							JSON.stringify({
+								id: '1',
+								type: 'subscribe',
+								payload: { query: 'subscription { priceUpdate { sku price change } }' },
+							}),
+						);
+					} else if (msg.type === 'next' && msg.payload) {
+						updates.push((msg.payload as { data: unknown }).data);
+						if (updates.length >= count) {
+							clearTimeout(timeout);
+							ws.close();
+							resolve(updates);
+						}
+					} else if (msg.type === 'complete') {
+						clearTimeout(timeout);
+						ws.close();
+						resolve(updates);
+					}
+				});
+				ws.on('error', () => {
+					clearTimeout(timeout);
+					resolve(updates);
+				});
+			});
+
+			return c.json({ updates: result, count: result.length, protocol: 'graphql-ws' });
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// CUSTOM BINARY WEBSOCKET FRAMES
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 26: Custom binary frame decoding ──────────────────────
+	// Raw binary frames, not JSON. Frame: [type byte][length BE 2 bytes][payload]
+	{
+		method: 'GET',
+		path: '/binary-ws-example',
+		description: 'Custom binary WebSocket: decode frame header + payload.',
+		browserRequired: false,
+		handler: async (c) => {
+			const count = Math.min(Number(new URL(c.req.url).searchParams.get('count') ?? '3'), 10);
+			const wsUrl = 'ws://localhost:4444/sites/boardshop/ws/binary';
+
+			const { default: WebSocket } = await import('ws');
+			const frames: { type: number; payload: unknown }[] = [];
+
+			const result = await new Promise<typeof frames>((resolve) => {
+				const ws = new WebSocket(wsUrl);
+				const timeout = setTimeout(() => {
+					ws.close();
+					resolve(frames);
+				}, 10000);
+
+				ws.on('message', (data: Buffer) => {
+					const buf = Buffer.from(data);
+					if (buf.length < 3) return;
+					const frameType = buf[0];
+					const payloadLen = buf.readUInt16BE(1);
+					if (frameType === 0x01 && payloadLen > 0) {
+						const payload = JSON.parse(buf.subarray(3, 3 + payloadLen).toString('utf-8'));
+						frames.push({ type: frameType, payload });
+						if (frames.length >= count) {
+							clearTimeout(timeout);
+							ws.close();
+							resolve(frames);
+						}
+					}
+				});
+				ws.on('error', () => {
+					clearTimeout(timeout);
+					resolve(frames);
+				});
+			});
+
+			return c.json({ frames: result, count: result.length, source: wsUrl });
 		},
 	},
 ];

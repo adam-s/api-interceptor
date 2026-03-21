@@ -117,12 +117,17 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 
 | Transport | Boardshop routes | Pattern |
 |-----------|-----------------|---------|
-| Embedded JSON | 1-2, 15-16, 20-21 | Parse `<script>` from raw HTML |
-| JSON API | 4-7, 12, 17, 19 | Direct HTTP, cursors, CSRF, token auth, ?method=, rate-limit fallback |
+| Embedded JSON | 1-2, 15-16, 20-21 | Standard, Next.js Redux, deferred state, hydration-stripped, SvelteKit |
+| JSON API | 4-7, 12, 17, 19 | Cursors, CSRF POST, API key, custom headers, crumb auth, ?method=, rate-limit fallback |
 | GraphQL | 8 | POST with inline query + Client-ID header |
-| WebSocket | 13-14 | Connect, capture N frames, return as JSON |
+| GraphQL Subscription | 25 | graphql-ws protocol over WebSocket |
+| WebSocket (JSON) | 13, 24 | JSON frames, PubSub notifications |
+| WebSocket (protobuf) | 14 | Base64-wrapped binary frames |
+| WebSocket (binary) | 26 | Custom binary frame format (header + payload) |
 | HLS/Media | 9 | Token → master playlist → quality variants |
-| Encoded | 10-11 | Base64 decode, MessagePack decode |
+| Encoded API | 10-11 | Base64 JSON, MessagePack binary |
+| JSONP | 22 | Strip callback wrapper to parse JSON |
+| Captions | 23 | Structured timed text from media endpoint |
 
 Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 
