@@ -1,90 +1,36 @@
 # Gotchas
 
-## Single browser singleton — sequential calls only
+## Single browser singleton
 
-One browser instance, module-level singleton. New WebSocket profile connection destroys the existing browser. Consequences:
-- Only one domain active at a time; most recent profile wins
-- Concurrent `navigate()` calls race — always call domain APIs **sequentially**
-- Traffic capture is profile-scoped; use `&capture=api.otherdomain.com` query param for cross-domain capture
-- Type B2 discovery requires the proxy browser — standalone Patchright scripts have no traffic buffer
+One browser instance, module-level singleton. New WebSocket profile connection destroys the existing browser. Multiple pages within the same context are fine (`page.context().newPage()`), but only one profile at a time. Traffic capture is profile-scoped.
 
 ## Common problems and fixes
 
 | Problem | Fix |
 |---------|-----|
-| Traffic shows 0 entries | **Do NOT immediately assume SSR.** First verify you are using a WS-connected browser (auto-start has no capture). Then wait 15s and re-check. Then run Steps (a)-(f) of the decision tree in `discovery.md`. Only if all checks fail AND Steps 2g validation passes, classify as SSR. |
+| Traffic shows 0 entries | Verify WS-connected browser (auto-start has no capture). Wait 15s. Follow the decision tree in `discovery.md`. |
+| 429 on API endpoint | Don't retry. Check if embedded JSON has the same data — if yes, use embedded JSON. If no, try browserFetch once. See `discovery.md` decision tree. |
+| 202 WAF challenge | Same as 429 — try browserFetch for raw HTML, or use homepage data. |
+| Token endpoint returns 429 | Token is almost always in the page HTML, cookies, or JS globals. Don't call dedicated token endpoints. |
 | Body text empty after navigate | Bot-protected — check for captcha iframe |
-| `textContent` concatenates everything | Use `innerText` instead |
-| `browserFetch` loses session cookies | Use `navigateTo` for CORS subdomains, or Type B2 if no CORS |
-| CORS error from `page.evaluate(fetch)` | Use Type B2 traffic capture |
-| Real-time 429, cached 200 | CDN passes cached (no bot check); origin blocks headless. `age > 0` = CDN |
-| Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see anti-bot.md Step 0) |
-| Direct `fetch()` 429 but browser 200 | TLS fingerprinting (JA3/JA4) — use `browserFetch()` instead |
-| Token endpoint returns 429 | **Don't retry the endpoint.** The token (crumb, CSRF) is almost always embedded in the page HTML, cookies, or JS globals. Extract it from there instead. Dedicated token endpoints are aggressively rate-limited. See discovery.md Step 3. |
+| `browserFetch` loses session cookies | Use `navigateTo` for CORS subdomains |
+| Direct fetch 429 but browser 200 | TLS fingerprinting — use `browserFetch()` |
+| Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see anti-bot.md) |
+| Script tags missing from DOM | Framework hydration stripped them. Fetch raw HTML with `rateLimitedFetch` instead of `page.evaluate(document.outerHTML)`. See Route 20 in boardshop. |
 | Route 404 after editing routes.ts | Kill port 3001, rerun `pnpm dev` |
-| ID regex misses alphanumeric IDs | Use `[A-Z0-9]+` not `\d+` |
-| `data-*` attr != displayed value | Always read from displayed text |
-| `browserRequired: false` gets 503 | Guard must be `if (!browser && route.browserRequired !== false)` |
-| Domain switch returns stale/empty data | Navigate to `about:blank` + 500ms wait before new domain. Use `page.waitForSelector` instead of `setTimeout`. |
-| Multi-domain needs both sites' data | Create second page via `page.context().newPage()`. Don't navigate back and forth — pages share cookies, new tabs are faster than re-navigating. Close extra pages when done. Sequential operations only (no `Promise.all` across browser ops). |
-| `page.evaluate(fetch())` returns `{}` or empty | Site may rate-limit POSTs per page load (one-shot pattern). Also: `page.on('response')` with `response.text()` consumes body for page JS. Use `response.body()` (Buffer) instead. |
-| `innerText` returns category labels not names | Check URL slug or `__NEXT_DATA__` for structured props |
 | `page.evaluate` throws `__name is not defined` | tsx/esbuild injects `__name` — use string-based evaluate |
-| `browserFetch` POST returns "Unable to parse" | Default `Accept: application/json` rejected — use `page.evaluate` with direct `fetch()` |
-| `URLSearchParams` breaks Rest-li syntax | Rest-li uses raw `(key:value)` — build query strings manually |
-| Write operations return empty/binary | Site uses RSC — look for `rsc-action` in traffic; fall back to browser automation |
-| Public API returns XML | Parse with regex: `/<item>([\s\S]*?)<\/item>/g` for RSS |
-| Public API returns `total: 0` with 200 | Soft rate limit — retry after a few seconds |
+| Multi-domain needs both sites' data | `page.context().newPage()` — pages share cookies, faster than re-navigating |
 
-## Browserless Routes with Background Polling
+## Caching and polling
 
-For rate-limited or slow data sources (`browserRequired: false` routes), use a background poller:
+For rate-limited data sources, cache responses with a TTL. See Route 12 (crumb-example) in boardshop for a working 5-minute cache pattern.
 
-1. **Poller** runs every N seconds, stores results in `Map<key, data[]>`, exports getter
-2. **Route handler** reads from in-memory store; cold-start fallback fetches directly with TTL cache
-3. **Factory pattern**: `createRoutes(getBridgeFn?, getDataFn?)` — route factory accepts getter as closure
+For background polling, use an in-memory Map with TTL expiration. Route handlers read from the cache; a background interval refreshes it.
 
-### TTL cache Map
+## Complex text parsing
 
-```typescript
-const cache = new Map<string, { data: Result; expiresAt: number }>();
-const TTL_MS = 5 * 60 * 1000;
-async function fetchWithCache(key: string): Promise<Result> {
-  const hit = cache.get(key);
-  if (hit && hit.expiresAt > Date.now()) return hit.data;
-  const data = await fetchFromSource(key);
-  cache.set(key, { data, expiresAt: Date.now() + TTL_MS });
-  return data;
-}
-```
+If extraction requires more than ~3 lines of regex, use the Python bridge (`services/python/worker.py`) with NLP libraries (`dateutil`, `usaddress`, `thefuzz`, `spacy`).
 
-### `broadcastMessage` wiring
-
-Inject `broadcastMessage` via `setBroadcast(fn)` before starting the poller. Domain package exports `setBroadcast`; `apps/api/src/index.ts` calls it with imported `broadcastMessage` from `./state`.
-
-### RSS / XML feed parsing
-
-```typescript
-function parseRssXml(xml: string) {
-  const items: Array<{ title: string; link: string; description: string; pubDate: string }> = [];
-  for (const [, block] of xml.matchAll(/<item>([\s\S]*?)<\/item>/g)) {
-    const get = (tag: string) => block.match(new RegExp(`<${tag}[^>]*><!\\[CDATA\\[([\\s\\S]*?)\\]\\]><\\/${tag}>`))?.[1]
-      ?? block.match(new RegExp(`<${tag}[^>]*>([^<]*)<\\/${tag}>`))?.[1] ?? '';
-    items.push({ title: get('title').trim(), link: get('link').trim(),
-      description: get('description').trim(), pubDate: get('pubDate').trim() });
-  }
-  return items;
-}
-```
-
-### Unix timestamps
-
-Many APIs use unix epoch seconds (10 digits). `Math.floor(Date.now() / 1000)` for current time.
-
-## Text parsing: use the Python bridge instead of regex chains
-
-If extraction requires more than ~3 lines of regex, stop and use the Python bridge with proper NLP/parsing libraries (`dateutil`, `usaddress`, `thefuzz`, `spacy`). Fragile regex chains break on the next text variation. The Python bridge exists for exactly this case.
-
-## Verify extraction with diverse inputs
+## Verify with diverse inputs
 
 Test every route with at least 3 different entities before declaring it complete.
