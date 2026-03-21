@@ -142,7 +142,7 @@ We discovered these problems through 5 iterations of instruction tuning, running
 
 **Iteration 5:** Moved worktrees outside repo to `/tmp/interceptor-worktrees/`. Guard hook updated. Write to main blocked, write to worktree allowed. First clean run.
 
-Each iteration ran 6 discovery agents against: a ticket marketplace, an event resale site, a property rental platform, a financial data site, a streaming platform, and a video platform. The worktree contamination was invisible in early iterations because results looked correct — agents worked in their worktrees but side-effected main via absolute paths and `pnpm install`.
+Each iteration ran 6 discovery agents in parallel against real websites covering different transport types (embedded JSON, GraphQL, WebSocket, HLS, encoded APIs). The worktree contamination was invisible in early iterations because results looked correct — agents worked in their worktrees but side-effected main via absolute paths and `pnpm install`.
 
 ## Anthropic's Own Approach
 
