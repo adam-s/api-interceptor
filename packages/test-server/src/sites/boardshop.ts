@@ -256,7 +256,8 @@ export function createBoardshopSite(): Hono {
 	// then escalate to browserFetch when blocked.
 	app.get('/api/availability', (c) => {
 		const ua = c.req.header('user-agent') ?? '';
-		const isLikelyBrowser = ua.includes('Chrome/') || ua.includes('Firefox/') || ua.includes('Safari/');
+		const isLikelyBrowser =
+			ua.includes('Chrome/') || ua.includes('Firefox/') || ua.includes('Safari/');
 		if (!isLikelyBrowser) {
 			return c.json({ error: 'Too many requests' }, 429);
 		}
@@ -271,6 +272,156 @@ export function createBoardshopSite(): Hono {
 			available: result.items.filter((p) => p.stock > 0).length,
 			totalProducts: result.totalCount,
 			items: result.items.map((p) => ({ sku: p.sku, name: p.name, stock: p.stock })),
+		});
+	});
+
+	// ─── __NEXT_DATA__ page (Ticketmaster/Next.js pattern) ──────────
+	// Same catalog data, but wrapped in __NEXT_DATA__ Redux state.
+	// Agents must navigate: props.pageProps.initialReduxState.api.queries
+	app.get('/nextjs', (c) => {
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+		const nextData = {
+			props: {
+				pageProps: {
+					initialReduxState: {
+						api: {
+							queries: {
+								'searchResults({})': {
+									status: 'fulfilled',
+									data: {
+										items: page1.items,
+										totalCount: page1.totalCount,
+										pageSize: page1.pageSize,
+									},
+								},
+								'getConfig({})': {
+									status: 'fulfilled',
+									data: {
+										siteName: 'BoardShop',
+										apiBase: '/api/v2',
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			page: '/search',
+			query: {},
+		};
+
+		const html = `<!DOCTYPE html>
+<html><head><meta name="next-head-count" content="3"><title>BoardShop — Next.js</title></head>
+<body><div id="__next"><p>Loading...</p></div>
+<script id="__NEXT_DATA__" type="application/json">${JSON.stringify(nextData)}</script>
+</body></html>`;
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// ─── Deferred state page (Airbnb/Niobe pattern) ─────────────────
+	// Data nested at clientData[0][1].data.presentation.searchResults
+	// Different nesting depth than standard embedded JSON.
+	app.get('/deferred', (c) => {
+		const page1 = getProductPage(1, MAX_PAGE_SIZE);
+		const deferredState = [
+			[
+				'SearchController',
+				{
+					data: {
+						presentation: {
+							searchResults: page1.items,
+							metadata: {
+								totalCount: page1.totalCount,
+								pageSize: page1.pageSize,
+								nextPageCursor: Buffer.from(JSON.stringify({ offset: 20, version: 1 })).toString(
+									'base64',
+								),
+							},
+						},
+					},
+				},
+			],
+		];
+
+		const html = `<!DOCTYPE html>
+<html><head><title>BoardShop — Deferred State</title></head>
+<body><div id="app"><p>Loading results...</p></div>
+<script id="data-deferred-state-0" type="application/json">${JSON.stringify(deferredState)}</script>
+</body></html>`;
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// ─── POST ?method= dispatch (StubHub pattern) ───────────────────
+	// Same URL, different ?method= query param selects the operation.
+	app.post('/methods', async (c) => {
+		const method = c.req.query('method');
+		if (!method) {
+			return c.json({ error: 'method query param required' }, 400);
+		}
+
+		if (method === 'GetProducts') {
+			const body = (await c.req.json().catch(() => ({}))) as {
+				page?: number;
+				category?: string;
+			};
+			const page = body.page ?? 1;
+			const category = body.category as 'decks' | 'trucks' | 'wheels' | 'accessories' | undefined;
+			return c.json(getProductPage(page, MAX_PAGE_SIZE, category));
+		}
+
+		if (method === 'GetCategories') {
+			return c.json({
+				categories: [
+					{ id: 'decks', name: 'Skate Decks', count: 40 },
+					{ id: 'trucks', name: 'Trucks', count: 30 },
+					{ id: 'wheels', name: 'Wheels', count: 30 },
+					{ id: 'accessories', name: 'Accessories', count: 20 },
+				],
+			});
+		}
+
+		if (method === 'GetFeatured') {
+			const featured = PRODUCTS.filter((p) => p.rating >= 4.5).slice(0, 5);
+			return c.json({ featured });
+		}
+
+		return c.json({ error: `Unknown method: ${method}` }, 400);
+	});
+
+	// ─── Base64 cursor pagination (Airbnb pattern) ──────────────────
+	// Accepts ?cursor=base64({"offset":20}) alongside existing ?after= string cursors.
+	// Returns nextCursor as a base64-encoded JSON object.
+	app.get('/catalog/cursor', (c) => {
+		let offset = 0;
+		const cursorParam = c.req.query('cursor');
+		if (cursorParam) {
+			try {
+				const decoded = JSON.parse(Buffer.from(cursorParam, 'base64').toString('utf-8')) as {
+					offset?: number;
+				};
+				offset = decoded.offset ?? 0;
+			} catch {
+				return c.json({ error: 'Invalid cursor' }, 400);
+			}
+		}
+
+		const limit = Math.min(Number(c.req.query('limit') ?? MAX_PAGE_SIZE), MAX_PAGE_SIZE);
+		const items = PRODUCTS.slice(offset, offset + limit);
+		const hasMore = offset + limit < PRODUCTS.length;
+		const nextCursor = hasMore
+			? Buffer.from(JSON.stringify({ offset: offset + limit, version: 1 })).toString('base64')
+			: null;
+
+		return c.json({
+			items,
+			totalCount: PRODUCTS.length,
+			pageSize: limit,
+			nextCursor,
+			hasMore,
 		});
 	});
 

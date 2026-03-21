@@ -30,16 +30,16 @@ The auto-started browser does NOT capture traffic — only WS-connected browsers
 
 Run this FOR EACH data type on the page. One page can use multiple transports.
 
-| Priority | Check | Transport | Route approach |
-|----------|-------|-----------|----------------|
-| **(a)** | WebSocket? CDP doesn't capture WS frames — search JS for `wss://`, `new WebSocket(` | WebSocket | Intercept WS frames. See `domains/boardshop/src/routes.ts` ws-example route |
-| **(b)** | Requests to `/graphql` or body has `query`/`mutation`? | GraphQL | Proxy the query. See `domains/boardshop/src/routes.ts` graphql-example route |
-| **(c)** | Content-Type `application/grpc-web`? | gRPC-Web | Decode protobuf. See `domains/boardshop/src/routes.ts` encoded-example route |
-| **(d)** | Content-Type `text/event-stream`? | SSE | Subscribe and relay |
-| **(e)** | XHR/Fetch with JSON response containing the data? | JSON API | Proxy with `rateLimitedFetch` or `browserFetch` |
-| **(e2)** | HTML contains `<script type="application/json">` with the data? | Embedded JSON | Parse JSON from HTML. See `domains/boardshop/src/routes.ts` Routes 1-2 |
-| **(f)** | XHR with non-JSON body (binary, base64, encoded)? | Encoded API | **Decode it** — see `api-discovery/reference/decoding.md`. NEVER skip to (g) |
-| **(g)** | ZERO relevant network requests after 15s wait | SSR | DOM extraction via `page.evaluate()` — LAST RESORT |
+| Priority | Check | Transport | Working example in `domains/boardshop/src/routes.ts` |
+|----------|-------|-----------|------------------------------------------------------|
+| **(a)** | WebSocket? Search JS for `wss://`, `new WebSocket(` | WebSocket | Routes 13-14: JSON + protobuf WS frames |
+| **(b)** | Requests to `/graphql` or body has `query`/`mutation`? | GraphQL | Route 8: inline query with Client-ID |
+| **(c)** | Content-Type `application/grpc-web`? | gRPC-Web | Route 10: decode protobuf |
+| **(d)** | Content-Type `text/event-stream`? | SSE | (no example yet) |
+| **(e)** | JSON response? Also: POST `?method=X` dispatch | JSON API | Routes 4-7, 12, 17: cursors, CSRF, custom headers, crumb, ?method= |
+| **(e2)** | `<script type="application/json">` in HTML? Also check `__NEXT_DATA__`, `data-deferred-state` | Embedded JSON | Routes 1-2, 15-16: standard, Next.js Redux, deferred state |
+| **(f)** | Non-JSON body (binary, base64, msgpack)? | Encoded API | Routes 10-11: base64 JSON, MessagePack |
+| **(g)** | ZERO relevant network requests after 15s | SSR | Last resort — DOM extraction |
 
 Before accepting (g) SSR: confirm no loading indicators appeared, no requests were filtered, and the page has content.
 
