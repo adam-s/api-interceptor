@@ -39,6 +39,8 @@ for e in json.load(sys.stdin).get('entries', []):
 
 Save the full headers and cookies. This is your known-good baseline.
 
+**Replay immediately to verify.** Before doing anything else, replay the captured request from Node.js with ALL headers and cookies intact. If the replay returns the same data as the browser got, you have a working baseline. If it fails, the site may check TLS fingerprint — try `browserFetch` instead.
+
 ### Phase 2 — Elimination
 
 Replay the working request from Node.js `fetch` with ALL captured headers and cookies. Confirm you get the same response. Then remove values one at a time:

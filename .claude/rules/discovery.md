@@ -171,6 +171,14 @@ If total > items returned, the route is NOT DONE. Paginate until all items are r
 
 **STOP. Read `.claude/skills/api-discovery/reference/session-harvest.md` before writing any session harvest code.** Do not attempt session harvest without completing all three phases described in that file. Do not invent your own cookie-fetching approach — the reference file covers `Set-Cookie` harvest, JS-challenge cookies via Patchright, elimination testing, and encoded value tracing.
 
+**Traffic replay shortcut:** The browser traffic from Step 1d already contains working requests for Gap=Y endpoints — with all required headers and cookies. Before building a harvester from scratch:
+1. Find the working request in captured traffic (URL, method, headers, cookies, body)
+2. Replay it from Node.js `fetch` with ALL captured values — confirm you get the same response
+3. Run elimination (remove one header/cookie at a time) to find the minimum auth set
+4. Build the route using the minimum set + a harvest step to obtain the required cookies
+
+This is faster and more reliable than guessing which cookies/headers are needed.
+
 A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
 
 Reference: Routes 30-31 in `domains/boardshop/src/routes.ts` demonstrate both `Set-Cookie` harvest and multi-cookie harvest patterns.
