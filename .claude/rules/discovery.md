@@ -63,7 +63,7 @@ sleep 15
 
 **1b. Confirm your pre-flight (1-2 tool calls).** Navigate the homepage and verify your pre-flight hypotheses. Correct anything that's wrong. You already know what this site is — don't spend tool calls rediscovering it.
 
-**1c. Find a page with 100+ items.** You already know what kind of pages on this site will have the most items — use that knowledge. Navigate directly to a page you expect to have 100+ items. Check the count with `page.evaluate` (read a "showing X of Y" indicator or count list elements). If < 100 items, navigate to a busier instance — don't attempt interception on small pages. Pagination controls and XHR endpoints only appear when there are enough items to paginate.
+**1c. Find a page with 100+ items.** You already know what kind of pages on this site will have the most items — use that knowledge. Navigate directly to a page you expect to have 30+ items. Check the count with `page.evaluate` (read a "showing X of Y" indicator or count list elements). If < 30 items, navigate to a busier instance — don't attempt interception on small pages. Pagination controls and XHR endpoints only appear when there are enough items to paginate.
 
 **1d. Intercept pagination.** Snapshot → trigger → diff.
 
