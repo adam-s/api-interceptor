@@ -31,10 +31,21 @@ The sub-agent's code is throwaway. The instruction improvements are the product.
    - Grep for the concept you changed (pagination, testing, session harvest, etc.)
    - Verify every mention says the same thing across rules/, agents/, skills/
    - Fix any file that contradicts or uses softer language than your change
-8. Add any new patterns to test-server + boardshop reference routes
-9. Commit and push all fixes
-10. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
-11. Start fresh Claude Code session to clear stale context, repeat
+8. PRUNE .claude/ — delete redundant lines, reduce noise, keep instructions tight. Shorter files are followed better. If a rule can be said in 1 line instead of 3, use 1 line.
+9. PROCESS CLEANUP — kill all zombie processes before and after every iteration:
+   ```bash
+   bash .claude/hooks/cleanup-agents.sh
+   # Verify nothing is left:
+   pgrep -f "chromium|patchright|tsx.*src/index|next-server|node.*api" | head -20
+   lsof -iTCP:3010-3020 -sTCP:LISTEN 2>/dev/null
+   ```
+   Chrome instances, API servers, Next.js servers, Patchright browsers, and Claude sub-agents all leak if not cleaned up. This is critical — orphaned processes consume memory and block ports.
+10. FIX INFRASTRUCTURE — if agents waste calls on browser crashes, server restarts, package linking, or port conflicts, fix the underlying infrastructure (scripts, server code, browser service) not just the instructions. Infrastructure bugs burn more tokens than protocol bugs.
+11. BUILD UTILITIES — if agents repeat the same multi-step operation (connect browser + wait + check traffic, restart server + wait + health check), create a script or endpoint that does it in one call. Fewer tool calls = fewer tokens.
+12. Add any new patterns to test-server + boardshop reference routes
+13. Commit and push all fixes
+14. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
+15. Start fresh Claude Code session to clear stale context, repeat
 ```
 
 ## Consistency Check (Step 7)

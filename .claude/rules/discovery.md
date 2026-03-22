@@ -87,6 +87,8 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 - Do NOT call `rateLimitedFetch` or `curl` the site directly — the browser is the only tool
 - Do NOT use `page.evaluate` to extract data (`__NEXT_DATA__`, Redux state, DOM text, HTML). Use it ONLY to interact: find elements and activate them
 - Do NOT analyze traffic content — just capture it
+- Do NOT fetch HTML or JS bundles — that happens in SCAN, not GATHER
+- **Low traffic is normal.** After a homepage loads, you may see only 1-4 traffic entries. This does NOT mean you should fetch HTML directly. It means you need to navigate to more pages and interact more. Every page you visit and every control you activate adds entries. Navigate to 3-4 pages and interact before drawing any conclusions about traffic.
 
 ---
 
