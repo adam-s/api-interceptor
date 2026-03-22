@@ -18,16 +18,35 @@ Before connecting the browser, write down everything you already know about the 
 ## Pre-flight: [target URL]
 - What is this site? What does it sell/show?
 - Framework: [Next.js, SvelteKit, React SPA, server-rendered, etc.]
-- Known API endpoints or patterns: [e.g., internal API paths, GraphQL endpoint, REST API]
-- Pagination pattern: [cursor, offset/limit, page numbers, infinite scroll, "Show More" button]
+- Known API endpoints or patterns: [internal API paths, GraphQL endpoint, REST API]
+- Pagination pattern: [cursor, offset/limit, page numbers, infinite scroll, "Show More"]
 - Authentication: [public, API key, CSRF token, cookies, OAuth]
 - Bot detection: [Cloudflare, Kasada, Akamai, DataDome, none known]
 - Embedded data pattern: [__NEXT_DATA__, data-deferred-state, window.__INITIAL_STATE__, etc.]
-- Which specific page will have 100+ items? [use your knowledge to name a specific URL or navigation path]
-- Known rate limits or gotchas: [geo-restrictions, consent walls, login walls]
+- Known gotchas: [geo-restrictions, consent walls, login walls]
 ```
 
-**WARNING: Your training data may be stale.** Sites change their APIs, frameworks, and auth mechanisms constantly. Everything above is a hypothesis, not fact. GATHER must confirm or correct every assumption. Do NOT skip GATHER because you think you already know the answers. Do NOT build routes from pre-flight knowledge alone — every endpoint must be verified against the live site.
+**Content hierarchy with pagination targets.** Every site has a hierarchy where you drill down to find paginated lists. Write yours out and name specific busy instances:
+
+```
+Level 1: [top-level browsing] → pick the busiest category
+Level 2: [mid-level listing] → pick the most popular item
+Level 3: [detail page with sub-items] → THIS is where pagination lives
+```
+
+Examples of hierarchies — your site follows one of these patterns:
+- genre → artist → event → **ticket listings** (pick an artist with sold-out stadium shows)
+- origin → destination → **flight listings** (pick the busiest route)
+- brand → category → **product listings** (pick the most popular category)
+- channel → video → **comments** (pick a viral video)
+- city → neighborhood → **rental listings** (pick the most popular city)
+- league → team → **game listings** (pick the team with the most games)
+- topic → thread → **replies** (pick the most active thread)
+- search query → **results** (pick a broad, popular query)
+
+**Name your specific target:** Don't write "a popular event" — write the actual navigation path you'll take to reach a page with 100+ items. You know which instances are popular.
+
+**WARNING: Your training data may be stale.** Everything above is a hypothesis. GATHER must confirm or correct every assumption. Do NOT skip GATHER or build routes from pre-flight knowledge alone.
 
 ---
 
