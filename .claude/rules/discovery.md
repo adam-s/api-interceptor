@@ -29,10 +29,10 @@ sleep 15
 - What are the most important content types?
 - Content hierarchy: [top-level → mid-level → detail-level]
 - What is the deepest, most valuable paginated content?
-- Where will I find a page with MANY items and a pagination control?
+- What specific page will have 100+ items? (Use your knowledge of the site to pick the busiest possible instance)
 ```
 
-**1c. Navigate to the deepest paginated content.** Go to the page with the most items at the lowest level of the hierarchy. If < 20 items or no pagination control, find a busier page.
+**1c. Find a page with 100+ items.** You already know what kind of pages on this site will have the most items — use that knowledge. Navigate directly to a page you expect to have 100+ items. Check the count with `page.evaluate` (read a "showing X of Y" indicator or count list elements). If < 100 items, navigate to a busier instance — don't attempt interception on small pages. Pagination controls and XHR endpoints only appear when there are enough items to paginate.
 
 **1d. Intercept pagination.** Snapshot → trigger → diff.
 
@@ -52,7 +52,10 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 
 **Success:** New traffic entries appeared → record URL, method, headers, response shape.
 
-**If 0 new entries:** Try a busier page, a different control, or scroll (`window.scrollTo(0, document.body.scrollHeight)`). If no page produces XHR pagination, the site uses embedded data — note this.
+**If 0 new entries:** The most likely cause is the page didn't have enough items to trigger pagination. Try:
+1. A page with MORE items (check the count — you need 100+)
+2. A different control (scroll, "Next" link, page number)
+3. Only after trying 3+ pages with 100+ items and getting 0 XHR each time, conclude the site uses embedded data
 
 **1e. Repeat on a second page type.** Intercept at a different level of the content hierarchy.
 
