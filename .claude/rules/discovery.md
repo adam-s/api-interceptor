@@ -27,16 +27,36 @@ Collect ALL evidence before analyzing anything.
 **1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML).
 - Save the content for scanning.
 
-**1d.** Connect browser via WebSocket, wait 15 seconds, capture traffic.
+**1d.** Connect browser, capture LIST page traffic, then navigate to a DETAIL page and capture again.
 ```bash
 ./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
 sleep 15
-curl -s http://localhost:PORT/browser/traffic
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-list.json
+```
+Now click into a specific item (product, event, video, listing, article). This is not optional — detail pages fire the site's richest APIs (pricing, inventory, availability, reviews). Scrolling on a list page does NOT count.
+```bash
+# After navigating to a detail/item page and waiting 10s:
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
 ```
 
-**1e.** Interact with the page (click a result, scroll, click next page), then re-capture traffic.
+**Required output from 1d:**
+- Detail page URL visited: ___
+- List page traffic entry count: ___
+- Detail page traffic entry count: ___
+- NEW endpoints that appeared on the detail page: [list]
 
-**Output:** 2 HTML files, 1 JS bundle, traffic entries before and after interaction.
+**1e.** Build the Access Gap table. For each API endpoint the browser called, try the same request with plain `rateLimitedFetch` (no cookies). Record the result:
+
+```
+## Access Gaps
+| Endpoint (from browser traffic) | Browser status | Direct HTTP status | Gap? |
+|--------------------------------|---------------|-------------------|------|
+| [url]                          | 200           | 200 / 401 / 403   | Y/N  |
+```
+
+Any row with Gap=Y is a **session harvest target** in BUILD. These are not optional — they represent data the site delivers only to authenticated browsers.
+
+**Output:** 2 HTML files, 1 JS bundle, list + detail traffic, and the Access Gap table.
 
 ---
 
@@ -78,9 +98,13 @@ for e in d.get('entries',[]):
 
 ### STEP 3: CLASSIFY (0 tool calls — reasoning only)
 
+**First: identify the site's core data.** What does this site exist to show users? (Tickets, listings, prices, videos, articles, products.) Your routes must cover this data. If your ✓ transports only cover metadata (search, categories, trending) but not the core data, you are missing the most important routes.
+
 Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 
 ```
+## Core data: [what this site sells/shows — e.g., "ticket listings with prices"]
+
 ## Transport Elimination: [domain]
 | Transport      | Present? | Evidence                                    | Page type   |
 |----------------|----------|---------------------------------------------|-------------|
@@ -93,28 +117,33 @@ Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 | SSE            | ✓ or ✗   | [EventSource in JS, or "not found"]         |             |
 | Encoded/Binary | ✓ or ✗   | [non-JSON response, or "all JSON/HTML"]     |             |
 
-## Interaction Evidence
-Traffic BEFORE interaction: ___
-Interactions: [list at least 3]
-Traffic AFTER interaction: ___
-Detail page visited: [URL]
-New transports found: [list or "none"]
+## Access Gaps (from Step 1e)
+[paste the Access Gap table here — every Gap=Y row becomes a session harvest route in BUILD]
+
+## Completeness check
+- Core data covered by a ✓ transport? [yes/no]
+- Access Gap rows with Gap=Y: [count]
+- Session harvest routes needed: [count]
 ```
 
-**The table is not complete until every row has ✓ or ✗ with evidence.** Do NOT start building routes until this table is filled.
+**The table is not complete until every row has ✓ or ✗ with evidence AND the completeness check is filled.** Do NOT start building routes until this table is filled.
 
 ---
 
 ### STEP 4: BUILD (2-3 tool calls per ✓ transport)
 
-For EACH ✓ row, build a route using the cheapest approach:
+Build routes in two passes:
 
+**Pass 1 — Public endpoints** (no Access Gap): use the cheapest approach that works.
 1. `rateLimitedFetch` — try first. Most endpoints work without a browser.
 2. `browserFetch` — if direct HTTP returns 429/403/404/202.
 3. `page.evaluate` — if browserFetch fails (CORS, timeout).
-4. **Session harvest** — if all three above fail (see below).
 
-**Every ✓ row requires a route. No exceptions.** If the cheapest approach fails, escalate to the next. Only change ✓ to ✗ if all four approaches fail. "Bot-protected" or "signed URLs" is not ✗ — it means escalate.
+**Pass 2 — Auth-gated endpoints** (Gap=Y from Access Gap table): go directly to session harvest. Do not waste time trying rateLimitedFetch on endpoints you already proved return 401/403 without cookies. The Access Gap table already told you these need browser cookies — session harvest is the correct approach, not a last resort.
+
+**Every ✓ row requires a route. No exceptions.** Only change ✓ to ✗ if all approaches including session harvest fail. "Bot-protected" or "signed URLs" is not ✗ — it means session harvest.
+
+**Pagination gate:** After each route returns data, check for totalCount/total/count fields. If the response says 3000 items and you received 16, the route is **0.5% complete**. Paginate until done. If pagination requires cookies, that is session harvest — not a reason to stop.
 
 #### Session Harvest Escalation (when 1-3 all fail)
 

@@ -60,6 +60,9 @@ Agent prompt template:
 Discover ALL transport types that [site] uses. Build a route for EVERY transport found.
 Target: [url]
 Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
+In GATHER: you MUST visit a detail/item page in the browser and build the Access Gap table.
+In CLASSIFY: name the site's core data and verify your transports cover it.
+In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest.
 Fill ALL 8 elimination rows before writing code.
 After building routes, register your domain and test EVERY route through the API server proxy.
 Your port is XXXX.
@@ -73,7 +76,11 @@ Your port is XXXX.
 | Route built for EVERY ✓ transport | |
 | Used GATHER→SCAN→CLASSIFY→BUILD pipeline | |
 | Did NOT search for public APIs | |
-| Browser traffic captured (Steps 1d/1e) | |
+| Detail page visited in browser (URL recorded) | |
+| Access Gap table produced (Step 1e) | |
+| Core data identified in CLASSIFY | |
+| Session harvest attempted for Gap=Y endpoints | |
+| Pagination complete (no totalCount >> items returned) | |
 | Routes tested through API server proxy (not just curl) | |
 | Wrote files to worktree, not main repo | |
 | Stayed under 150 tool calls | |
