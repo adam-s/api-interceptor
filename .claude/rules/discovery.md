@@ -27,21 +27,25 @@ Collect ALL evidence before analyzing anything.
 **1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML).
 - Save the content for scanning.
 
-**1d.** Connect browser, capture LIST page traffic, then navigate to a DETAIL page and capture again.
+**1d.** Think about how a human discovers a site's API. They open the page in Chrome, open the Network tab, and start clicking around. Every click, scroll, and navigation fires requests that appear in the Network tab. The human sees the exact URL, method, headers, cookies, and response body for every request. After 2 minutes of clicking, they know every API the site uses.
+
+**Do the same thing.** Connect a browser, capture traffic, and interact with the page. Use whatever tools get you there — `connect-browser.sh`, Patchright scripts, `browser-cli.sh`, or `page.evaluate`. The goal is to see every request the browser makes when a user browses the site.
+
+**Your #1 goal in GATHER: find every list and its pagination mechanism.** Every site has lists (products, events, listings, videos, articles). Every list has more items than the first page shows. The pagination request — the exact POST or GET that loads page 2 — is the most valuable thing you can capture. If you leave GATHER without capturing at least one pagination request, BUILD will be twice as hard.
+
+**Minimum interactions (do ALL of these):**
+1. Load the list/home page → capture traffic. Look for lists immediately — how many items? Is there a "Show more" or "Next" button?
+2. Click into a detail/item page (product, event, video, listing) → capture traffic. Detail pages fire the richest APIs (pricing, inventory, availability).
+3. **On any page with a list**, click "Show more", "Load more", "Next page", or scroll to load more → capture traffic. The request that fires IS the pagination pattern. Record it — you'll replicate it in BUILD.
+
 ```bash
+# Example using connect-browser.sh:
 ./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
 sleep 15
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-list.json
-```
-Now click into a specific item (product, event, video, listing, article). This is not optional — detail pages fire the site's richest APIs (pricing, inventory, availability, reviews). Scrolling on a list page does NOT count.
-```bash
-# After navigating to a detail/item page and waiting 10s:
+# Navigate to detail page, wait 10s, capture again:
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
-```
-
-Then **interact with the detail page**: click "Show more", "Load more", "Next page", or scroll to trigger lazy loading. These interactions fire API requests (often POST) that reveal the pagination endpoints. Capture traffic after each interaction.
-```bash
-# After clicking pagination controls and waiting 5s:
+# Click pagination controls, wait 5s, capture again:
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-pagination.json
 ```
 
@@ -146,20 +150,32 @@ Do NOT start building routes until this table is filled.
 
 ### STEP 4: BUILD (2-3 tool calls per ✓ transport)
 
+Three principles before you start:
+1. **Interact with every page** — if you didn't click buttons and scroll during GATHER, go back. The most valuable traffic comes from interactions, not passive page loads.
+2. **Know before you code** — for Gap=Y endpoints, run elimination to find the minimum auth set before writing any route code. Guessing wastes 10x more calls than measuring.
+3. **Test with enough data** — if a detail page shows all items with no pagination, find a busier page. Pagination only appears when there are many items.
+
 Each route has two phases. A route is NOT done after phase A.
 
 **Phase A — Prove the endpoint works.** Get a successful first response.
 
-For public endpoints (no Access Gap), try the cheapest approach:
-1. `rateLimitedFetch` — try first if the endpoint doesn't need auth.
-2. `browserFetch` — if direct HTTP returns 429/403/404/202.
-3. `page.evaluate` — if browserFetch fails (CORS, timeout).
+For public endpoints (Gap=N), try the cheapest approach:
+1. `rateLimitedFetch` — try first.
+2. `browserFetch` — only if direct HTTP returns 429/403/404/202. This is not a retry — it's a different tool that runs inside the browser context.
+3. `page.evaluate` — only if browserFetch fails (CORS, timeout).
 
-For auth-gated endpoints (Gap=Y from Access Gap table), session harvest IS the correct approach — not a fallback. Do not try `rateLimitedFetch` on endpoints you already proved require auth. Go directly to session harvest. Skipping this because it seems "expensive" means your route returns incomplete data.
+For auth-gated endpoints (Gap=Y), go directly to session harvest. You already ran elimination and know the minimum required set. Do not try `rateLimitedFetch` on endpoints you already proved require auth.
 
 **Phase B — Complete the route.** Getting the first page of data is step 1, not the finish line. Pagination is often harder than the initial request — it may require different auth, different request format, or sequential state. This is the actual work.
 
-**Click-intercept pagination** — the primary approach when pages have "Show more", "Load more", or "Next" buttons:
+Common pagination patterns (try cheapest-first):
+1. **URL params** — `?page=2`, `?offset=20`, `?cursor=X` (free, no browser needed). See boardshop Routes 4, 18.
+2. **Response cursor/token** — use `nextCursor`, `continuation`, `after`, or base64-encoded cursor from Phase A response. See boardshop Route 18.
+3. **POST body increment** — same endpoint, increment `CurrentPage` or `offset` in JSON body. May need CSRF token. See boardshop Routes 7, 31.
+4. **Offset + limit** — `?offset=N&limit=20`, increment offset by page size. See boardshop Routes 30, 32.
+5. **Click-intercept** — when the above fail OR the endpoint is WAF-gated (Gap=Y), use Patchright to click the button and intercept the response. See boardshop Route 33.
+
+**Click-intercept pagination** — use when cheaper approaches fail or when the endpoint requires browser cookies:
 1. Launch Patchright, navigate to the page
 2. Set up response interception: `page.on('response', async (res) => { ... })`
 3. Handle any modals/overlays (dismiss popups, accept cookies, close quantity selectors)
@@ -182,7 +198,7 @@ After each route returns data, fill this **mandatory completeness check**:
 | If no: what pagination approach is needed | ___ |
 ```
 
-If total > items returned, the route is NOT DONE. Paginate until all items are returned. If pagination requires cookies the initial request didn't need, that is session harvest — read the reference file.
+If total > items returned, the route is NOT DONE — **do not move to the next route.** Paginate until all items are returned. If pagination requires cookies the initial request didn't need, that is session harvest — read the reference file.
 
 **Every ✓ row requires a route. No exceptions.** Only change ✓ to ✗ if all approaches including session harvest fail. "Stubborn" or "signed URLs" is not ✗ — it means session harvest.
 
@@ -190,13 +206,15 @@ If total > items returned, the route is NOT DONE. Paginate until all items are r
 
 **STOP. Read `.claude/skills/api-discovery/reference/session-harvest.md` before writing any session harvest code.** Do not attempt session harvest without completing all three phases described in that file. Do not invent your own cookie-fetching approach — the reference file covers `Set-Cookie` harvest, JS-challenge cookies via Patchright, elimination testing, and encoded value tracing.
 
-**Traffic replay shortcut:** The browser traffic from Step 1d already contains working requests for Gap=Y endpoints — with all required headers and cookies. Before building a harvester from scratch:
+**Traffic replay + elimination:** The browser traffic from Step 1d already contains working requests for Gap=Y endpoints — with all required headers and cookies. Before building a harvester from scratch:
 1. Find the working request in captured traffic (URL, method, headers, cookies, body)
 2. Replay it from Node.js `fetch` with ALL captured values — confirm you get the same response
-3. Run elimination (remove one header/cookie at a time) to find the minimum auth set
-4. Build the route using the minimum set + a harvest step to obtain the required cookies
+3. **Run elimination:** For each cookie and header in the working request, make a new request with that ONE value removed. Rate-limit to 2-3 requests per second. Record which removals break the response (403/401/empty) and which still return 200. This gives you the minimum required set without guessing.
+4. Build the route using ONLY the required values. **Never hardcode tokens, cookies, or headers** — captured values expire. The route must harvest fresh values each time (via browser session, page fetch, or cookie jar). Elimination tells you WHAT to harvest, not the values themselves.
 
-This is faster and more reliable than guessing which cookies/headers are needed.
+Example: a request has 21 cookies and 8 headers. Run 29 requests (15 seconds at 2/sec). Result: 3 required (e.g., WAF token, session cookie, CSRF header), 26 optional. Now you know exactly what to harvest.
+
+This replaces trial-and-error. Do NOT skip elimination and guess which values matter.
 
 A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
 

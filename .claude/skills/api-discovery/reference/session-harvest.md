@@ -2,9 +2,9 @@
 
 When the Access Gap table shows endpoints that work in the browser but fail with direct HTTP (401, 403, empty data), the site requires cookies, headers, or tokens that only a real browser session produces. Session harvest is the process of figuring out exactly what's needed and building a route that obtains and replays those values.
 
-## Try click-intercept first
+## For Gap=Y endpoints with pagination buttons: click-intercept
 
-Before building requests from scratch, try the simplest approach: **let the browser do the work.**
+When the endpoint is WAF-gated AND the page has a pagination button, the simplest approach is: **let the browser do the work.**
 
 If the page has a "Show more", "Load more", or pagination button, the browser already knows how to make the right request — with all the correct cookies, headers, CSRF tokens, and body. You just need to click the button and capture the response.
 

@@ -92,6 +92,7 @@ In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest. Read the 
 In BUILD: after each route, fill the mandatory completeness check. If totalCount > items returned, the route is NOT DONE — paginate before moving to the next route.
 Fill ALL 8 elimination rows before writing code.
 After building routes, register your domain and test EVERY route through the API server proxy.
+Budget: ~150 tool calls. Plan: ~30 GATHER, ~10 SCAN/CLASSIFY, ~80 BUILD, ~30 testing. Do not retry failed requests — unexpected output is information, not failure.
 Your port is XXXX.
 ```
 
