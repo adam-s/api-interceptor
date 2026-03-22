@@ -2,9 +2,61 @@
 
 When the Access Gap table shows endpoints that work in the browser but fail with direct HTTP (401, 403, empty data), the site requires cookies, headers, or tokens that only a real browser session produces. Session harvest is the process of figuring out exactly what's needed and building a route that obtains and replays those values.
 
-## The process
+## Try click-intercept first
 
-Session harvest has three phases. Do them in order.
+Before building requests from scratch, try the simplest approach: **let the browser do the work.**
+
+If the page has a "Show more", "Load more", or pagination button, the browser already knows how to make the right request — with all the correct cookies, headers, CSRF tokens, and body. You just need to click the button and capture the response.
+
+```typescript
+import { chromium } from 'patchright';
+
+const ctx = await chromium.launchPersistentContext('/tmp/profile', {
+  headless: true, channel: 'chromium',
+  args: ['--disable-blink-features=AutomationControlled'],
+});
+const page = await ctx.newPage();
+
+// Collect all POST responses
+const responses: Array<{ url: string; body: unknown }> = [];
+page.on('response', async (res) => {
+  if (res.request().method() === 'POST' && res.status() === 200) {
+    try {
+      const json = await res.json();
+      if (json.items || json.totalCount) {
+        responses.push({ url: res.url(), body: json });
+      }
+    } catch {}
+  }
+});
+
+await page.goto(eventUrl);
+await page.waitForTimeout(5000);
+
+// Dismiss any modals (quantity selectors, cookie banners, etc.)
+const modal = page.locator('button:has-text("Continue"), button:has-text("Accept")');
+if (await modal.count() > 0) await modal.first().click({ force: true });
+
+// Click "Show more" and collect pages
+while (true) {
+  const btn = page.locator('button:has-text("Show more"), button:has-text("Load more")');
+  if (await btn.count() === 0) break;
+  await btn.click();
+  await page.waitForTimeout(2000);
+  // responses array now has the next page of data
+}
+
+await ctx.close();
+// responses[] contains all paginated data
+```
+
+This handles WAF cookies, CSRF, session tokens — everything — because the browser's own JavaScript makes the request. You don't need to reverse-engineer the POST body or harvest cookies manually.
+
+**When click-intercept doesn't work** (no button, infinite scroll with no trigger, or you need to call the API from your route handler without a browser), fall back to the three-phase process below.
+
+## The three-phase process
+
+For cases where you need to replay requests without a browser (building a route handler that uses `rateLimitedFetch`), use these phases in order.
 
 ### Phase 1 — Capture a working request
 

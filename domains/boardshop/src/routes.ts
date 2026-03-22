@@ -85,6 +85,9 @@
  * ENCODED PRICING + SESSION HARVEST:
  * 32. GET /collection/:id/listings — Session harvest + indirect price refs + JS bundle decode + pagination
  *
+ * CLICK-INTERCEPT PAGINATION:
+ * 33. GET /resale/all — Patchright clicks "Load More" button, intercepts POST responses, collects all pages
+ *
  * @module domain-boardshop/routes
  */
 
@@ -1446,6 +1449,102 @@ export const routes: DomainRoute[] = [
 				_pattern: 'session-harvest-encoded-pricing',
 				_note: 'Prices decoded from opaque A-J encoding via JS bundle analysis.',
 			});
+		},
+	},
+
+	// ─── Route 33: Click-intercept pagination (resale "Load More") ────
+	// The /resale page has a "Load More Listings" button that fires a POST
+	// request when clicked. Instead of harvesting cookies and building the
+	// POST manually (Route 31), this route uses Patchright to click the
+	// button and intercept the POST responses directly.
+	//
+	// Pattern:
+	//   1. Launch Patchright, navigate to /resale
+	//   2. Set up response interception (page.on('response'))
+	//   3. Click "Load More Listings" button
+	//   4. Intercepted POST response contains { items, total, hasMore }
+	//   5. Loop until hasMore === false
+	//
+	// This is the simplest approach for pages with pagination buttons —
+	// the browser handles all cookies, CSRF, and WAF automatically.
+	{
+		method: 'GET',
+		path: '/resale/all',
+		description: 'Click-intercept: Patchright clicks "Load More", intercepts POST responses.',
+		browserRequired: false,
+		handler: async (c) => {
+			const { chromium } = await import('patchright');
+			DEBUG('boardshop', 'route33: launching Patchright for click-intercept');
+
+			const ctx = await chromium.launchPersistentContext('', {
+				headless: true,
+				channel: 'chromium',
+				args: ['--disable-blink-features=AutomationControlled'],
+			});
+
+			try {
+				const page = await ctx.newPage();
+
+				// Collect all POST responses
+				type ListingPage = {
+					items: unknown[];
+					total: number;
+					hasMore: boolean;
+					currentPage: number;
+				};
+				const allItems: unknown[] = [];
+				let total = 0;
+
+				page.on('response', async (res) => {
+					if (res.request().method() === 'POST' && res.status() === 200) {
+						try {
+							const json = (await res.json()) as ListingPage;
+							if (json.items?.length > 0) {
+								allItems.push(...json.items);
+								total = json.total;
+								DEBUG('boardshop', `route33: page ${json.currentPage}: ${json.items.length} items`);
+							}
+						} catch {
+							/* not JSON */
+						}
+					}
+				});
+
+				await page.goto(`${BASE_URL}/resale`);
+				await page.waitForTimeout(2000);
+
+				// Get initial embedded items count
+				const initialCount = await page.evaluate(
+					() => document.querySelectorAll('[data-testid="listing-card"]').length,
+				);
+
+				// Click "Load More" until it disappears
+				let clicks = 0;
+				while (clicks < 20) {
+					const btn = page.locator('[data-action="load-more"]');
+					if (!(await btn.isVisible().catch(() => false))) break;
+					await btn.click();
+					await page.waitForTimeout(500);
+					clicks++;
+				}
+
+				await ctx.close();
+
+				return c.json({
+					initialEmbedded: initialCount,
+					paginatedItems: allItems,
+					totalCollected: initialCount + allItems.length,
+					serverTotal: total,
+					clicksNeeded: clicks,
+					_pattern: 'click-intercept-pagination',
+					_note:
+						'Patchright clicks "Load More" and intercepts POST responses. No manual cookie harvest needed.',
+				});
+			} catch (err) {
+				await ctx.close().catch(() => {});
+				const msg = err instanceof Error ? err.message : String(err);
+				return c.json({ error: msg }, 502);
+			}
 		},
 	},
 ];

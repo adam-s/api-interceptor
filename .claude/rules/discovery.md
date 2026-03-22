@@ -39,11 +39,19 @@ Now click into a specific item (product, event, video, listing, article). This i
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
 ```
 
+Then **interact with the detail page**: click "Show more", "Load more", "Next page", or scroll to trigger lazy loading. These interactions fire API requests (often POST) that reveal the pagination endpoints. Capture traffic after each interaction.
+```bash
+# After clicking pagination controls and waiting 5s:
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-pagination.json
+```
+
 **Required output from 1d:**
 - Detail page URL visited: ___
 - List page traffic entry count: ___
 - Detail page traffic entry count: ___
+- Pagination traffic entry count (after interaction): ___
 - NEW endpoints that appeared on the detail page: [list]
+- NEW endpoints that appeared after interaction (pagination POST, etc.): [list]
 
 **1e.** Build the Access Gap table. For each API endpoint the browser called, try the same request with plain `rateLimitedFetch` (no cookies). Record the result:
 
@@ -151,6 +159,17 @@ For auth-gated endpoints (Gap=Y from Access Gap table), session harvest IS the c
 
 **Phase B — Complete the route.** Getting the first page of data is step 1, not the finish line. Pagination is often harder than the initial request — it may require different auth, different request format, or sequential state. This is the actual work.
 
+**Click-intercept pagination** — the primary approach when pages have "Show more", "Load more", or "Next" buttons:
+1. Launch Patchright, navigate to the page
+2. Set up response interception: `page.on('response', async (res) => { ... })`
+3. Handle any modals/overlays (dismiss popups, accept cookies, close quantity selectors)
+4. Click the pagination control ("Show more" button, "Next" link, or scroll to trigger lazy load)
+5. The intercepted response contains the pagination data — capture it
+6. Loop: click again for the next page until `itemsRemaining === 0` or no more button
+7. Build the route handler to replicate this pattern
+
+This works because the browser handles all cookies, WAF tokens, and CSRF automatically. You don't need to harvest cookies or build POST requests manually — the browser does it for you when you click the button. See Route 33 in `domains/boardshop/src/routes.ts` and `scripts/examples/click-intercept.ts`.
+
 After each route returns data, fill this **mandatory completeness check**:
 
 ```
@@ -181,7 +200,7 @@ This is faster and more reliable than guessing which cookies/headers are needed.
 
 A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
 
-Reference: Routes 30-31 in `domains/boardshop/src/routes.ts` demonstrate both `Set-Cookie` harvest and multi-cookie harvest patterns.
+Reference: Routes 30-31 demonstrate cookie harvest patterns, Route 33 demonstrates click-intercept pagination. All in `domains/boardshop/src/routes.ts`.
 
 Reference patterns in `domains/boardshop/src/routes.ts`:
 
@@ -204,6 +223,7 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 | Session Harvest (httpOnly cookie) | 30 | SessionHarvester: visit page → extract httpOnly cookie + embedded API key → paginate with plain HTTP |
 | Session Harvest (WAF + session cookies) | 31 | SessionHarvester: visit page → extract all cookies (WAF alone isn't enough for data) → POST paginate |
 | Encoded pricing + session harvest | 32 | Harvest cookie + API keys → paginate API → join indirect price refs via `_embedded` → decode opaque values using function from JS bundle |
+| Click-intercept pagination | 33 | Patchright clicks "Load More" → intercepts POST responses → collects all pages. Browser handles cookies/CSRF. See `scripts/examples/click-intercept.ts` |
 
 **Decode check:** After testing each route, compare a sample response field with what the page displays for the same item. If values don't match (e.g., API returns `"FBEJ"` but page shows `$51.49`), the response is encoded — read `.claude/skills/api-discovery/reference/decoding.md` and search the JS bundle for the decoder function.
 

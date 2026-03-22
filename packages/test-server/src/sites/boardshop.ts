@@ -825,8 +825,35 @@ ${firstPage.items.map((l) => `<div data-testid="listing-card" data-listing-id="$
 </section>
 <div data-testid="load-more">
 <button data-action="load-more">Load More Listings</button>
-<p>${firstPage.total - firstPage.items.length} more listings available</p>
-</div>`,
+<p data-testid="remaining">${firstPage.total - firstPage.items.length} more listings available</p>
+</div>
+<script>
+(function() {
+  var page = 2;
+  var btn = document.querySelector('[data-action="load-more"]');
+  if (!btn) return;
+  btn.addEventListener('click', function() {
+    fetch('/sites/boardshop/resale', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Method: 'LoadMoreListings', PageSize: 10, CurrentPage: page, SortBy: 'price' })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      var grid = document.querySelector('[data-testid="resale-grid"]');
+      for (var i = 0; i < data.items.length; i++) {
+        var item = data.items[i];
+        var el = document.createElement('div');
+        el.dataset.testid = 'listing-card';
+        el.innerHTML = '<h3>' + item.deckName + '</h3><p>' + item.brand + ' (' + item.year + ')</p><p>$' + item.askingPrice.toFixed(2) + ' - ' + item.condition + '</p>';
+        grid.appendChild(el);
+      }
+      page++;
+      if (!data.hasMore) btn.style.display = 'none';
+      var rem = document.querySelector('[data-testid="remaining"]');
+      if (rem) rem.textContent = (data.total - (page - 1) * 10) + ' more listings available';
+    });
+  });
+})();
+</script>`,
 		});
 
 		// Set multiple cookies — all are needed for full data access
