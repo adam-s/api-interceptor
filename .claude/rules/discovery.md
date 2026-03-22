@@ -81,7 +81,7 @@ sleep 5
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 ```
 
-**Success:** New traffic entries appeared → record URL, method, headers, response shape.
+**Success:** New traffic entries appeared → record URL, method, headers, and response shape. Trigger pagination 2-3 times to confirm the pattern (e.g., page=1, page=2, page=3). You are capturing the API pattern, not downloading all the data. Once you have the endpoint URL, method, headers, and pagination mechanism, stop and move on.
 
 **If 0 new entries:** The most likely cause is the page didn't have enough items to trigger pagination. Try:
 1. A page with MORE items (check the count — you need 100+)
