@@ -18,11 +18,37 @@ Sub-agents run real tasks, take shortcuts, you observe the failure, fix the inst
 4. Inspect: did they follow the pipeline? Full elimination table?
 5. Diagnose: which instruction was too soft, missing, or contradictory?
 6. Fix the instruction (generalized, not site-specific)
-7. Add any new patterns to test-server + boardshop reference routes
-8. Commit and push all fixes
-9. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
-10. Start fresh Claude Code session to clear stale context, repeat
+7. CONSISTENCY CHECK — before committing, search ALL .claude/ files for contradictions:
+   - Grep for the concept you changed (pagination, testing, session harvest, etc.)
+   - Verify every mention says the same thing across rules/, agents/, skills/
+   - Fix any file that contradicts or uses softer language than your change
+8. Add any new patterns to test-server + boardshop reference routes
+9. Commit and push all fixes
+10. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
+11. Start fresh Claude Code session to clear stale context, repeat
 ```
+
+## Consistency Check (Step 7)
+
+When you change an instruction, the same concept appears in multiple files. A fix in `discovery.md` means nothing if `discovery-agent.md` or a SKILL.md still uses the old soft language.
+
+**Before committing any instruction change, search all .claude/ for the concept:**
+
+```bash
+# Example: if you tightened pagination language
+grep -rn "pagina\|totalCount\|hasMore\|complete" .claude/rules/ .claude/agents/ .claude/skills/
+```
+
+Every hit must be consistent with your change. Files to check:
+- `.claude/rules/discovery.md` — the protocol (agents read this)
+- `.claude/agents/discovery-agent.md` — agent instructions (agents inherit this)
+- `.claude/skills/instruction-tuning/SKILL.md` — prompt template + scorecard (you control this)
+- `.claude/skills/api-discovery/SKILL.md` — discovery skill entry point
+- `.claude/skills/api-discovery/reference/*.md` — reference files agents may read
+- `.claude/skills/app/SKILL.md` — app builder that launches discovery agents
+- `.claude/CLAUDE.md` — top-level project instructions
+
+A single soft "check for" in any file undoes a hard "MUST" in another.
 
 ## Cleanup Before EVERY Iteration
 
@@ -120,7 +146,9 @@ The loop converges when fresh agents (clean session, no hints):
 1. Follow the GATHER→SCAN→CLASSIFY→BUILD pipeline
 2. Fill all 8 elimination rows before writing code
 3. Build routes for every ✓ transport (including WebSocket, HLS, encoded)
-4. Validate each route with curl first, then test through the API server proxy
-5. Capture browser traffic (Steps 1d/1e)
-6. Stay under 150 tool calls
-7. Write all files to worktree, not main repo
+4. Validate each route through the API server proxy — returns real data, not empty/error
+5. Capture browser traffic (Steps 1d/1e) including detail page visit
+6. Complete session harvest for all Gap=Y endpoints (routes return data)
+7. Complete pagination for all routes (completeness check: total == items returned)
+8. Stay near 150 tool calls (data completeness takes priority over budget)
+9. Write all files to worktree, not main repo
