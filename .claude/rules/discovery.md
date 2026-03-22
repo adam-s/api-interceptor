@@ -14,29 +14,32 @@ Four steps. Always all four. No skipping. No building until classification is co
 
 Collect ALL evidence before analyzing anything.
 
-**1a.** Fetch the target page HTML.
+**1a. Connect browser and click around.** This is the most important step. Connect a browser, then click things and capture the traffic that fires. A human discovers APIs by opening Chrome DevTools, clicking around, and watching the Network tab. Do the same thing.
+
+"Click around" means literally clicking elements on the page:
+- Click a "Show more" or "Load more" button — capture the POST/GET that fires
+- Click pagination arrows or page numbers (1, 2, 3, Next >) — capture the request
+- Scroll to the bottom of a list to trigger lazy loading — capture what loads
+
+Do this on BOTH the list page AND a detail page. The pagination request you capture here is the most valuable thing in GATHER — you'll replicate it in BUILD.
+
+```bash
+./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
+sleep 15
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-list.json
+# Navigate to detail page, wait 10s, capture again:
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
+# Click pagination controls, wait 5s, capture again:
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-pagination.json
+```
+
+**1b.** Fetch the target page HTML and ONE different page type (detail, search, or channel page).
 - Try `rateLimitedFetch` first. If non-200, try `browserFetch` once.
 - `browserFetch` returns raw pre-hydration HTML (script tags intact).
 - Do NOT use `page.evaluate(document.outerHTML)` — hydration strips data.
-- Save the full HTML.
-
-**1b.** Fetch ONE different page type (detail page, search page, or channel page).
-- Same approach: `rateLimitedFetch`, escalate if needed.
-- Different page types often use different transports.
 
 **1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML).
 - Save the content for scanning.
-
-**1d.** Think about how a human discovers a site's API. They open the page in Chrome, open the Network tab, and start clicking around. Every click, scroll, and navigation fires requests that appear in the Network tab. The human sees the exact URL, method, headers, cookies, and response body for every request. After 2 minutes of clicking, they know every API the site uses.
-
-**Do the same thing.** Connect a browser, capture traffic, and interact with the page. Use whatever tools get you there — `connect-browser.sh`, Patchright scripts, `browser-cli.sh`, or `page.evaluate`. The goal is to see every request the browser makes when a user browses the site.
-
-**Your #1 goal in GATHER: find every list and its pagination mechanism.** Every site has lists (products, events, listings, videos, articles). Every list has more items than the first page shows. The pagination request — the exact POST or GET that loads page 2 — is the most valuable thing you can capture. If you leave GATHER without capturing at least one pagination request, BUILD will be twice as hard.
-
-**Minimum interactions (do ALL of these):**
-1. Load the list/home page → capture traffic. Look for lists immediately — how many items? Is there a "Show more" or "Next" button?
-2. Click into a detail/item page (product, event, video, listing) → capture traffic. Detail pages fire the richest APIs (pricing, inventory, availability).
-3. **On any page with a list**, click "Show more", "Load more", "Next page", or scroll to load more → capture traffic. The request that fires IS the pagination pattern. Record it — you'll replicate it in BUILD.
 
 ```bash
 # Example using connect-browser.sh:
