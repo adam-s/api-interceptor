@@ -170,7 +170,7 @@ Every row needs ✓ or ✗ with evidence. Every Gap=Y endpoint needs a planned r
 
 **For each ✓ transport, build a route.** See `domains/boardshop/src/routes.ts` for working examples of every pattern.
 
-**Phase A — Prove it works.** For Gap=N: try `rateLimitedFetch` first, then `browserFetch`, then `page.evaluate`. For Gap=Y: go directly to session harvest.
+**Phase A — Prove it works.** Start with `browserFetch` (it has the browser's cookies and session). If it returns data, run elimination: retry with `rateLimitedFetch` removing one header/cookie at a time to find the minimum required set. For Gap=Y endpoints: read `session-harvest.md` first.
 
 **Phase B — Complete pagination.** After each route, fill:
 
