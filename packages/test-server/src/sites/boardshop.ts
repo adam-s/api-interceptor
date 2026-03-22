@@ -12,7 +12,17 @@
 
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
-import { getProductPage, getReviewsCursor, MAX_PAGE_SIZE, PRODUCTS } from '../data/products';
+import {
+	DROP_INVENTORY,
+	getDropInventoryPage,
+	getProductPage,
+	getResaleListingsPage,
+	getReviewsCursor,
+	MAX_PAGE_SIZE,
+	PRO_DROPS,
+	PRODUCTS,
+	RESALE_LISTINGS,
+} from '../data/products';
 import { renderEmbeddedPage } from '../transports/embedded-html';
 
 // In-memory session store for CSRF tokens
@@ -711,6 +721,163 @@ ${rows}
 
 		c.header('Content-Type', 'text/html; charset=utf-8');
 		return c.html(html);
+	});
+
+	// ═══════════════════════════════════════════════════════════════════
+	// SESSION HARVESTER — Pattern A: Pro Drops (TM-style)
+	// httpOnly cookie + correlation header + embedded API keys
+	// ═══════════════════════════════════════════════════════════════════
+
+	// In-memory store for drop sessions (maps drop-session cookie → true)
+	const dropSessions = new Set<string>();
+
+	// GET /drops — HTML page with embedded pro drops + sets httpOnly cookie
+	app.get('/drops', (c) => {
+		const sessionToken = randomUUID();
+		dropSessions.add(sessionToken);
+
+		const dropsData = {
+			drops: PRO_DROPS,
+			totalCount: PRO_DROPS.length,
+			nextDropDate: '2026-04-01',
+		};
+
+		const apiKey = 'sk_drops_xxx';
+		const apiSecret = 'sk_drops_secret_yyy';
+
+		const html = renderEmbeddedPage({
+			title: 'BoardShop — Pro Drops',
+			dataScripts: [{ id: 'drops-data', data: dropsData }],
+			windowGlobals: {
+				__DROPS_CONFIG__: { apiKey, apiSecret },
+			},
+			bodyHtml: `<section data-testid="drops-grid">
+${PRO_DROPS.slice(0, 6)
+	.map(
+		(d) =>
+			`<div data-testid="drop-card" data-drop-id="${d.dropId}"><h3>${d.deckName}</h3><p>${d.proSkater}</p><p>$${d.retailPrice.toFixed(2)}</p></div>`,
+	)
+	.join('\n')}
+</section>`,
+		});
+
+		// Set httpOnly cookie — cannot be read by JavaScript, only sent by browser
+		c.header('Set-Cookie', `drop-session=${sessionToken}; Path=/drops; HttpOnly; SameSite=Lax`);
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// GET /drops/api/inventory — paginated inventory, requires session cookie + header
+	app.get('/drops/api/inventory', (c) => {
+		// Check httpOnly cookie
+		const dropSession = c.req.header('cookie')?.match(/drop-session=([^;]+)/)?.[1];
+		if (!dropSession || !dropSessions.has(dropSession)) {
+			return c.json({ error: 'Forbidden — valid drop-session cookie required' }, 403);
+		}
+
+		// Check correlation header (like TM's tmps-correlation-id)
+		const dropRequest = c.req.header('x-drop-request');
+		if (!dropRequest) {
+			return c.json({ error: 'Bad Request — x-drop-request header required' }, 400);
+		}
+
+		const deckId = c.req.query('deckId');
+		if (!deckId) {
+			return c.json({ error: 'Bad Request — deckId query param required' }, 400);
+		}
+
+		const limit = Math.min(Number(c.req.query('limit') ?? '20'), 20);
+		const offset = Number(c.req.query('offset') ?? '0');
+
+		const result = getDropInventoryPage(deckId, limit, offset);
+		return c.json(result);
+	});
+
+	// ═══════════════════════════════════════════════════════════════════
+	// SESSION HARVESTER — Pattern B: Resale Market (SH-style)
+	// WAF cookie + session cookies + POST pagination
+	// ═══════════════════════════════════════════════════════════════════
+
+	// In-memory store for resale sessions
+	const resaleSessions = new Map<string, { sid: string; pref: string }>();
+
+	// GET /resale — HTML page with first 6 listings + sets multiple cookies
+	app.get('/resale', (c) => {
+		const wafToken = randomUUID();
+		const sid = randomUUID();
+		const pref = 'grid-view=true&currency=USD';
+
+		resaleSessions.set(wafToken, { sid, pref });
+
+		const firstPage = getResaleListingsPage(6, 1);
+
+		const html = renderEmbeddedPage({
+			title: 'BoardShop — Resale Market',
+			dataScripts: [
+				{ id: 'market-data', data: { listings: firstPage.items, total: firstPage.total } },
+			],
+			bodyHtml: `<section data-testid="resale-grid">
+${firstPage.items.map((l) => `<div data-testid="listing-card" data-listing-id="${l.listingId}"><h3>${l.deckName}</h3><p>${l.brand} (${l.year})</p><p>$${l.askingPrice.toFixed(2)} — ${l.condition}</p></div>`).join('\n')}
+</section>
+<div data-testid="load-more">
+<button data-action="load-more">Load More Listings</button>
+<p>${firstPage.total - firstPage.items.length} more listings available</p>
+</div>`,
+		});
+
+		// Set multiple cookies — all are needed for full data access
+		// Construct Response manually to correctly emit multiple Set-Cookie headers
+		// (Hono's c.header() and c.html() don't reliably preserve multiple Set-Cookie)
+		const headers = new Headers();
+		headers.set('Content-Type', 'text/html; charset=utf-8');
+		headers.append('Set-Cookie', `market-waf=${wafToken}; Path=/resale; SameSite=Lax`);
+		headers.append('Set-Cookie', `market-sid=${sid}; Path=/resale; SameSite=Lax`);
+		headers.append(
+			'Set-Cookie',
+			`market-pref=${encodeURIComponent(pref)}; Path=/resale; SameSite=Lax`,
+		);
+		return new Response(html, { status: 200, headers });
+	});
+
+	// POST /resale — paginated listings, requires WAF + session cookies
+	app.post('/resale', async (c) => {
+		// Check Content-Type
+		const contentType = c.req.header('content-type') ?? '';
+		if (!contentType.includes('application/json')) {
+			return c.json({ error: 'Unsupported Media Type — application/json required' }, 415);
+		}
+
+		// Check WAF cookie (gate)
+		const wafToken = c.req.header('cookie')?.match(/market-waf=([^;]+)/)?.[1];
+		if (!wafToken || !resaleSessions.has(wafToken)) {
+			return c.json({ error: 'Forbidden — WAF challenge not passed' }, 403);
+		}
+
+		// Check session cookie — WAF passes but data requires session
+		const sidCookie = c.req.header('cookie')?.match(/market-sid=([^;]+)/)?.[1];
+		const session = resaleSessions.get(wafToken)!;
+		if (!sidCookie || sidCookie !== session.sid) {
+			// SH behavior: WAF passes, but without session → empty data
+			return c.json({ items: [], total: 0, hasMore: false, currentPage: 1 });
+		}
+
+		const body = (await c.req.json()) as {
+			Method?: string;
+			PageSize?: number;
+			CurrentPage?: number;
+			SortBy?: string;
+		};
+
+		if (body.Method !== 'LoadMoreListings') {
+			return c.json({ error: `Unknown method: ${body.Method}` }, 400);
+		}
+
+		const pageSize = body.PageSize ?? 10;
+		const currentPage = body.CurrentPage ?? 1;
+		const sortBy = body.SortBy;
+
+		const result = getResaleListingsPage(pageSize, currentPage, sortBy);
+		return c.json(result);
 	});
 
 	return app;

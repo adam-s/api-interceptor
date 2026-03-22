@@ -94,7 +94,19 @@ export async function createTestServer(
 			}),
 		);
 
-		res.writeHead(response.status, Object.fromEntries(response.headers.entries()));
+		// Build response headers — special handling for Set-Cookie which requires
+		// multiple header values (Object.fromEntries would merge them into one)
+		const headerObj: Record<string, string | string[]> = {};
+		for (const [k, v] of response.headers.entries()) {
+			if (k === 'set-cookie') continue; // handled below
+			headerObj[k] = v;
+		}
+		const setCookies = response.headers.getSetCookie();
+		if (setCookies.length > 0) {
+			headerObj['set-cookie'] = setCookies;
+		}
+
+		res.writeHead(response.status, headerObj);
 		const body = await response.arrayBuffer();
 		res.end(Buffer.from(body));
 	});

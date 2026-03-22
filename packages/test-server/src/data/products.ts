@@ -199,6 +199,181 @@ function generateReviews(): Review[] {
 
 export const REVIEWS = generateReviews();
 
+// ═══════════════════════════════════════════════════════════════════
+// PRO DROPS — SessionHarvester Pattern A (TM-style)
+// 20 pro model drops, each with 4 sizes × ~4 colorways = ~80 inventory items
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ProDrop {
+	dropId: string;
+	deckName: string;
+	proSkater: string;
+	releaseDate: string;
+	retailPrice: number;
+	series: string;
+}
+
+export interface DropInventoryItem {
+	deckId: string;
+	size: string;
+	colorway: string;
+	retailPrice: number;
+	dealerPrice: number;
+	proTeamPrice: number;
+	stockCount: number;
+	warehouse: string;
+}
+
+const PRO_SKATERS = [
+	'Tony Hawk', 'Nyjah Huston', 'Leticia Bufoni', 'Rodney Mullen',
+	'Andrew Reynolds', 'Lizzie Armanto', 'Shane O\'Neill', 'Rayssa Leal',
+	'Chris Cole', 'Lacey Baker', 'Paul Rodriguez', 'Mariah Duran',
+	'Eric Koston', 'Alexis Sablone', 'Ryan Sheckler', 'Brighton Zeuner',
+	'Daewon Song', 'Aori Nishimura', 'Jamie Foy', 'Pamela Rosa',
+];
+
+const DROP_SERIES = [
+	'Signature Pro', 'Heritage Collection', 'Night Session', 'Street Legend',
+	'Park Dominator', 'Vert Icon', 'Competition Series', 'Artist Collab',
+	'Anniversary Edition', 'Raw Power',
+];
+
+const DROP_COLORWAYS = ['Natural', 'Black Ice', 'Tie-Dye', 'Ltd Gold'];
+const DROP_SIZES = ['7.75', '8.0', '8.25', '8.5'];
+const WAREHOUSES = ['WH-EAST', 'WH-WEST', 'WH-CENTRAL', 'WH-SOUTH'];
+
+function generateProDrops(): ProDrop[] {
+	const drops: ProDrop[] = [];
+	for (let i = 0; i < 20; i++) {
+		drops.push({
+			dropId: `DROP-${String(i + 1).padStart(3, '0')}`,
+			deckName: `${PRO_SKATERS[i]} ${DROP_SERIES[i % DROP_SERIES.length]}`,
+			proSkater: PRO_SKATERS[i],
+			releaseDate: `2026-${String((i % 12) + 1).padStart(2, '0')}-${String((i % 28) + 1).padStart(2, '0')}`,
+			retailPrice: Math.round((89.99 + i * 5) * 100) / 100,
+			series: DROP_SERIES[i % DROP_SERIES.length],
+		});
+	}
+	return drops;
+}
+
+export const PRO_DROPS = generateProDrops();
+
+function generateDropInventory(): DropInventoryItem[] {
+	const items: DropInventoryItem[] = [];
+	for (const drop of PRO_DROPS) {
+		for (const size of DROP_SIZES) {
+			for (const colorway of DROP_COLORWAYS) {
+				const retail = drop.retailPrice + (DROP_SIZES.indexOf(size) * 2);
+				items.push({
+					deckId: drop.dropId,
+					size,
+					colorway,
+					retailPrice: Math.round(retail * 100) / 100,
+					dealerPrice: Math.round(retail * 0.7 * 100) / 100,
+					proTeamPrice: Math.round(retail * 0.5 * 100) / 100,
+					stockCount: Math.floor(Math.random() * 25) + 1,
+					warehouse: WAREHOUSES[items.length % WAREHOUSES.length],
+				});
+			}
+		}
+	}
+	return items;
+}
+
+export const DROP_INVENTORY = generateDropInventory();
+
+/** Paginated drop inventory for a specific deckId */
+export function getDropInventoryPage(
+	deckId: string,
+	limit: number,
+	offset: number,
+): { items: DropInventoryItem[]; total: number; hasMore: boolean } {
+	const filtered = DROP_INVENTORY.filter((i) => i.deckId === deckId);
+	const items = filtered.slice(offset, offset + limit);
+	return { items, total: filtered.length, hasMore: offset + limit < filtered.length };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RESALE LISTINGS — SessionHarvester Pattern B (SH-style)
+// 60 resale listings for rare/vintage decks
+// ═══════════════════════════════════════════════════════════════════
+
+export interface ResaleListing {
+	listingId: string;
+	deckName: string;
+	brand: string;
+	year: number;
+	condition: 'Mint' | 'Near Mint' | 'Good' | 'Fair';
+	size: string;
+	askingPrice: number;
+	sellerRating: number;
+	photos: string[];
+	location: string;
+}
+
+const VINTAGE_DECKS = [
+	'Powell Peralta Ripper', 'Santa Cruz Screaming Hand', 'Vision Psycho Stick',
+	'Powell Peralta Bones Brigade', 'Santa Cruz Rob Roskopp', 'Dogtown Suicidal',
+	'Hosoi Hammerhead', 'Natas Kaupas Panther', 'Mark Gonzales Krooked',
+	'Jason Lee Blind', 'Toy Machine Monster', 'Zero Blood Skull',
+	'Plan B Pat Duffy', 'Alien Workshop Spectrum', 'Girl Rick Howard',
+];
+
+const VINTAGE_BRANDS = [
+	'Powell Peralta', 'Santa Cruz', 'Vision', 'Dogtown', 'Hosoi',
+	'SMA', 'Blind', 'Toy Machine', 'Zero', 'Plan B',
+	'Alien Workshop', 'Girl', 'Krooked', 'Anti Hero', 'Creature',
+];
+
+const CONDITIONS: Array<'Mint' | 'Near Mint' | 'Good' | 'Fair'> = ['Mint', 'Near Mint', 'Good', 'Fair'];
+const LOCATIONS = [
+	'Los Angeles, CA', 'New York, NY', 'Portland, OR', 'Austin, TX',
+	'San Francisco, CA', 'Chicago, IL', 'Denver, CO', 'Miami, FL',
+	'Seattle, WA', 'Philadelphia, PA',
+];
+
+function generateResaleListings(): ResaleListing[] {
+	const listings: ResaleListing[] = [];
+	for (let i = 0; i < 60; i++) {
+		const condition = CONDITIONS[i % CONDITIONS.length];
+		const basePrice = condition === 'Mint' ? 350 : condition === 'Near Mint' ? 200 : condition === 'Good' ? 120 : 60;
+		const year = 1985 + (i % 36); // 1985-2020
+		listings.push({
+			listingId: `RESALE-${String(i + 1).padStart(4, '0')}`,
+			deckName: VINTAGE_DECKS[i % VINTAGE_DECKS.length],
+			brand: VINTAGE_BRANDS[i % VINTAGE_BRANDS.length],
+			year,
+			condition,
+			size: DROP_SIZES[i % DROP_SIZES.length],
+			askingPrice: Math.round((basePrice + i * 7.5 + Math.random() * 50) * 100) / 100,
+			sellerRating: Math.round((3.5 + Math.random() * 1.5) * 10) / 10,
+			photos: [
+				`https://cdn.boardshop.example.com/resale/${i + 1}/front.jpg`,
+				`https://cdn.boardshop.example.com/resale/${i + 1}/back.jpg`,
+			],
+			location: LOCATIONS[i % LOCATIONS.length],
+		});
+	}
+	return listings;
+}
+
+export const RESALE_LISTINGS = generateResaleListings();
+
+/** Paginated resale listings */
+export function getResaleListingsPage(
+	pageSize: number,
+	currentPage: number,
+	sortBy?: string,
+): { items: ResaleListing[]; total: number; hasMore: boolean; currentPage: number } {
+	let sorted = [...RESALE_LISTINGS];
+	if (sortBy === 'price') sorted.sort((a, b) => a.askingPrice - b.askingPrice);
+	if (sortBy === 'year') sorted.sort((a, b) => b.year - a.year);
+	const start = (currentPage - 1) * pageSize;
+	const items = sorted.slice(start, start + pageSize);
+	return { items, total: sorted.length, hasMore: start + pageSize < sorted.length, currentPage };
+}
+
 export function getReviewsCursor(after: string | null, limit = 10): {
 	items: Review[];
 	pageInfo: { endCursor: string | null; hasNextPage: boolean };

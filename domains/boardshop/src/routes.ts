@@ -76,6 +76,12 @@
  * FORMDATA POST:
  * 29. GET /formdata-search-example — Multipart/form-data search request
  *
+ * SESSION HARVESTER — httpOnly cookie + correlation header (TM-style):
+ * 30. GET /drops/inventory        — Session-gated paginated inventory (drops pattern)
+ *
+ * SESSION HARVESTER — WAF cookie + POST pagination (SH-style):
+ * 31. GET /resale/listings        — Multi-cookie session-gated POST pagination (resale pattern)
+ *
  * @module domain-boardshop/routes
  */
 
@@ -1139,6 +1145,171 @@ export const routes: DomainRoute[] = [
 			});
 			if (!res.ok) return c.json({ error: `Search returned ${res.status}` }, 502);
 			return c.json(await res.json());
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// SESSION HARVESTER — Pattern A: httpOnly Cookie + Correlation Header (TM-style)
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 30: Pro Drops inventory (SessionHarvester pattern) ────
+	// The /drops page sets an httpOnly `drop-session` cookie and embeds
+	// API keys in window.__DROPS_CONFIG__. The inventory API requires:
+	//   1. drop-session cookie (httpOnly — only obtainable via browser/fetch)
+	//   2. x-drop-request header (correlation ID, any non-empty value)
+	//   3. apikey + apisecret in query params
+	// This is the Ticketmaster pattern: fetch the page, harvest the
+	// cookie + embedded config, then call the session-gated API.
+	{
+		method: 'GET',
+		path: '/drops/inventory',
+		description: 'SessionHarvester (TM-style): httpOnly cookie + correlation header.',
+		browserRequired: false,
+		handler: async (c) => {
+			const deckId = new URL(c.req.url).searchParams.get('deckId') ?? 'DROP-001';
+
+			// Step 1: HARVEST — fetch the seed page to get httpOnly cookie + API keys
+			DEBUG('boardshop', `drops: harvesting session from ${BASE_URL}/drops`);
+			const seedRes = await rateLimitedFetch(`${BASE_URL}/drops`);
+			if (!seedRes.ok) return c.json({ error: `Seed page returned ${seedRes.status}` }, 502);
+
+			// Extract httpOnly cookie from Set-Cookie header
+			const setCookie = seedRes.headers.get('set-cookie') ?? '';
+			const dropSession = setCookie.match(/drop-session=([^;]+)/)?.[1];
+			if (!dropSession) return c.json({ error: 'Could not harvest drop-session cookie' }, 502);
+
+			// Extract API keys from embedded window global
+			const html = await seedRes.text();
+			const configMatch = html.match(/window\.__DROPS_CONFIG__\s*=\s*(\{[^}]+\})/);
+			if (!configMatch) return c.json({ error: 'Could not extract __DROPS_CONFIG__' }, 502);
+			const config = JSON.parse(configMatch[1]) as { apiKey: string; apiSecret: string };
+
+			// Step 2: PAGINATE — call the session-gated inventory API
+			DEBUG('boardshop', `drops: fetching inventory for ${deckId} with harvested session`);
+			const allItems: unknown[] = [];
+			let offset = 0;
+			const limit = 20;
+			let hasMore = true;
+
+			while (hasMore) {
+				const apiUrl =
+					`${BASE_URL}/drops/api/inventory?deckId=${encodeURIComponent(deckId)}` +
+					`&limit=${limit}&offset=${offset}` +
+					`&apikey=${encodeURIComponent(config.apiKey)}&apisecret=${encodeURIComponent(config.apiSecret)}`;
+
+				const res = await rateLimitedFetch(apiUrl, {
+					headers: {
+						Cookie: `drop-session=${dropSession}`,
+						'x-drop-request': crypto.randomUUID(),
+					},
+				});
+
+				if (!res.ok) {
+					DEBUG('boardshop', `drops: inventory API returned ${res.status} at offset ${offset}`);
+					break;
+				}
+
+				const page = (await res.json()) as { items: unknown[]; total: number; hasMore: boolean };
+				allItems.push(...page.items);
+				hasMore = page.hasMore;
+				offset += limit;
+			}
+
+			return c.json({
+				deckId,
+				items: allItems,
+				totalCollected: allItems.length,
+				_pattern: 'session-harvester-tm-style',
+				_note: 'httpOnly cookie + x-drop-request header required. Harvested from seed page.',
+			});
+		},
+	},
+
+	// ═══════════════════════════════════════════════════════════════════
+	// SESSION HARVESTER — Pattern B: WAF Cookie + POST Pagination (SH-style)
+	// ═══════════════════════════════════════════════════════════════════
+
+	// ─── Route 31: Resale market listings (SessionHarvester pattern) ──
+	// The /resale page sets three cookies:
+	//   - market-waf: WAF gate (403 without it)
+	//   - market-sid: session data (empty results without it)
+	//   - market-pref: preferences
+	// All three are needed — WAF alone passes the gate but returns
+	// empty data (the StubHub trap). POST pagination with JSON body.
+	{
+		method: 'GET',
+		path: '/resale/listings',
+		description: 'SessionHarvester (SH-style): WAF + session cookies + POST pagination.',
+		browserRequired: false,
+		handler: async (c) => {
+			// Step 1: HARVEST — fetch the seed page to get all cookies
+			DEBUG('boardshop', `resale: harvesting session from ${BASE_URL}/resale`);
+			const seedRes = await rateLimitedFetch(`${BASE_URL}/resale`);
+			if (!seedRes.ok) return c.json({ error: `Seed page returned ${seedRes.status}` }, 502);
+
+			// Extract all cookies from Set-Cookie headers
+			// Note: getSetCookie() returns each Set-Cookie as a separate string
+			const rawHeaders = seedRes.headers;
+			const cookies: Record<string, string> = {};
+
+			// Parse Set-Cookie headers — handle both single and multiple headers
+			const setCookieHeader = rawHeaders.get('set-cookie') ?? '';
+			// In Node fetch, multiple Set-Cookie headers are joined with ', '
+			// but cookie values can contain commas, so we parse more carefully
+			for (const name of ['market-waf', 'market-sid', 'market-pref']) {
+				const match = setCookieHeader.match(new RegExp(`${name}=([^;]+)`));
+				if (match) cookies[name] = match[1];
+			}
+
+			if (!cookies['market-waf'] || !cookies['market-sid']) {
+				return c.json(
+					{ error: 'Could not harvest required cookies (market-waf + market-sid)' },
+					502,
+				);
+			}
+
+			const cookieStr = Object.entries(cookies)
+				.map(([k, v]) => `${k}=${v}`)
+				.join('; ');
+
+			// Step 2: PAGINATE — POST with all harvested cookies
+			DEBUG('boardshop', 'resale: POST-paginating with harvested cookies');
+			const allItems: unknown[] = [];
+			let page = 1;
+			let hasMore = true;
+
+			while (hasMore && page <= 10) {
+				const res = await rateLimitedFetch(`${BASE_URL}/resale`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						Cookie: cookieStr,
+					},
+					body: JSON.stringify({
+						Method: 'LoadMoreListings',
+						PageSize: 10,
+						CurrentPage: page,
+						SortBy: 'price',
+					}),
+				});
+
+				if (!res.ok) {
+					DEBUG('boardshop', `resale: POST returned ${res.status} at page ${page}`);
+					break;
+				}
+
+				const data = (await res.json()) as { items: unknown[]; hasMore: boolean };
+				allItems.push(...data.items);
+				hasMore = data.hasMore;
+				page++;
+			}
+
+			return c.json({
+				items: allItems,
+				totalCollected: allItems.length,
+				_pattern: 'session-harvester-sh-style',
+				_note: 'WAF cookie alone returns empty data. All session cookies required for data.',
+			});
 		},
 	},
 ];
