@@ -147,14 +147,7 @@ Build routes in two passes:
 
 #### Session Harvest (for Gap=Y endpoints)
 
-**Full reference:** `.claude/skills/api-discovery/reference/session-harvest.md` — covers the complete process including elimination testing, encoded value tracing, and JS-challenge cookies.
-
-The short version:
-
-1. **Capture** a working request from browser traffic (all headers, cookies, body)
-2. **Eliminate** — replay with all values, then remove one at a time to find the minimum auth set
-3. **Trace** — for encoded/opaque values, search JS bundles and embedded JSON to find the source
-4. **Build** — harvest the minimum values (via `rateLimitedFetch` for `Set-Cookie` cookies, via Patchright `context.cookies()` for JS-challenge cookies), then call the API and paginate
+**STOP. Read `.claude/skills/api-discovery/reference/session-harvest.md` before writing any session harvest code.** Do not attempt session harvest without completing all three phases described in that file. Do not invent your own cookie-fetching approach — the reference file covers `Set-Cookie` harvest, JS-challenge cookies via Patchright, elimination testing, and encoded value tracing.
 
 A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
 
