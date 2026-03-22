@@ -14,45 +14,36 @@ Four steps. Always all four. No skipping. No building until classification is co
 
 Collect ALL evidence before analyzing anything.
 
-**1a. Connect browser and click around.** This is the most important step. Connect a browser, then click things and capture the traffic that fires. A human discovers APIs by opening Chrome DevTools, clicking around, and watching the Network tab. Do the same thing.
+**1a. Find every list and its pagination.** This is the most important step. Every site has lists (products, events, listings, videos). Every list has a way to load more items. Find the pagination mechanism for each list BEFORE doing anything else.
 
-"Click around" means literally clicking elements on the page:
-- Click a "Show more" or "Load more" button — capture the POST/GET that fires
-- Click pagination arrows or page numbers (1, 2, 3, Next >) — capture the request
-- Scroll to the bottom of a list to trigger lazy loading — capture what loads
-
-Do this on BOTH the list page AND a detail page. The pagination request you capture here is the most valuable thing in GATHER — you'll replicate it in BUILD.
-
-```bash
-./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
-sleep 15
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-list.json
-# Navigate to detail page, wait 10s, capture again:
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
-# Click pagination controls, wait 5s, capture again:
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-pagination.json
-```
-
-**1b.** Fetch the target page HTML and ONE different page type (detail, search, or channel page).
-- Try `rateLimitedFetch` first. If non-200, try `browserFetch` once.
-- `browserFetch` returns raw pre-hydration HTML (script tags intact).
-- Do NOT use `page.evaluate(document.outerHTML)` — hydration strips data.
-
-**1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML).
-- Save the content for scanning.
+How to find pagination:
+1. Connect a browser to the site
+2. Look at any list on the page — search for `aria-label="pagination"`, buttons with text like "Show more" / "Load more" / "Next", or page numbers (1, 2, 3)
+3. Click the pagination control and capture what network request fires
+4. That request IS the pagination API — record the URL, method, headers, and body
 
 ```bash
-# Example using connect-browser.sh:
+# Connect browser
 ./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
 sleep 15
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-list.json
-# Navigate to detail page, wait 10s, capture again:
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-detail.json
-# Click pagination controls, wait 5s, capture again:
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-pagination.json
+# Capture baseline traffic
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-before.json
+# Click a pagination button using page.evaluate:
+curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"document.querySelector(\"button[aria-label*=next], button[aria-label*=more], [data-testid*=more], [data-testid*=next]\")?.click()"}'
+sleep 5
+# Capture traffic AFTER clicking — the new entries are your pagination API
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 ```
 
-**Required output from 1d:**
+Do this on the list/home page AND on a detail page (product, event, listing). Navigate to a detail page with MANY items — pagination only appears when there are enough items to paginate.
+
+**1b.** Fetch the target page HTML and ONE different page type via `rateLimitedFetch` (escalate to `browserFetch` if non-200). Save the raw HTML — do NOT use `page.evaluate(document.outerHTML)` because hydration strips embedded JSON.
+
+**1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML). Save for scanning.
+
+**Required output from 1a-1c:**
 - Detail page URL visited: ___
 - List page traffic entry count: ___
 - Detail page traffic entry count: ___
