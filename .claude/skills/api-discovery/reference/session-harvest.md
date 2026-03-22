@@ -146,7 +146,8 @@ handler: async (c) => {
 
 ## Common mistakes
 
+- **Using `browserFetch` and stopping when it returns partial data.** `browserFetch` inherits the page's cookies but may not have all WAF/session cookies if the page hasn't completed JS challenges. If `browserFetch` returns partial data (e.g., 16 items when totalCount says 3000), switch to Patchright: navigate to the page, wait for JS challenges to complete, then harvest cookies via `context.cookies()` and replay with `rateLimitedFetch`. See Route 31 in boardshop for this exact pattern.
 - **Using `rateLimitedFetch` to harvest JS-challenge cookies.** WAF tokens are set by JavaScript execution, not `Set-Cookie` headers. If the cookie doesn't appear in the HTTP response, you need Patchright.
 - **Stopping at the WAF gate.** Getting past 403 is step one. Verify the response contains actual data — WAF-pass + empty data means you're still missing session cookies.
 - **Assuming one elimination covers all endpoints.** Run elimination per endpoint. The auth requirements often differ.
-- **Reporting the gap instead of solving it.** A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
+- **Reporting the gap instead of solving it.** A route that returns `{ error: "needs browser session" }` or marks itself as "needs real browser" is not a route. Harvest the session and return data. The path is always: Patchright `context.cookies()` → replay with `rateLimitedFetch` → paginate.

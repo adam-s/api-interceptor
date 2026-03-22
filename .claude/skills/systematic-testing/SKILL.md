@@ -90,7 +90,7 @@ curl -s -X DELETE http://localhost:3001/browser/traffic | jq '.'
 
 **Common L3 failures:**
 - Browser navigates but page renders empty (bot detection, CAPTCHA) → check page content with `page.evaluate(() => document.body.innerText.slice(0, 500))`
-- Traffic buffer empty after navigation (Type B2) → ISMDS/XHR calls not firing; increase wait time
+- Traffic buffer empty after navigation (Type B2) → XHR/API calls not firing; increase wait time
 - RegionalDomain mismatch → filter extracted URLs to correct domain
 
 ---
