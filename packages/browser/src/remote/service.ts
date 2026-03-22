@@ -926,6 +926,22 @@ export class RemoteBrowserService {
 		this.urlChangeCallback = null;
 		this.interceptors.clear();
 
+		// Clean up temp user data dir (non-persistent profiles only).
+		// Without this, each crash+restart cycle leaves a ~50MB dir in /tmp/patchright-*.
+		// After 10+ cycles, file handle exhaustion prevents new browser launches.
+		if (
+			this.userDataDir?.includes('/tmp/patchright-') ||
+			this.userDataDir?.includes('\\tmp\\patchright-')
+		) {
+			try {
+				const { rmSync } = await import('node:fs');
+				rmSync(this.userDataDir, { recursive: true, force: true });
+				console.log(`[RemoteBrowserService.stop] Cleaned temp dir: ${this.userDataDir}`);
+			} catch {
+				// Best-effort cleanup — dir may have locked files
+			}
+		}
+
 		console.log('[RemoteBrowserService.stop] Browser stopped');
 	}
 

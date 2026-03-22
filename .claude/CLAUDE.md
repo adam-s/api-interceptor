@@ -38,7 +38,7 @@ pnpm --filter @interceptor/test-server start  # Test server on 4444
 If you are running in a worktree (`pwd` contains `/tmp/interceptor-worktrees/`):
 - **ALL files go in YOUR worktree.** Never write to the original repo.
 - Run `pnpm install` once to get dependencies. If it fails, fix the error — do not retry with different flags.
-- Before starting the API server: `lsof -ti:PORT | xargs kill 2>/dev/null` to clear the port. Start once. The tsx watcher only sees `apps/api/src/` — if you edit domain route files, restart the server to pick up changes.
+- Before starting the API server: `lsof -ti:PORT | xargs kill 2>/dev/null` to clear the port. Start once. The tsx watcher monitors both `apps/api/src/` and `domains/` — it will auto-reload when you edit domain route files.
 - Edit `register-domains.ts` **in your worktree** to import your domain plugin.
 - Test routes through `localhost:PORT/api/domain/route`.
 - Connect a browser for traffic capture — curl-only discovery misses transport types.

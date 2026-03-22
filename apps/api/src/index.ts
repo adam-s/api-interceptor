@@ -1,6 +1,17 @@
 import type { IncomingMessage } from 'node:http';
 import { createServer } from 'node:http';
 import type { Socket } from 'node:net';
+
+// Global exception handlers — prevent silent crashes during discovery agent runs.
+// Without these, unhandled promise rejections (browser CDP errors, WebSocket race conditions)
+// kill the process silently with no log output.
+process.on('unhandledRejection', (reason) => {
+	console.error('[FATAL] Unhandled rejection:', reason);
+});
+process.on('uncaughtException', (err) => {
+	console.error('[FATAL] Uncaught exception:', err);
+	// Don't exit — keep the server running so agents can recover
+});
 import { analyzeDiscovery } from '@interceptor/browser/analysis/discovery';
 import {
 	autoStartHeadlessBrowser,
