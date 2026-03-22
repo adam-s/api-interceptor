@@ -13,7 +13,7 @@ Discover how a website delivers data, then create a domain plugin that exposes i
 
 ## Phases
 
-1. **Observe** — Connect browser via WebSocket, capture traffic, screenshot the page
+1. **Observe** — Connect browser, navigate to a page with list data, trigger pagination, intercept the request/response that fires. GATHER is not complete until you have captured at least one pagination request/response pair.
 2. **Classify** — Run the discovery protocol per data type. Produce Transport Elimination table (MANDATORY GATE)
 3. **Extract** — Write routes: public endpoints use rateLimitedFetch → browserFetch; auth-gated endpoints (Gap=Y) go directly to session harvest (see reference/session-harvest.md)
 4. **Verify** — Curl every route, confirm real data AND complete pagination (MANDATORY GATE — no dashboard until this passes)

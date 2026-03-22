@@ -7,7 +7,16 @@ description: Use sub-agents as test subjects to iteratively improve .claude/ ins
 
 # Instruction Tuning via Sub-Agent Testing
 
-Sub-agents run real tasks, take shortcuts, you observe the failure, fix the instructions, re-run. The sub-agent's code is throwaway — the instruction improvements are the product.
+## How This Works
+
+You are not writing code. You are writing instructions that make other agents write correct code.
+
+1. **Launch sub-agents** on real websites and watch their behavior in real time.
+2. **Ask yourself: "Would I do it this way?"** Compare the agent's approach to how you would solve the problem. When the agent makes a choice you wouldn't make — navigates to the wrong page, extracts data instead of interacting, gives up after one try — that's an instruction gap.
+3. **Fix the instructions so the agent would do what you would do.** The `.claude/` files are the only lever. You can't hint, coach, or correct the agent mid-run. The instructions must be clear enough that a fresh agent, reading them for the first time, makes the same choices you would make.
+4. **Re-run and verify.** Launch fresh agents on the same sites. If they still diverge from your approach, the instructions are still wrong — find the gap and fix it again.
+
+The sub-agent's code is throwaway. The instruction improvements are the product. Every iteration should close the gap between "what the agent does" and "what you would do."
 
 ## The Loop
 
@@ -86,7 +95,7 @@ Agent prompt template:
 Discover ALL transport types that [site] uses. Build a route for EVERY transport found.
 Target: [url]
 Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
-In GATHER: you MUST visit a detail/item page in the browser and build the Access Gap table.
+In GATHER: intercept pagination traffic. Navigate to a page with list data, trigger pagination (activate the control via page.evaluate), and capture the request/response that fires. GATHER is not done until you have at least one new request/response pair from triggering pagination. Use page.evaluate to INTERACT only — do not use it to read __NEXT_DATA__ or extract DOM data during GATHER.
 In CLASSIFY: name the site's core data and verify your transports cover it.
 In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest. Read the session harvest reference file BEFORE writing any harvest code.
 In BUILD: after each route, fill the mandatory completeness check. If totalCount > items returned, the route is NOT DONE — paginate before moving to the next route.
@@ -100,12 +109,14 @@ Your port is XXXX.
 
 | Check | Pass/Fail |
 |-------|-----------|
+| Pagination intercepted in GATHER (new request/response captured from triggering pagination) | |
+| page.evaluate used ONLY for interaction in GATHER (not for reading __NEXT_DATA__ or DOM data) | |
 | Full elimination table (all 8 rows ✓ or ✗) | |
 | Route built for EVERY ✓ transport | |
 | Used GATHER→SCAN→CLASSIFY→BUILD pipeline | |
 | Did NOT search for public APIs | |
 | Detail page visited in browser (URL recorded) | |
-| Access Gap table produced (Step 1e) | |
+| Access Gap table produced (Step 2e) | |
 | Core data identified in CLASSIFY | |
 | Session harvest COMPLETED for Gap=Y endpoints (routes return data, not errors) | |
 | Pagination COMPLETE: every route's completeness check shows total == items returned | |

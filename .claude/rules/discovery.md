@@ -2,7 +2,7 @@
 
 # Discovery Protocol
 
-Discover ALL transports a website uses by gathering evidence, scanning for markers, and classifying every transport type. Do NOT search for public APIs, scraping guides, or external documentation.
+This is an API interceptor. The core loop is: navigate to a page with paginated data → trigger pagination → capture the request/response that fires → build a proxy route from it. Do NOT search for public APIs, scraping guides, or external documentation.
 
 ## The Algorithm: GATHER → SCAN → CLASSIFY → BUILD
 
@@ -10,69 +10,104 @@ Four steps. Always all four. No skipping. No building until classification is co
 
 ---
 
-### STEP 1: GATHER (3-5 tool calls)
+### STEP 1: GATHER — Understand the site, then intercept pagination
 
-Collect ALL evidence before analyzing anything.
+GATHER has two jobs: (A) figure out what the site sells, and (B) intercept the pagination request for that data.
 
-**1a. Connect browser and search for pagination on every page.** Before fetching HTML or reading any data, connect a browser and find how the site paginates. This is the #1 priority in GATHER.
-
-On every page you visit, immediately search for ALL pagination types:
+**1a. Connect browser and understand the site (2 minutes max).**
 
 ```bash
-# Connect browser
 ./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
 sleep 15
-
-# On every page, run this to find pagination controls:
-curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
-  -H 'Content-Type: application/json' \
-  -d '{"script":"JSON.stringify({showMore: !!document.querySelector(\"button:has-text(Show more), button:has-text(Load more), button:has-text(See more)\"), nextButton: !!document.querySelector(\"[aria-label*=next], [aria-label*=Next], button:has-text(Next)\"), pageNumbers: !!document.querySelector(\"nav[aria-label*=pagination], nav[aria-label*=Pagination], [role=navigation] a\"), infiniteScroll: !!document.querySelector(\"[data-testid*=infinite], [class*=infinite], [class*=lazy-load]\"), totalItems: document.body.innerText.match(/showing \\d+ of \\d+|\\d+ results|\\d+ listings/i)?.[0] || null})"}'
 ```
 
-When you find a pagination control — **click it immediately** and capture the traffic:
+Spend your first 2-3 tool calls understanding what this site is. Navigate the homepage and one other page. Answer these questions using ONLY what you can see on the page (titles, navigation, headings — not source code):
+
+```
+## Site understanding
+- What is the purpose of this website?
+- What are the most important content types?
+- Content hierarchy: [top-level → mid-level → detail-level, e.g., "categories → listings → item details"]
+- What is the deepest, most valuable paginated content?
+- Where will I find a page with MANY items and a pagination control?
+```
+
+Every site has a content hierarchy — top levels (search, categories, navigation) lead to deeper levels (lists of items, then item details with sub-lists). The deepest paginated content is your interception target. **Go to where the most items are at the deepest level.**
+
+**1b. Navigate to a page with the most paginated data.** Based on your site understanding, go directly to a page that has the deepest data with the most items. Pick a popular/busy instance:
+Pick a popular or busy instance of the deepest content — the page with the most items. If it has fewer than 20 items or no pagination control, find a busier one.
+
+If the first page you try has few items (< 20) or no pagination control, **immediately navigate to a busier page.** Do not analyze the page — just check if there's a pagination control and enough items.
+
+**1c. Intercept the pagination request.** Snapshot → trigger → diff.
 
 ```bash
-# Capture traffic before clicking
+# 1. Snapshot traffic BEFORE
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-before.json
-# Click the pagination control
+
+# 2. Trigger pagination via page.evaluate — find and activate the control
+#    Common selectors (try until one works):
+#    - [class*=more], [class*=load], [class*=next]
+#    - [aria-label*=next], [aria-label*=Next]
+#    - nav[aria-label*=pagination] a:last-child
+#    - window.scrollTo(0, document.body.scrollHeight)  (infinite scroll)
 curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
   -H 'Content-Type: application/json' \
-  -d '{"script":"(document.querySelector(\"button:has-text(Show more), button:has-text(Load more), [aria-label*=next], [aria-label*=Next]\") || document.querySelector(\"nav[aria-label*=pagination] a:last-child\"))?.click()"}'
+  -d '{"script":"document.querySelector(\"[class*=more], [class*=load], [class*=next], [aria-label*=next], [aria-label*=Next]\")?.click()"}'
 sleep 5
-# Capture traffic after clicking — new entries are the pagination API
+
+# 3. Snapshot traffic AFTER and diff
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 ```
 
-Do this on at least 2 pages: the home/list page AND a detail page with many items.
+**Success criteria:** New traffic entries appeared. Record the URL, method, headers, and response shape.
 
-**1b.** Fetch the raw HTML of 2 page types using `browserFetch` (not `rateLimitedFetch` — you already have the browser connected). Also fetch the largest JS bundle for scanning.
+**If 0 new entries:** You are not done. Try in order:
+1. A busier page (more items = pagination more likely to use XHR)
+2. A different control (scroll, "Next" link, page number)
+3. If no page produces XHR pagination, the site uses embedded data (SSR/`__NEXT_DATA__`) — note this, but still visit a second page type
+
+**1d. Intercept on a second page type.** The site has multiple levels in its content hierarchy. Run the same intercept on a different level. Your goal: capture pagination traffic from at least 2 levels of the content hierarchy.
+
+**1e. Capture final traffic snapshot.**
+
+```bash
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
+```
 
 **Required output from GATHER:**
+- Site understanding: [what it sells, content hierarchy, deepest paginated data]
 - Pages visited: [list URLs]
-- Pagination controls found: [type per page — Show more / Next / page numbers / infinite scroll / none]
-- Pagination traffic captured: [yes/no — if yes, record the request URL, method, and body]
+- Pagination intercepted: [for each page — YES with request details, or NO with what you tried]
 - Traffic entry count: ___
 
-**1e.** Build the Access Gap table. For each API endpoint the browser called, try the same request with plain `rateLimitedFetch` (no cookies). Record the result:
+**GATHER is not complete until** you have attempted interception on at least 2 levels of the content hierarchy (e.g., search results page AND item detail page with many sub-items).
 
-```
-## Access Gaps
-| Endpoint (from browser traffic) | Browser status | Direct HTTP status | Gap? |
-|--------------------------------|---------------|-------------------|------|
-| [url]                          | 200           | 200 / 401 / 403   | Y/N  |
-```
-
-Any row with Gap=Y is a **session harvest target** in BUILD. These are not optional — they represent data the site delivers only to authenticated browsers.
-
-**Output:** 2 HTML files, 1 JS bundle, list + detail traffic, and the Access Gap table.
+**Rules for GATHER:**
+- Do NOT call `rateLimitedFetch` or `curl` the site directly — the browser is the only tool
+- Do NOT use `page.evaluate` to extract data (`__NEXT_DATA__`, Redux state, DOM text, HTML). Use it ONLY to interact: find elements and activate them
+- Do NOT analyze traffic content — just capture it
 
 ---
 
-### STEP 2: SCAN (1-2 tool calls)
+### STEP 2: SCAN (3-5 tool calls)
 
-Search ALL gathered data for ALL transport markers at once. Use ONE command per source.
+Now analyze the evidence. This is the first step where you fetch HTML and JS directly.
 
-**HTML scan** (run on BOTH pages):
+**2a. Traffic scan** (ONE pass over all captured entries — do this FIRST):
+```bash
+curl -s http://localhost:PORT/browser/traffic | python3 -c "
+import sys,json
+d = json.load(sys.stdin)
+for e in d.get('entries',[]):
+    ct = e.get('responseHeaders',{}).get('content-type','')
+    print(f'{e[\"method\"]} {e[\"url\"][:80]} [{ct[:40]}]')
+"
+```
+
+**2b. Fetch HTML and JS bundles** using `browserFetch` (you already have the browser connected). Fetch the raw HTML of 2 page types and the largest JS bundle.
+
+**2c. HTML scan** (run on BOTH pages):
 ```bash
 echo "=== Embedded JSON ==="
 grep -oE '<script[^>]*type="application/json"[^>]*>' page.html
@@ -84,29 +119,29 @@ echo "=== Tokens ==="
 grep -oE 'type="hidden"[^>]*value="[^"]*"|meta name="[^"]*" content="[^"]*"' page.html
 ```
 
-**JS bundle scan** (ONE grep for ALL markers):
+**2d. JS bundle scan** (ONE grep for ALL markers):
 ```bash
 grep -oE 'wss://[^"'\'' ]+|new WebSocket\(|\.m3u8|MediaSource|protobuf|protobufjs|EventSource|graphql|/gql|grpc|application/grpc' bundle.js
 ```
 
-**Traffic scan** (ONE pass over all entries):
-```bash
-curl -s http://localhost:PORT/browser/traffic | python3 -c "
-import sys,json
-d = json.load(sys.stdin)
-for e in d.get('entries',[]):
-    ct = e.get('responseHeaders',{}).get('content-type','')
-    print(f'{e[\"method\"]} {e[\"url\"][:80]} [{ct[:40]}]')
-"
+**2e. Build the Access Gap table.** For each API endpoint the browser called, try the same request with plain `rateLimitedFetch` (no cookies). Record the result:
+
+```
+## Access Gaps
+| Endpoint (from browser traffic) | Browser status | Direct HTTP status | Gap? |
+|--------------------------------|---------------|-------------------|------|
+| [url]                          | 200           | 200 / 401 / 403   | Y/N  |
 ```
 
-**Output:** list of every marker found, with location.
+Any row with Gap=Y is a **session harvest target** in BUILD. These are not optional — they represent data the site delivers only to authenticated browsers.
+
+**Output:** Traffic summary, HTML markers, JS markers, and the Access Gap table.
 
 ---
 
 ### STEP 3: CLASSIFY (0 tool calls — reasoning only)
 
-**First: identify the site's core data.** What does this site exist to show users? (Tickets, listings, prices, videos, articles, products.) Your routes must cover this data. If your ✓ transports only cover metadata (search, categories, trending) but not the core data, you are missing the most important routes.
+**First: verify your site understanding from GATHER.** You identified the content hierarchy. Your routes must cover EVERY level of that hierarchy, especially the deepest level. If your ✓ transports only cover the top levels (search, categories) but not the deepest paginated data, you are missing the most important routes.
 
 Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 
@@ -125,7 +160,7 @@ Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 | SSE            | ✓ or ✗   | [EventSource in JS, or "not found"]         |             |
 | Encoded/Binary | ✓ or ✗   | [non-JSON response, or "all JSON/HTML"]     |             |
 
-## Access Gaps (from Step 1e)
+## Access Gaps (from Step 2e)
 [paste the Access Gap table here — every Gap=Y row becomes a session harvest route in BUILD]
 
 ## Completeness check
@@ -147,7 +182,7 @@ Do NOT start building routes until this table is filled.
 ### STEP 4: BUILD (2-3 tool calls per ✓ transport)
 
 Three principles before you start:
-1. **Interact with every page** — if you didn't click buttons and scroll during GATHER, go back. The most valuable traffic comes from interactions, not passive page loads.
+1. **Verify you intercepted pagination** — your GATHER output must show at least one request/response pair captured from triggering pagination. If it doesn't, STOP and go back to GATHER. Do not build routes from traffic you passively observed — the pagination request you actively triggered is the foundation.
 2. **Know before you code** — for Gap=Y endpoints, run elimination to find the minimum auth set before writing any route code. Guessing wastes 10x more calls than measuring.
 3. **Test with enough data** — if a detail page shows all items with no pagination, find a busier page. Pagination only appears when there are many items.
 
@@ -202,7 +237,7 @@ If total > items returned, the route is NOT DONE — **do not move to the next r
 
 **STOP. Read `.claude/skills/api-discovery/reference/session-harvest.md` before writing any session harvest code.** Do not attempt session harvest without completing all three phases described in that file. Do not invent your own cookie-fetching approach — the reference file covers `Set-Cookie` harvest, JS-challenge cookies via Patchright, elimination testing, and encoded value tracing.
 
-**Traffic replay + elimination:** The browser traffic from Step 1d already contains working requests for Gap=Y endpoints — with all required headers and cookies. Before building a harvester from scratch:
+**Traffic replay + elimination:** The browser traffic from GATHER (Step 1e) already contains working requests for Gap=Y endpoints — with all required headers and cookies. Before building a harvester from scratch:
 1. Find the working request in captured traffic (URL, method, headers, cookies, body)
 2. Replay it from Node.js `fetch` with ALL captured values — confirm you get the same response
 3. **Run elimination:** For each cookie and header in the working request, make a new request with that ONE value removed. Rate-limit to 2-3 requests per second. Record which removals break the response (403/401/empty) and which still return 200. This gives you the minimum required set without guessing.

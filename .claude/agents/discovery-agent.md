@@ -52,9 +52,15 @@ some-command &
 
 Before exiting: `kill $(jobs -p) 2>/dev/null`
 
-## Browser Traffic Capture (MANDATORY)
+## Pagination Interception (MANDATORY)
 
-Steps 1d and 1e in discovery.md (browser traffic capture + interaction) are NOT optional. Curl-only discovery misses WebSocket, JSONP, lazy-loaded endpoints, and other transports.
+GATHER has two jobs: (A) understand what the site is and what its most important content types are, (B) intercept pagination on the deepest, most valuable paginated content.
+
+First: figure out the site's purpose and content hierarchy by looking at the pages (not source code). Then navigate to a page with the deepest paginated data — the page with the most items at the lowest level of the hierarchy.
+
+Trigger pagination and capture the request/response. If 0 new traffic entries, try a busier page or different control. Do not move on with zero interceptions.
+
+Use `page.evaluate` to INTERACT (find and activate controls), not to READ data (`__NEXT_DATA__`, Redux state, DOM text). Data extraction happens in SCAN.
 
 ## Testing Routes (MANDATORY)
 
