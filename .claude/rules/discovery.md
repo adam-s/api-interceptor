@@ -145,28 +145,20 @@ Build routes in two passes:
 
 **Pagination gate:** After each route returns data, check for totalCount/total/count fields. If the response says 3000 items and you received 16, the route is **0.5% complete**. Paginate until done. If pagination requires cookies, that is session harvest — not a reason to stop.
 
-#### Session Harvest Escalation (when 1-3 all fail)
+#### Session Harvest (for Gap=Y endpoints)
 
-When `browserFetch` times out, CORS-blocks, or returns empty data, the site likely requires specific cookies/headers that only a real page visit sets. Use this approach:
+**Full reference:** `.claude/skills/api-discovery/reference/session-harvest.md` — covers the complete process including elimination testing, encoded value tracing, and JS-challenge cookies.
 
-**Step A — Capture a working request.** Navigate Patchright to the page, interact (click buttons, scroll), and intercept the working request via `page.on('request')`. Save the full headers + body.
+The short version:
 
-**Step B — Elimination test.** Replay the request from Node.js `fetch` with all captured headers. Then remove ONE header at a time and ONE cookie at a time, checking which removals break the response. This finds the minimum auth set in ~30 seconds.
+1. **Capture** a working request from browser traffic (all headers, cookies, body)
+2. **Eliminate** — replay with all values, then remove one at a time to find the minimum auth set
+3. **Trace** — for encoded/opaque values, search JS bundles and embedded JSON to find the source
+4. **Build** — harvest the minimum values (via `rateLimitedFetch` for `Set-Cookie` cookies, via Patchright `context.cookies()` for JS-challenge cookies), then call the API and paginate
 
-**Step C — Build a SessionHarvester.** Create a harvester in `domains/<name>/src/session.ts` using `SessionHarvester` from `@interceptor/browser`. Configure:
-- `seedUrl` — the page to visit to get cookies
-- `harvest` — extract the required cookies via `context.cookies()` (catches httpOnly cookies that `document.cookie` misses)
-- `buildHeaders` — return only the minimum headers found in Step B
+A route that returns `{ error: "needs browser session" }` is not a route. Harvest the session and return data.
 
-**Step D — Use plain `rateLimitedFetch` with harvested tokens.** The route calls `session.getHeaders()` and passes them to `rateLimitedFetch`. No `browserFetch` needed.
-
-**When to suspect you need this:**
-- `browserFetch` returns CORS error or times out on a cross-origin API
-- `page.evaluate(fetch(...))` returns 200 but empty data
-- Named pages (`getOrCreatePage`) can't replicate what the main page does
-- The API needs httpOnly cookies that `document.cookie` can't read
-
-Reference: Routes 30-31 in `domains/boardshop/src/routes.ts` demonstrate both patterns.
+Reference: Routes 30-31 in `domains/boardshop/src/routes.ts` demonstrate both `Set-Cookie` harvest and multi-cookie harvest patterns.
 
 Reference patterns in `domains/boardshop/src/routes.ts`:
 
