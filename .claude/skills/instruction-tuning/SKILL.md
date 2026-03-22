@@ -62,7 +62,8 @@ Target: [url]
 Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
 In GATHER: you MUST visit a detail/item page in the browser and build the Access Gap table.
 In CLASSIFY: name the site's core data and verify your transports cover it.
-In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest.
+In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest. Read the session harvest reference file BEFORE writing any harvest code.
+In BUILD: after each route, fill the mandatory completeness check. If totalCount > items returned, the route is NOT DONE — paginate before moving to the next route.
 Fill ALL 8 elimination rows before writing code.
 After building routes, register your domain and test EVERY route through the API server proxy.
 Your port is XXXX.
@@ -79,9 +80,9 @@ Your port is XXXX.
 | Detail page visited in browser (URL recorded) | |
 | Access Gap table produced (Step 1e) | |
 | Core data identified in CLASSIFY | |
-| Session harvest attempted for Gap=Y endpoints | |
-| Pagination complete (no totalCount >> items returned) | |
-| Routes tested through API server proxy (not just curl) | |
+| Session harvest COMPLETED for Gap=Y endpoints (routes return data, not errors) | |
+| Pagination COMPLETE: every route's completeness check shows total == items returned | |
+| Routes tested through API server proxy AND return real data (not empty/error) | |
 | Wrote files to worktree, not main repo | |
 | Stayed under 150 tool calls | |
 

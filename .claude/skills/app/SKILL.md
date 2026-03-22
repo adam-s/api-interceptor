@@ -91,7 +91,7 @@ Build routes for ALL discovered transports (standard discovery protocol),
 AND ensure the data requirements above are fully covered.
 ```
 
-Wait for agents to complete. Copy their domain plugins from worktrees into the branch. Register domains, install deps, verify routes with curl.
+Wait for agents to complete. Copy their domain plugins from worktrees into the branch. Register domains, install deps, verify each route returns real data (not empty, not error) via curl through the API proxy.
 
 ## Phase 4: Dashboard
 

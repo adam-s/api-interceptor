@@ -126,24 +126,46 @@ Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 - Session harvest routes needed: [count]
 ```
 
-**The table is not complete until every row has ✓ or ✗ with evidence AND the completeness check is filled.** Do NOT start building routes until this table is filled.
+**The table is not complete until:**
+1. Every transport row has ✓ or ✗ with evidence
+2. Every Gap=Y endpoint from the Access Gap table has a corresponding route planned in BUILD
+3. If you mark a Gap=Y endpoint as ✗ (no route), you MUST explain why session harvest is impossible — not just difficult
+4. The completeness check is filled
+
+Do NOT start building routes until this table is filled.
 
 ---
 
 ### STEP 4: BUILD (2-3 tool calls per ✓ transport)
 
-Build routes in two passes:
+Each route has two phases. A route is NOT done after phase A.
 
-**Pass 1 — Public endpoints** (no Access Gap): use the cheapest approach that works.
-1. `rateLimitedFetch` — try first. Most endpoints work without a browser.
+**Phase A — Prove the endpoint works.** Get a successful first response.
+
+For public endpoints (no Access Gap), try the cheapest approach:
+1. `rateLimitedFetch` — try first if the endpoint doesn't need auth.
 2. `browserFetch` — if direct HTTP returns 429/403/404/202.
 3. `page.evaluate` — if browserFetch fails (CORS, timeout).
 
-**Pass 2 — Auth-gated endpoints** (Gap=Y from Access Gap table): go directly to session harvest. Do not waste time trying rateLimitedFetch on endpoints you already proved return 401/403 without cookies. The Access Gap table already told you these need browser cookies — session harvest is the correct approach, not a last resort.
+For auth-gated endpoints (Gap=Y from Access Gap table), session harvest IS the correct approach — not a fallback. Do not try `rateLimitedFetch` on endpoints you already proved require auth. Go directly to session harvest. Skipping this because it seems "expensive" means your route returns incomplete data.
+
+**Phase B — Complete the route.** Getting the first page of data is step 1, not the finish line. Pagination is often harder than the initial request — it may require different auth, different request format, or sequential state. This is the actual work.
+
+After each route returns data, fill this **mandatory completeness check**:
+
+```
+## Route: [path]
+| Field | Value |
+|-------|-------|
+| Items returned | ___ |
+| Total indicated (totalCount/total/hasMore/itemsRemaining) | ___ |
+| Complete | yes / no |
+| If no: what pagination approach is needed | ___ |
+```
+
+If total > items returned, the route is NOT DONE. Paginate until all items are returned. If pagination requires cookies the initial request didn't need, that is session harvest — read the reference file.
 
 **Every ✓ row requires a route. No exceptions.** Only change ✓ to ✗ if all approaches including session harvest fail. "Bot-protected" or "signed URLs" is not ✗ — it means session harvest.
-
-**Pagination gate:** After each route returns data, check for totalCount/total/count fields. If the response says 3000 items and you received 16, the route is **0.5% complete**. Paginate until done. If pagination requires cookies, that is session harvest — not a reason to stop.
 
 #### Session Harvest (for Gap=Y endpoints)
 
@@ -177,7 +199,12 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 
 **Decode check:** After testing each route, compare a sample response field with what the page displays for the same item. If values don't match (e.g., API returns `"FBEJ"` but page shows `$51.49`), the response is encoded — read `.claude/skills/api-discovery/reference/decoding.md` and search the JS bundle for the decoder function.
 
-Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
+Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. A route passes testing when it:
+1. Returns HTTP 200 with actual data (not empty, not just metadata)
+2. The completeness check shows total == items returned (or the route handles pagination)
+3. Values match what the page displays (if not, the response is encoded — investigate)
+
+Do NOT move to the next route until the current route is data-complete. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 
 ---
 

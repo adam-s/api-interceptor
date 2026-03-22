@@ -38,7 +38,7 @@ Run `pnpm install` exactly ONCE. Do not run it again.
 
 ## Efficiency
 
-- Stay under **150 tool calls**. Diminishing returns means stop.
+- Target **150 tool calls**. But data completeness takes priority over budget — if pagination requires more calls, use them. The budget guards against inefficiency, not against completing the work.
 - Do NOT `sleep` longer than 15 seconds. If something isn't working after 15s, try a different approach.
 - The only rules file is `discovery.md`. Do not look for other rules files.
 
@@ -75,7 +75,12 @@ sleep 8
 curl -s http://localhost:XXXX/api/yourdomain/route | head -50
 ```
 
-If a route fails through the proxy, fix the code. The route must actually execute, not just look correct.
+A route passes testing when ALL of these are true:
+1. Returns HTTP 200 with actual data (not empty array, not error JSON)
+2. If the response has totalCount/total/hasMore fields, the route returns ALL items (or documents pagination)
+3. Values in the response match what the page displays (if not, investigate encoding)
+
+If a route fails through the proxy, fix the code. If a route returns 16 items but totalCount says 3000, the route is not done — paginate.
 
 ## Discovery Protocol
 
