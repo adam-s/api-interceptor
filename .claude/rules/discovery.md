@@ -14,42 +14,44 @@ Four steps. Always all four. No skipping. No building until classification is co
 
 Collect ALL evidence before analyzing anything.
 
-**1a. Find every list and its pagination.** This is the most important step. Every site has lists (products, events, listings, videos). Every list has a way to load more items. Find the pagination mechanism for each list BEFORE doing anything else.
+**1a. Connect browser and search for pagination on every page.** Before fetching HTML or reading any data, connect a browser and find how the site paginates. This is the #1 priority in GATHER.
 
-How to find pagination:
-1. Connect a browser to the site
-2. Look at any list on the page — search for `aria-label="pagination"`, buttons with text like "Show more" / "Load more" / "Next", or page numbers (1, 2, 3)
-3. Click the pagination control and capture what network request fires
-4. That request IS the pagination API — record the URL, method, headers, and body
+On every page you visit, immediately search for ALL pagination types:
 
 ```bash
 # Connect browser
 ./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
 sleep 15
-# Capture baseline traffic
-curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-before.json
-# Click a pagination button using page.evaluate:
+
+# On every page, run this to find pagination controls:
 curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
   -H 'Content-Type: application/json' \
-  -d '{"script":"document.querySelector(\"button[aria-label*=next], button[aria-label*=more], [data-testid*=more], [data-testid*=next]\")?.click()"}'
+  -d '{"script":"JSON.stringify({showMore: !!document.querySelector(\"button:has-text(Show more), button:has-text(Load more), button:has-text(See more)\"), nextButton: !!document.querySelector(\"[aria-label*=next], [aria-label*=Next], button:has-text(Next)\"), pageNumbers: !!document.querySelector(\"nav[aria-label*=pagination], nav[aria-label*=Pagination], [role=navigation] a\"), infiniteScroll: !!document.querySelector(\"[data-testid*=infinite], [class*=infinite], [class*=lazy-load]\"), totalItems: document.body.innerText.match(/showing \\d+ of \\d+|\\d+ results|\\d+ listings/i)?.[0] || null})"}'
+```
+
+When you find a pagination control — **click it immediately** and capture the traffic:
+
+```bash
+# Capture traffic before clicking
+curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-before.json
+# Click the pagination control
+curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"(document.querySelector(\"button:has-text(Show more), button:has-text(Load more), [aria-label*=next], [aria-label*=Next]\") || document.querySelector(\"nav[aria-label*=pagination] a:last-child\"))?.click()"}'
 sleep 5
-# Capture traffic AFTER clicking — the new entries are your pagination API
+# Capture traffic after clicking — new entries are the pagination API
 curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 ```
 
-Do this on the list/home page AND on a detail page (product, event, listing). Navigate to a detail page with MANY items — pagination only appears when there are enough items to paginate.
+Do this on at least 2 pages: the home/list page AND a detail page with many items.
 
-**1b.** Fetch the target page HTML and ONE different page type via `rateLimitedFetch` (escalate to `browserFetch` if non-200). Save the raw HTML — do NOT use `page.evaluate(document.outerHTML)` because hydration strips embedded JSON.
+**1b.** Fetch the raw HTML of 2 page types using `browserFetch` (not `rateLimitedFetch` — you already have the browser connected). Also fetch the largest JS bundle for scanning.
 
-**1c.** Fetch the largest JS bundle (`<script src="...">` in the HTML). Save for scanning.
-
-**Required output from 1a-1c:**
-- Detail page URL visited: ___
-- List page traffic entry count: ___
-- Detail page traffic entry count: ___
-- Pagination traffic entry count (after interaction): ___
-- NEW endpoints that appeared on the detail page: [list]
-- NEW endpoints that appeared after interaction (pagination POST, etc.): [list]
+**Required output from GATHER:**
+- Pages visited: [list URLs]
+- Pagination controls found: [type per page — Show more / Next / page numbers / infinite scroll / none]
+- Pagination traffic captured: [yes/no — if yes, record the request URL, method, and body]
+- Traffic entry count: ___
 
 **1e.** Build the Access Gap table. For each API endpoint the browser called, try the same request with plain `rateLimitedFetch` (no cookies). Record the result:
 

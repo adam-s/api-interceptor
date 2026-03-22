@@ -1,80 +1,84 @@
 # Instruction Tuning Handoff
 
-## Current Iteration: 12 (next)
+## Current State: Iteration 29 running (will likely fail — same pattern as 27-28)
 
-## Iteration 9-11 Results
+## The Problem (identified iter 26-29)
 
-### Iter 11 (latest — best transport coverage, no proxy testing)
+Agents skip browser interaction entirely. Every iteration, they:
+1. Fetch HTML via `rateLimitedFetch` (Step 1b)
+2. Parse embedded JSON (`__NEXT_DATA__`, `index-data`)
+3. Go deep on the data they found
+4. Never connect a browser, never click anything
+5. Hit BUILD with no pagination traffic captured
+6. Struggle to paginate because they never saw the pagination POST
 
-| Agent | Tokens | Tools | Routes | Transports |
-|-------|--------|-------|--------|------------|
-| Twitch | 62K | 81 | 8 | GraphQL + HLS + WS IRC |
-| YouTube | 65K | 80 | 6 | Embedded + InnerTube + JSONP + RSS + Captions |
-| Ticketmaster | 67K | 70 | 8 | Embedded JSON (__NEXT_DATA__) |
-| StubHub | 67K | 101 | 4 | Embedded JSON |
-| Hacker News | 69K | 74 | 11 | SSR HTML + Firebase API + Algolia + RSS |
-| Airbnb | 73K | 104 | 4 | Embedded JSON (deferred-state) |
+**Root cause:** Step 1b gives agents permission to `rateLimitedFetch` HTML directly. This is easier than connecting a browser, so they always choose it. By the time they have HTML data, they're too invested in parsing to go back and click.
 
-Average: 67K tokens. 100% elimination table completion.
+**The fix (not yet applied):** Remove `rateLimitedFetch` from GATHER. The browser is the only tool in GATHER. Merge 1b and 1c into 1a. GATHER becomes: connect browser → navigate pages → click pagination controls → capture traffic. HTML and JS bundle analysis moves to SCAN.
 
-### Progression
+## Iteration History
 
-| Metric | Iter 8 | Iter 9 | Iter 10 | Iter 11 |
-|--------|--------|--------|---------|---------|
-| Avg tokens | 111K | 61K | 62K | 67K |
-| Avg tools | ~100+ | 63 | 69 | 85 |
-| Transport coverage | Good | Good | Better | Best |
-| Proxy tested | No | No | No | No |
-| Browser capture | Some | Few | Few | Few |
+| Site | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 |
+|------|----|----|----|----|----|----|----|----|----|----|----|----|
+| HN | A | A | A | A | A | A | A | A | A* | A | — | — |
+| Airbnb | — | — | — | — | — | A | A | A | — | A | — | — |
+| Twitch | — | — | — | — | — | A | A | A | — | A | — | — |
+| YouTube | — | — | — | — | — | A- | A- | A | — | A | — | — |
+| TM | B- | B- | B+ | B | A- | A- | B+ | B+ | — | B+ | stopped | stopped |
+| SH | B- | B- | B | B | B+ | B+ | B+ | A- | — | B | stopped | stopped |
 
-## CRITICAL: Stale Context Problem
+*Iter 25 had CLI overhead regression (113 calls vs 79)
 
-Compaction does NOT clear stale `.claude/` file contents from system-reminders. Subagents inherit OLD versions of CLAUDE.md and discovery-agent.md from the parent session's compressed context.
+## What Works (stable across iterations)
 
-**Evidence:** All 6 iter 11 agents refused to modify `register-domains.ts` or run `pnpm install`, citing rules that were REMOVED two commits ago. Twitch and StubHub explicitly quoted the old rule.
+- Access Gap table — all agents produce it
+- Core data identification — all agents name it
+- Completeness check — agents report items/total
+- Elimination table — all 8 rows filled
+- HN, Airbnb, Twitch, YouTube — consistently A or A-
 
-**Fix:** Start a FRESH Claude Code session. The new session reads `.claude/` files from disk, giving subagents the current instructions.
+## What Fails (TM and SH specifically)
 
-## Changes Made This Session
+1. **Agents never click pagination controls** — 28 iterations, never once clicked "Show more" during GATHER
+2. **Agents prefer rateLimitedFetch over browser** — easier, faster, returns data immediately
+3. **Agents go deep before going wide** — parse embedded JSON for 30+ calls before visiting a second page
+4. **Small event trap (SH)** — agent tests event with 4 listings, sees no pagination, declares complete
+5. **ISMDS inconsistency (TM)** — sometimes finds the pricing API, sometimes not
 
-### Commits (all on main)
+## Infrastructure Issues
 
-1. `1a701d3` — fix: require browser capture in worktree agents
-2. `be3e3b9` — fix: require pnpm install, domain registration, and proxy testing in worktrees
-3. `e3e5ae3` — fix: add crash/retry/regression policy and update convergence criteria
+- tsx watcher doesn't reload domain files (wastes 10-35 calls per run)
+- Server restart loops (4-8 restarts per run)
+- Patchright launch conflicts with connected browser
+- `?method=` endpoints return HTML without WAF cookies (SH spends 18+ calls discovering this)
 
-### Key instruction changes
+## Next Step: Restructure GATHER
 
-- **discovery-agent.md**: pnpm install once, register domain in worktree's register-domains.ts, test through proxy, 150 tool budget, mandatory browser capture
-- **CLAUDE.md**: removed bans on pnpm install and register-domains.ts for worktree agents
-- **SKILL.md**: crash/retry/regression policy, proxy testing in scorecard, 150 tool budget
-- **cleanup-agents.sh**: clean tmp files between iterations
+Remove `rateLimitedFetch` from GATHER entirely. Make the browser the only tool:
 
-## Test Sites and Ports
+```
+GATHER (one step):
+1. Connect browser to the site
+2. Navigate to a list page — look for pagination controls
+3. Click pagination (Show more, Next, page numbers, scroll)
+4. Capture the traffic that fired — this is the pagination API
+5. Navigate to a detail page with many items — repeat steps 2-4
+6. Capture all traffic — you now have every API the site uses
 
-| Site | Port | Transport focus |
-|------|------|----------------|
-| ticketmaster.com | 3011 | Next.js __NEXT_DATA__ |
-| stubhub.com | 3012 | Embedded JSON + WAF |
-| airbnb.com | 3013 | Deferred state |
-| twitch.tv | 3015 | GraphQL + HLS + WS IRC |
-| youtube.com | 3016 | Embedded + InnerTube + JSONP + RSS + Captions |
-| news.ycombinator.com | 3017 | SSR HTML + Firebase + Algolia + RSS |
+Move to SCAN:
+- Parse the captured HTML for embedded JSON and transport markers
+- Fetch and scan JS bundles
+- Build the Access Gap table
+```
 
-Yahoo Finance excluded from fast iterations (consistently slowest, 126K+ tokens). Run separately after instructions converge.
+## Key Commits
 
-## Known Issues
+- `c013fb1` — general principles (interact, eliminate, test with data)
+- `41bf210` — moved clicking to Step 1a
+- `3d6facc` — concrete page.evaluate click example
 
-1. **Stale context** — MUST start fresh session. Compaction doesn't fix it.
-2. **No proxy testing** — agents write TypeScript route code that is never compiled or executed. Fresh session with updated instructions should fix this.
-3. **Browser capture spotty** — some agents skip Steps 1d/1e. Updated instructions are stronger but need fresh session.
-4. **file-history cache** — 79 old file versions in `~/.claude/file-history/` contain stale references. Not deletable (managed by Claude Code).
+## Tools Available
 
-## What's Next
-
-1. **Start fresh Claude Code session** (clears stale system-reminders — THIS IS MANDATORY)
-2. `bash .claude/hooks/cleanup-agents.sh`
-3. Launch 6 agents (no Yahoo Finance)
-4. **KEY CHECK**: Do agents run `pnpm install`, edit `register-domains.ts`, and test through `localhost:PORT/api/domain/route`?
-5. If proxy testing works, verify routes actually compile and execute
-6. If proxy testing still fails, the instruction wording needs strengthening
+- `TaskStop` — stop running subagents by ID
+- `browser-cli.sh` — CLI for browser interactions (navigate, snapshot, click, traffic)
+- `/browser/mcp/*` — REST endpoints for browser control
