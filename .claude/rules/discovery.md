@@ -103,7 +103,7 @@ for e in d.get('entries',[]):
 Fill the COMPLETE elimination table. Every row gets ✓ or ✗. No exceptions.
 
 ```
-## Core data: [what this site sells/shows — e.g., "ticket listings with prices"]
+## Core data: [what this site sells/shows — e.g., "product listings with prices"]
 
 ## Transport Elimination: [domain]
 | Transport      | Present? | Evidence                                    | Page type   |
@@ -173,6 +173,9 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 | FormData POST | 29 | Multipart/form-data search request |
 | Session Harvest (httpOnly cookie) | 30 | SessionHarvester: visit page → extract httpOnly cookie + embedded API key → paginate with plain HTTP |
 | Session Harvest (WAF + session cookies) | 31 | SessionHarvester: visit page → extract all cookies (WAF alone isn't enough for data) → POST paginate |
+| Encoded pricing + session harvest | 32 | Harvest cookie + API keys → paginate API → join indirect price refs via `_embedded` → decode opaque values using function from JS bundle |
+
+**Decode check:** After testing each route, compare a sample response field with what the page displays for the same item. If values don't match (e.g., API returns `"FBEJ"` but page shows `$51.49`), the response is encoded — read `.claude/skills/api-discovery/reference/decoding.md` and search the JS bundle for the decoder function.
 
 Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 

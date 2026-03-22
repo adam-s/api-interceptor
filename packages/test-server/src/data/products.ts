@@ -200,7 +200,7 @@ function generateReviews(): Review[] {
 export const REVIEWS = generateReviews();
 
 // ═══════════════════════════════════════════════════════════════════
-// PRO DROPS — SessionHarvester Pattern A (TM-style)
+// PRO DROPS — SessionHarvester Pattern A (httpOnly cookie + correlation header)
 // 20 pro model drops, each with 4 sizes × ~4 colorways = ~80 inventory items
 // ═══════════════════════════════════════════════════════════════════
 
@@ -295,7 +295,7 @@ export function getDropInventoryPage(
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// RESALE LISTINGS — SessionHarvester Pattern B (SH-style)
+// RESALE LISTINGS — SessionHarvester Pattern B (WAF + session cookies + POST)
 // 60 resale listings for rare/vintage decks
 // ═══════════════════════════════════════════════════════════════════
 
@@ -387,4 +387,161 @@ export function getReviewsCursor(after: string | null, limit = 10): {
 	const hasNextPage = startIdx + limit < REVIEWS.length;
 	const endCursor = items.length > 0 ? items[items.length - 1].id : null;
 	return { items, pageInfo: { endCursor, hasNextPage } };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COLLECTIONS — Detail page with encoded pricing + paginated listings
+// Collection detail pages with encoded pricing + paginated listing grids.
+// API returns indirect price refs with ENCODED values in _embedded.pricing.
+// The encoding is a simple character substitution: each digit 0-9 maps to a
+// letter A-J (0→A, 1→B, 2→C, ..., 9→J). So $51.49 (5149 cents) becomes "FBJJ".
+// The JS bundle on the collection page contains the decoder function.
+// Page renders decoded prices. Agent must: find the decoder in JS, apply it.
+// ═══════════════════════════════════════════════════════════════════
+
+/** Encode a number to an opaque string: each digit 0-9 → A-J */
+export function encodePriceValue(cents: number): string {
+	return String(cents)
+		.split('')
+		.map((ch) => String.fromCharCode(65 + Number(ch)))
+		.join('');
+}
+
+/** Decode an encoded price string back to cents: A-J → 0-9 */
+export function decodePriceValue(encoded: string): number {
+	return Number(
+		encoded
+			.split('')
+			.map((ch) => String(ch.charCodeAt(0) - 65))
+			.join(''),
+	);
+}
+
+export interface Collection {
+	collectionId: string;
+	name: string;
+	brand: string;
+	description: string;
+	listingCount: number;
+}
+
+export interface CollectionListing {
+	listingId: string;
+	collectionId: string;
+	deckName: string;
+	size: string;
+	colorway: string;
+	condition: 'New' | 'Like New' | 'Used';
+	/** Indirect price reference — resolve via _embedded.pricing */
+	priceRef: string;
+	/** Actual price in cents (used to build _embedded.pricing) */
+	_priceCents: number;
+	_feesCents: number;
+	availableQty: number;
+	sellerTier: 'gold' | 'silver' | 'bronze';
+	warehouse: string;
+}
+
+const COLLECTION_BRANDS = ['Baker', 'Girl', 'Real', 'Element', 'Primitive'];
+const COLLECTION_NAMES = [
+	'Pro Team Series', 'Street Classics', 'Heritage Line', 'Artist Series', 'Competition Grade',
+];
+const LISTING_COLORWAYS = [
+	'Natural Maple', 'Black Stain', 'Tie-Dye', 'White Wash',
+	'Blood Red', 'Ocean Blue', 'Forest Green', 'Neon Pink',
+];
+const LISTING_CONDITIONS: Array<'New' | 'Like New' | 'Used'> = ['New', 'New', 'New', 'Like New', 'Used'];
+const LISTING_SIZES = ['7.75', '8.0', '8.125', '8.25', '8.375', '8.5'];
+const SELLER_TIERS: Array<'gold' | 'silver' | 'bronze'> = ['gold', 'silver', 'bronze'];
+
+function generateCollections(): Collection[] {
+	return COLLECTION_BRANDS.map((brand, i) => ({
+		collectionId: `COL-${String(i + 1).padStart(3, '0')}`,
+		name: `${brand} ${COLLECTION_NAMES[i]}`,
+		brand,
+		description: `The ${COLLECTION_NAMES[i]} from ${brand}. Premium Canadian maple decks.`,
+		listingCount: 0, // filled after listings generated
+	}));
+}
+
+function generateCollectionListings(collections: Collection[]): CollectionListing[] {
+	const listings: CollectionListing[] = [];
+	let idx = 1;
+
+	for (const col of collections) {
+		// Each collection gets 30 listings (6 sizes × 5 conditions/colorways)
+		const count = 30;
+		for (let j = 0; j < count; j++) {
+			const size = LISTING_SIZES[j % LISTING_SIZES.length];
+			const colorway = LISTING_COLORWAYS[j % LISTING_COLORWAYS.length];
+			const condition = LISTING_CONDITIONS[j % LISTING_CONDITIONS.length];
+			const baseCents = 4999 + idx * 150; // $49.99 + increments
+			const feesCents = Math.round(baseCents * 0.12); // 12% service fee
+
+			listings.push({
+				listingId: `LST-${String(idx).padStart(4, '0')}`,
+				collectionId: col.collectionId,
+				deckName: `${col.brand} ${COLLECTION_NAMES[collections.indexOf(col)]} ${size}"`,
+				size,
+				colorway,
+				condition,
+				priceRef: `PR-${String(idx).padStart(4, '0')}`,
+				_priceCents: baseCents,
+				_feesCents: feesCents,
+				availableQty: 1 + (idx % 4),
+				sellerTier: SELLER_TIERS[idx % SELLER_TIERS.length],
+				warehouse: WAREHOUSES[idx % WAREHOUSES.length],
+			});
+			idx++;
+		}
+		col.listingCount = count;
+	}
+
+	return listings;
+}
+
+export const COLLECTIONS = generateCollections();
+export const COLLECTION_LISTINGS = generateCollectionListings(COLLECTIONS);
+
+/** Build the _embedded.pricing map with ENCODED values */
+export function buildPricingEmbedded(
+	listings: CollectionListing[],
+): Record<string, { amount: string; fees: string; currency: string }> {
+	const pricing: Record<string, { amount: string; fees: string; currency: string }> = {};
+	for (const l of listings) {
+		pricing[l.priceRef] = {
+			amount: encodePriceValue(l._priceCents),
+			fees: encodePriceValue(l._feesCents),
+			currency: 'USD',
+		};
+	}
+	return pricing;
+}
+
+/** Get paginated collection listings with encoded pricing */
+export function getCollectionListingsPage(
+	collectionId: string,
+	limit: number,
+	offset: number,
+	sort?: string,
+): {
+	picks: Array<Omit<CollectionListing, '_priceCents' | '_feesCents'>>;
+	_embedded: { pricing: Record<string, { amount: string; fees: string; currency: string }> };
+	total: number;
+	hasMore: boolean;
+} {
+	let filtered = COLLECTION_LISTINGS.filter((l) => l.collectionId === collectionId);
+	if (sort === 'price') filtered = [...filtered].sort((a, b) => a._priceCents - b._priceCents);
+	if (sort === 'size') filtered = [...filtered].sort((a, b) => Number.parseFloat(a.size) - Number.parseFloat(b.size));
+
+	const page = filtered.slice(offset, offset + Math.min(limit, 20));
+	const picks = page.map(({ _priceCents, _feesCents, ...rest }) => rest);
+	const pricing = buildPricingEmbedded(page);
+
+	return {
+		picks,
+		_embedded: { pricing },
+		total: filtered.length,
+		hasMore: offset + limit < filtered.length,
+	};
 }

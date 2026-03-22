@@ -76,11 +76,14 @@
  * FORMDATA POST:
  * 29. GET /formdata-search-example — Multipart/form-data search request
  *
- * SESSION HARVESTER — httpOnly cookie + correlation header (TM-style):
+ * SESSION HARVESTER — httpOnly cookie + correlation header (httpOnly cookie):
  * 30. GET /drops/inventory        — Session-gated paginated inventory (drops pattern)
  *
- * SESSION HARVESTER — WAF cookie + POST pagination (SH-style):
+ * SESSION HARVESTER — WAF cookie + POST pagination (WAF + POST):
  * 31. GET /resale/listings        — Multi-cookie session-gated POST pagination (resale pattern)
+ *
+ * ENCODED PRICING + SESSION HARVEST:
+ * 32. GET /collection/:id/listings — Session harvest + indirect price refs + JS bundle decode + pagination
  *
  * @module domain-boardshop/routes
  */
@@ -1149,7 +1152,7 @@ export const routes: DomainRoute[] = [
 	},
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern A: httpOnly Cookie + Correlation Header (TM-style)
+	// SESSION HARVESTER — Pattern A: httpOnly Cookie + Correlation Header (httpOnly cookie)
 	// ═══════════════════════════════════════════════════════════════════
 
 	// ─── Route 30: Pro Drops inventory (SessionHarvester pattern) ────
@@ -1158,12 +1161,12 @@ export const routes: DomainRoute[] = [
 	//   1. drop-session cookie (httpOnly — only obtainable via browser/fetch)
 	//   2. x-drop-request header (correlation ID, any non-empty value)
 	//   3. apikey + apisecret in query params
-	// This is the Ticketmaster pattern: fetch the page, harvest the
-	// cookie + embedded config, then call the session-gated API.
+	// Pattern: fetch the page, harvest the httpOnly cookie + embedded
+	// config, then call the session-gated API with harvested values.
 	{
 		method: 'GET',
 		path: '/drops/inventory',
-		description: 'SessionHarvester (TM-style): httpOnly cookie + correlation header.',
+		description: 'SessionHarvester (httpOnly cookie): httpOnly cookie + correlation header.',
 		browserRequired: false,
 		handler: async (c) => {
 			const deckId = new URL(c.req.url).searchParams.get('deckId') ?? 'DROP-001';
@@ -1219,14 +1222,14 @@ export const routes: DomainRoute[] = [
 				deckId,
 				items: allItems,
 				totalCollected: allItems.length,
-				_pattern: 'session-harvester-tm-style',
+				_pattern: 'session-harvester-httponly-cookie',
 				_note: 'httpOnly cookie + x-drop-request header required. Harvested from seed page.',
 			});
 		},
 	},
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern B: WAF Cookie + POST Pagination (SH-style)
+	// SESSION HARVESTER — Pattern B: WAF Cookie + POST Pagination (WAF + POST)
 	// ═══════════════════════════════════════════════════════════════════
 
 	// ─── Route 31: Resale market listings (SessionHarvester pattern) ──
@@ -1235,11 +1238,11 @@ export const routes: DomainRoute[] = [
 	//   - market-sid: session data (empty results without it)
 	//   - market-pref: preferences
 	// All three are needed — WAF alone passes the gate but returns
-	// empty data (the StubHub trap). POST pagination with JSON body.
+	// empty data (the WAF-pass trap). POST pagination with JSON body.
 	{
 		method: 'GET',
 		path: '/resale/listings',
-		description: 'SessionHarvester (SH-style): WAF + session cookies + POST pagination.',
+		description: 'SessionHarvester (WAF + POST): WAF + session cookies + POST pagination.',
 		browserRequired: false,
 		handler: async (c) => {
 			// Step 1: HARVEST — fetch the seed page to get all cookies
@@ -1307,8 +1310,141 @@ export const routes: DomainRoute[] = [
 			return c.json({
 				items: allItems,
 				totalCollected: allItems.length,
-				_pattern: 'session-harvester-sh-style',
+				_pattern: 'session-harvester-waf-post',
 				_note: 'WAF cookie alone returns empty data. All session cookies required for data.',
+			});
+		},
+	},
+
+	// ─── Route 32: Collection listings (encoded pricing + session harvest) ─
+	// The /collection/:id page embeds first 8 listings with ENCODED prices.
+	// API returns priceRef → _embedded.pricing with opaque encoded amounts.
+	// Page renders decoded prices ($XX.XX) using decoder in JS bundle.
+	//
+	// Pattern:
+	//   1. Fetch /collection/:id → harvest listing-session cookie
+	//   2. Extract API keys from window.__COLLECTION_CONFIG__
+	//   3. Fetch JS bundle → find _decodePriceAmount function
+	//   4. Call /api/collection/:id/listings with cookie + API keys
+	//   5. Join picks[].priceRef → _embedded.pricing[ref]
+	//   6. Decode: each char A-J → digit 0-9, result is cents
+	//   7. Paginate (offset-based, 20 per page, 30 total per collection)
+	{
+		method: 'GET',
+		path: '/collection/:id/listings',
+		description: 'Encoded pricing: session harvest + indirect price refs + JS decode + pagination.',
+		browserRequired: false,
+		handler: async (c) => {
+			const collectionId = c.req.param('id');
+			const url = new URL(c.req.url);
+			const sort = url.searchParams.get('sort') ?? 'price';
+
+			// Step 1: Harvest session cookie + embedded config from collection page
+			const seedUrl = `${BASE_URL}/collection/${collectionId}`;
+			DEBUG('boardshop', `route32: fetching seed page ${seedUrl}`);
+			const seedRes = await rateLimitedFetch(seedUrl);
+			if (!seedRes.ok) {
+				return c.json({ error: `Seed page returned ${seedRes.status}` }, 502);
+			}
+
+			const listingSession = seedRes.headers
+				.get('set-cookie')
+				?.match(/listing-session=([^;]+)/)?.[1];
+			if (!listingSession) {
+				return c.json({ error: 'Could not harvest listing-session cookie' }, 502);
+			}
+
+			const html = await seedRes.text();
+
+			// Step 2: Extract API credentials from window.__COLLECTION_CONFIG__
+			const configMatch = html.match(/window\.__COLLECTION_CONFIG__\s*=\s*(\{[^}]+\})/);
+			if (!configMatch) {
+				return c.json({ error: 'Could not find __COLLECTION_CONFIG__' }, 502);
+			}
+			const config = JSON.parse(configMatch[1]) as {
+				apiKey: string;
+				apiSecret: string;
+				listingsEndpoint: string;
+			};
+
+			// Step 3: Decode function found by reading JS bundle at /js/collection-loader.js
+			// The decoder: each char A-J maps to digit 0-9 (charCode - 65)
+			const decodePriceAmount = (encoded: string): number => {
+				return Number(
+					encoded
+						.split('')
+						.map((ch) => String(ch.charCodeAt(0) - 65))
+						.join(''),
+				);
+			};
+
+			// Step 4+5+6+7: Paginate and decode all listings
+			type Pick = {
+				listingId: string;
+				deckName: string;
+				size: string;
+				colorway: string;
+				condition: string;
+				priceRef: string;
+				availableQty: number;
+				sellerTier: string;
+			};
+			type PricingEntry = { amount: string; fees: string; currency: string };
+
+			const allListings: Array<
+				Pick & { price: number; fees: number; total: number; currency: string }
+			> = [];
+			let offset = 0;
+			let hasMore = true;
+
+			while (hasMore) {
+				const apiUrl =
+					`${BASE_URL}/api/collection/${collectionId}/listings` +
+					`?limit=20&offset=${offset}&sort=${sort}` +
+					`&apikey=${config.apiKey}&apisecret=${config.apiSecret}`;
+
+				const res = await rateLimitedFetch(apiUrl, {
+					headers: { Cookie: `listing-session=${listingSession}` },
+				});
+
+				if (!res.ok) {
+					DEBUG('boardshop', `route32: API returned ${res.status} at offset ${offset}`);
+					break;
+				}
+
+				const data = (await res.json()) as {
+					picks: Pick[];
+					_embedded: { pricing: Record<string, PricingEntry> };
+					total: number;
+					hasMore: boolean;
+				};
+
+				for (const pick of data.picks) {
+					const p = data._embedded.pricing[pick.priceRef];
+					if (p) {
+						const priceCents = decodePriceAmount(p.amount);
+						const feesCents = decodePriceAmount(p.fees);
+						allListings.push({
+							...pick,
+							price: priceCents / 100,
+							fees: feesCents / 100,
+							total: (priceCents + feesCents) / 100,
+							currency: p.currency,
+						});
+					}
+				}
+
+				hasMore = data.hasMore;
+				offset += data.picks.length;
+				DEBUG('boardshop', `route32: ${allListings.length}/${data.total} listings`);
+			}
+
+			return c.json({
+				collectionId,
+				listings: allListings,
+				totalCollected: allListings.length,
+				_pattern: 'session-harvest-encoded-pricing',
+				_note: 'Prices decoded from opaque A-J encoding via JS bundle analysis.',
 			});
 		},
 	},

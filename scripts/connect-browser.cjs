@@ -63,7 +63,9 @@ ws.on('message', (data, isBinary) => {
 			log(`Browser ready!${reused} Profile: ${msg.profile || profile}`);
 			// Print the signal line to stdout — this is what the shell script waits for
 			console.log(`BROWSER_READY|${port}|${profile}`);
-			console.log(`Browser connected. Capture traffic at: GET http://localhost:${port}/browser/traffic`);
+			console.log(
+				`Browser connected. Capture traffic at: GET http://localhost:${port}/browser/traffic`,
+			);
 		} else if (msg.type === 'url') {
 			log(`Page URL: ${msg.url}`);
 		} else if (msg.type === 'error') {

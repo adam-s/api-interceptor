@@ -1,7 +1,7 @@
 /**
  * Boardshop Site — E-commerce fake website.
  *
- * Simulates e-commerce ticket/listing patterns:
+ * Simulates e-commerce catalog/listing patterns:
  * - Embedded JSON in <script id="catalog-data" type="application/json">
  * - POST pagination to same URL with CSRF + filterSessionId
  * - Silent page size limit (pageSize > 20 returns empty)
@@ -13,7 +13,11 @@
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import {
+	buildPricingEmbedded,
+	COLLECTION_LISTINGS,
+	COLLECTIONS,
 	DROP_INVENTORY,
+	getCollectionListingsPage,
 	getDropInventoryPage,
 	getProductPage,
 	getResaleListingsPage,
@@ -724,7 +728,7 @@ ${rows}
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern A: Pro Drops (TM-style)
+	// SESSION HARVESTER — Pattern A: Pro Drops (httpOnly cookie + correlation header)
 	// httpOnly cookie + correlation header + embedded API keys
 	// ═══════════════════════════════════════════════════════════════════
 
@@ -794,7 +798,7 @@ ${PRO_DROPS.slice(0, 6)
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern B: Resale Market (SH-style)
+	// SESSION HARVESTER — Pattern B: Resale Market (WAF + session cookies + POST)
 	// WAF cookie + session cookies + POST pagination
 	// ═══════════════════════════════════════════════════════════════════
 
@@ -877,6 +881,259 @@ ${firstPage.items.map((l) => `<div data-testid="listing-card" data-listing-id="$
 		const sortBy = body.SortBy;
 
 		const result = getResaleListingsPage(pageSize, currentPage, sortBy);
+		return c.json(result);
+	});
+
+	// ═══════════════════════════════════════════════════════════════════
+	// COLLECTION JS BUNDLE — Contains the price decoder function
+	// Agent must find this bundle (referenced in collection page HTML)
+	// and read it to discover how to decode opaque price strings.
+	// ═══════════════════════════════════════════════════════════════════
+
+	app.get('/js/collection-loader.js', (c) => {
+		// This JS bundle contains the price decoder that agents must discover.
+		// The encoding: each digit 0-9 maps to A-J. "FBJJ" = 5149 = $51.49
+		const js = `
+(function() {
+  "use strict";
+
+  // Price decoder — converts encoded amount strings to numeric cents
+  // Encoding scheme: digit 0-9 mapped to char A-J (offset 65)
+  function _decodePriceAmount(e) {
+    var n = "";
+    for (var i = 0; i < e.length; i++) {
+      n += String(e.charCodeAt(i) - 65);
+    }
+    return parseInt(n, 10);
+  }
+
+  // Format cents to display string
+  function _formatPrice(cents, currency) {
+    var prefix = currency === "USD" ? "$" : currency;
+    return prefix + (cents / 100).toFixed(2);
+  }
+
+  // Render a listing card from API pick + embedded pricing
+  function _renderListingCard(pick, pricing) {
+    var p = pricing[pick.priceRef];
+    if (!p) return null;
+    var priceCents = _decodePriceAmount(p.amount);
+    var feesCents = _decodePriceAmount(p.fees);
+    var totalCents = priceCents + feesCents;
+    var el = document.createElement("div");
+    el.dataset.testid = "listing-card";
+    el.dataset.listingId = pick.listingId;
+    el.dataset.priceRef = pick.priceRef;
+    el.innerHTML = '<h3 data-testid="deck-name">' + pick.deckName + '</h3>'
+      + '<p data-testid="deck-details">' + pick.colorway + ' \\u00b7 ' + pick.condition + ' \\u00b7 Qty: ' + pick.availableQty + '</p>'
+      + '<span data-testid="listing-price">' + _formatPrice(priceCents, p.currency) + '</span>'
+      + '<span data-testid="listing-fees">+ ' + _formatPrice(feesCents, p.currency) + ' fees</span>'
+      + '<span data-testid="listing-total">' + _formatPrice(totalCents, p.currency) + ' total</span>'
+      + '<span data-testid="seller-tier">' + pick.sellerTier + '</span>';
+    return el;
+  }
+
+  // Initialize "See More" loader
+  var init = window.__COLLECTION_INIT__;
+  if (!init) return;
+  var offset = init.offset;
+  var total = init.total;
+  var cfg = window.__COLLECTION_CONFIG__;
+  if (!cfg) return;
+
+  var btn = document.querySelector('[data-testid="see-more-btn"]');
+  if (!btn) return;
+
+  btn.addEventListener("click", function() {
+    var url = cfg.listingsEndpoint + "?limit=20&offset=" + offset
+      + "&sort=price&apikey=" + cfg.apiKey + "&apisecret=" + cfg.apiSecret;
+    fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+      var grid = document.querySelector('[data-testid="listings-grid"]');
+      for (var i = 0; i < data.picks.length; i++) {
+        var card = _renderListingCard(data.picks[i], data._embedded.pricing);
+        if (card) grid.appendChild(card);
+      }
+      offset += data.picks.length;
+      if (!data.hasMore) btn.style.display = "none";
+      var rem = document.querySelector('[data-testid="remaining-count"]');
+      if (rem) rem.textContent = (total - offset) + " more available";
+    });
+  });
+
+  // Also support infinite scroll
+  var scrollLoading = false;
+  window.addEventListener("scroll", function() {
+    if (scrollLoading) return;
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 200) {
+      scrollLoading = true;
+      btn.click();
+      setTimeout(function() { scrollLoading = false; }, 500);
+    }
+  });
+})();
+`;
+		c.header('Content-Type', 'application/javascript; charset=utf-8');
+		c.header('Cache-Control', 'public, max-age=31536000');
+		return c.body(js);
+	});
+
+	// ═══════════════════════════════════════════════════════════════════
+	// COLLECTION DETAIL — Encoded pricing + paginated listings
+	// Collection detail page with encoded pricing + paginated listings.
+	// Page renders decoded prices ($XX.XX), API returns encoded price refs.
+	// Pattern: navigate to detail → notice partial data → decode prices → paginate.
+	// ═══════════════════════════════════════════════════════════════════
+
+	const collectionSessions = new Set<string>();
+
+	// GET /collection/:id — Detail page with first 8 listings (decoded prices in HTML)
+	app.get('/collection/:id', (c) => {
+		const collectionId = c.req.param('id');
+		const col = COLLECTIONS.find((col) => col.collectionId === collectionId);
+		if (!col) {
+			c.header('Content-Type', 'text/html; charset=utf-8');
+			return c.html('<html><body><h1>Collection not found</h1></body></html>', 404);
+		}
+
+		// Set httpOnly session cookie for API access
+		const sessionToken = randomUUID();
+		collectionSessions.add(sessionToken);
+
+		// Get first 8 listings for embedded preview
+		const allForCollection = COLLECTION_LISTINGS.filter((l) => l.collectionId === collectionId);
+		const preview = allForCollection.slice(0, 8);
+		const pricing = buildPricingEmbedded(preview);
+
+		// Embedded data uses encoded format (priceRef + _embedded.pricing)
+		const embeddedData = {
+			collection: {
+				...col,
+				listingCount: allForCollection.length,
+			},
+			listings: preview.map(({ _priceCents, _feesCents, ...rest }) => rest),
+			_embedded: { pricing },
+			pagination: {
+				total: allForCollection.length,
+				showing: preview.length,
+				hasMore: allForCollection.length > preview.length,
+				itemsRemaining: allForCollection.length - preview.length,
+			},
+		};
+
+		// But the HTML renders DECODED prices (what the user sees)
+		const listingCards = preview
+			.map((l) => {
+				const price = l._priceCents / 100;
+				const fees = l._feesCents / 100;
+				const total = price + fees;
+				return `<div data-testid="listing-card" data-listing-id="${l.listingId}" data-price-ref="${l.priceRef}">
+  <h3 data-testid="deck-name">${l.deckName}</h3>
+  <p data-testid="deck-details">${l.colorway} · ${l.condition} · Qty: ${l.availableQty}</p>
+  <span data-testid="listing-price">$${price.toFixed(2)}</span>
+  <span data-testid="listing-fees">+ $${fees.toFixed(2)} fees</span>
+  <span data-testid="listing-total">$${total.toFixed(2)} total</span>
+  <span data-testid="seller-tier">${l.sellerTier}</span>
+</div>`;
+			})
+			.join('\n');
+
+		const html = renderEmbeddedPage({
+			title: `${col.name} — BoardShop`,
+			dataScripts: [{ id: 'collection-data', data: embeddedData }],
+			windowGlobals: {
+				__COLLECTION_CONFIG__: {
+					apiKey: 'ck_collection_live_xxx',
+					apiSecret: 'cs_collection_live_yyy',
+					listingsEndpoint: `/sites/boardshop/api/collection/${collectionId}/listings`,
+				},
+			},
+			metaTags: [{ name: 'collection-id', content: collectionId }],
+			bodyHtml: `
+<nav data-testid="breadcrumb">
+  <a href="/sites/boardshop">BoardShop</a> › <a href="/sites/boardshop/collections">Collections</a> › ${col.name}
+</nav>
+<header data-testid="collection-header">
+  <h1>${col.name}</h1>
+  <p>${col.description}</p>
+  <p data-testid="listing-count">${allForCollection.length} decks available</p>
+</header>
+<section data-testid="listings-grid">
+${listingCards}
+</section>
+<div data-testid="load-more-section">
+  <button data-testid="see-more-btn" data-action="load-more">See More Decks</button>
+  <p data-testid="remaining-count">${allForCollection.length - preview.length} more available</p>
+</div>
+<script src="/sites/boardshop/js/collection-loader.js"></script>
+<script>
+window.__COLLECTION_INIT__ = { offset: ${preview.length}, total: ${allForCollection.length}, collectionId: '${collectionId}' };
+</script>`,
+		});
+
+		c.header('Set-Cookie', `listing-session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax`);
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// GET /collections — Browse all collections (list page with links to detail)
+	app.get('/collections', (c) => {
+		const collectionCards = COLLECTIONS.map((col) => {
+			const count = COLLECTION_LISTINGS.filter((l) => l.collectionId === col.collectionId).length;
+			return `<a href="/sites/boardshop/collection/${col.collectionId}" data-testid="collection-link" data-collection-id="${col.collectionId}">
+  <div data-testid="collection-card">
+    <h2>${col.name}</h2>
+    <p>${col.brand} · ${count} decks</p>
+    <p>${col.description}</p>
+  </div>
+</a>`;
+		}).join('\n');
+
+		const html = renderEmbeddedPage({
+			title: 'Collections — BoardShop',
+			dataScripts: [
+				{
+					id: 'collections-data',
+					data: { collections: COLLECTIONS, totalCollections: COLLECTIONS.length },
+				},
+			],
+			bodyHtml: `
+<nav data-testid="breadcrumb">
+  <a href="/sites/boardshop">BoardShop</a> › Collections
+</nav>
+<h1>Deck Collections</h1>
+<p data-testid="collection-count">${COLLECTIONS.length} collections available</p>
+<section data-testid="collections-grid">
+${collectionCards}
+</section>`,
+		});
+
+		c.header('Content-Type', 'text/html; charset=utf-8');
+		return c.html(html);
+	});
+
+	// GET /api/collection/:id/listings — Paginated listings with encoded pricing
+	// Requires httpOnly listing-session cookie + apikey/apisecret query params
+	app.get('/api/collection/:id/listings', (c) => {
+		const collectionId = c.req.param('id');
+
+		// Check httpOnly session cookie
+		const sessionCookie = c.req.header('cookie')?.match(/listing-session=([^;]+)/)?.[1];
+		if (!sessionCookie || !collectionSessions.has(sessionCookie)) {
+			return c.json({ error: 'Unauthorized — valid listing-session cookie required' }, 401);
+		}
+
+		// Check API key (embedded in page as window.__COLLECTION_CONFIG__)
+		const apikey = c.req.query('apikey');
+		const apisecret = c.req.query('apisecret');
+		if (apikey !== 'ck_collection_live_xxx' || apisecret !== 'cs_collection_live_yyy') {
+			return c.json({ error: 'Forbidden — invalid API credentials' }, 403);
+		}
+
+		const limit = Math.min(Number(c.req.query('limit') ?? '20'), 20);
+		const offset = Number(c.req.query('offset') ?? '0');
+		const sort = c.req.query('sort');
+
+		const result = getCollectionListingsPage(collectionId, limit, offset, sort);
 		return c.json(result);
 	});
 

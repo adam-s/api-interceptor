@@ -198,7 +198,7 @@ describe('boardshop site', () => {
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern A: Pro Drops (TM-style)
+	// SESSION HARVESTER — Pattern A: Pro Drops (httpOnly cookie + correlation header)
 	// ═══════════════════════════════════════════════════════════════════
 
 	test('pro drops page sets httpOnly drop-session cookie', async () => {
@@ -291,7 +291,7 @@ describe('boardshop site', () => {
 	});
 
 	// ═══════════════════════════════════════════════════════════════════
-	// SESSION HARVESTER — Pattern B: Resale Market (SH-style)
+	// SESSION HARVESTER — Pattern B: Resale Market (WAF + session cookies + POST)
 	// ═══════════════════════════════════════════════════════════════════
 
 	test('resale page sets market-waf + market-sid cookies', async () => {
