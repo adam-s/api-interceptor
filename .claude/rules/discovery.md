@@ -111,9 +111,33 @@ For EACH ✓ row, build a route using the cheapest approach:
 
 1. `rateLimitedFetch` — try first. Most endpoints work without a browser.
 2. `browserFetch` — if direct HTTP returns 429/403/404/202.
-3. `page.evaluate` — last resort, only for SSR with no network data.
+3. `page.evaluate` — if browserFetch fails (CORS, timeout).
+4. **Session harvest** — if all three above fail (see below).
 
-**Every ✓ row requires a route. No exceptions.** If the cheapest approach fails, escalate to the next. Only change ✓ to ✗ if all three approaches fail. "Bot-protected" or "signed URLs" is not ✗ — it means escalate.
+**Every ✓ row requires a route. No exceptions.** If the cheapest approach fails, escalate to the next. Only change ✓ to ✗ if all four approaches fail. "Bot-protected" or "signed URLs" is not ✗ — it means escalate.
+
+#### Session Harvest Escalation (when 1-3 all fail)
+
+When `browserFetch` times out, CORS-blocks, or returns empty data, the site likely requires specific cookies/headers that only a real page visit sets. Use this approach:
+
+**Step A — Capture a working request.** Navigate Patchright to the page, interact (click buttons, scroll), and intercept the working request via `page.on('request')`. Save the full headers + body.
+
+**Step B — Elimination test.** Replay the request from Node.js `fetch` with all captured headers. Then remove ONE header at a time and ONE cookie at a time, checking which removals break the response. This finds the minimum auth set in ~30 seconds.
+
+**Step C — Build a SessionHarvester.** Create a harvester in `domains/<name>/src/session.ts` using `SessionHarvester` from `@interceptor/browser`. Configure:
+- `seedUrl` — the page to visit to get cookies
+- `harvest` — extract the required cookies via `context.cookies()` (catches httpOnly cookies that `document.cookie` misses)
+- `buildHeaders` — return only the minimum headers found in Step B
+
+**Step D — Use plain `rateLimitedFetch` with harvested tokens.** The route calls `session.getHeaders()` and passes them to `rateLimitedFetch`. No `browserFetch` needed.
+
+**When to suspect you need this:**
+- `browserFetch` returns CORS error or times out on a cross-origin API
+- `page.evaluate(fetch(...))` returns 200 but empty data
+- Named pages (`getOrCreatePage`) can't replicate what the main page does
+- The API needs httpOnly cookies that `document.cookie` can't read
+
+Reference: Routes 30-31 in `domains/boardshop/src/routes.ts` demonstrate both patterns.
 
 Reference patterns in `domains/boardshop/src/routes.ts`:
 
@@ -133,6 +157,8 @@ Reference patterns in `domains/boardshop/src/routes.ts`:
 | RSS/XML | 27 | Parse XML feed with cheerio |
 | SSR HTML tables | 28 | Parse HTML tables with cheerio (pure SSR) |
 | FormData POST | 29 | Multipart/form-data search request |
+| Session Harvest (httpOnly cookie) | 30 | SessionHarvester: visit page → extract httpOnly cookie + embedded API key → paginate with plain HTTP |
+| Session Harvest (WAF + session cookies) | 31 | SessionHarvester: visit page → extract all cookies (WAF alone isn't enough for data) → POST paginate |
 
 Test each route with curl (or browserFetch for WAF-protected endpoints) before building the next. Unexpected output is information, not failure — investigate encoding, localization, or lazy loading before abandoning an approach.
 
