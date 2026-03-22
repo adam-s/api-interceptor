@@ -4,15 +4,36 @@
 
 This is an API interceptor. Navigate to a page → trigger pagination → capture the request/response → build a proxy route.
 
-## GATHER → SCAN → CLASSIFY → BUILD
+## PRE-FLIGHT → GATHER → SCAN → CLASSIFY → BUILD
 
-Four steps. No skipping. No building until classification is complete.
+Five steps. No skipping. No building until classification is complete.
+
+---
+
+### STEP 0: PRE-FLIGHT (0 tool calls — use your training knowledge)
+
+Before connecting the browser, write down everything you already know about the target website. You have been trained on the web — use that knowledge.
+
+```
+## Pre-flight: [target URL]
+- What is this site? What does it sell/show?
+- Framework: [Next.js, SvelteKit, React SPA, server-rendered, etc.]
+- Known API endpoints or patterns: [e.g., internal API paths, GraphQL endpoint, REST API]
+- Pagination pattern: [cursor, offset/limit, page numbers, infinite scroll, "Show More" button]
+- Authentication: [public, API key, CSRF token, cookies, OAuth]
+- Bot detection: [Cloudflare, Kasada, Akamai, DataDome, none known]
+- Embedded data pattern: [__NEXT_DATA__, data-deferred-state, window.__INITIAL_STATE__, etc.]
+- Which specific page will have 100+ items? [use your knowledge to name a specific URL or navigation path]
+- Known rate limits or gotchas: [geo-restrictions, consent walls, login walls]
+```
+
+This is your hypothesis. GATHER will confirm or correct it. Go in with a plan, not blind.
 
 ---
 
 ### STEP 1: GATHER
 
-Two jobs: (A) understand the site, (B) intercept pagination.
+Two jobs: (A) confirm/correct your pre-flight, (B) intercept pagination.
 
 **1a. Connect browser.**
 
@@ -21,16 +42,7 @@ Two jobs: (A) understand the site, (B) intercept pagination.
 sleep 15
 ```
 
-**1b. Understand the site (2-3 tool calls).** Navigate the homepage and one other page. Answer using ONLY what you see (titles, navigation, headings):
-
-```
-## Site understanding
-- What is the purpose of this website?
-- What are the most important content types?
-- Content hierarchy: [top-level → mid-level → detail-level]
-- What is the deepest, most valuable paginated content?
-- What specific page will have 100+ items? (Use your knowledge of the site to pick the busiest possible instance)
-```
+**1b. Confirm your pre-flight (1-2 tool calls).** Navigate the homepage and verify your pre-flight hypotheses. Correct anything that's wrong. You already know what this site is — don't spend tool calls rediscovering it.
 
 **1c. Find a page with 100+ items.** You already know what kind of pages on this site will have the most items — use that knowledge. Navigate directly to a page you expect to have 100+ items. Check the count with `page.evaluate` (read a "showing X of Y" indicator or count list elements). If < 100 items, navigate to a busier instance — don't attempt interception on small pages. Pagination controls and XHR endpoints only appear when there are enough items to paginate.
 
