@@ -15,7 +15,7 @@ When an API returns 429 or 403, work through in order:
 | Pattern | Root cause | Fix |
 |---------|-----------|-----|
 | All 429 | IP globally rate-limited | Wait 1-24h; proxy IP; reduce frequency |
-| Some 200 (CDN), others 429 | Automated access detection on real-time endpoints | Check `sec-ch-ua` (Step 2) |
+| Some 200 (CDN), others 429 | Stubborn real-time endpoints | Check `sec-ch-ua` (Step 2) |
 | API 429, page loads 200 | Missing session token | Check for crumb/CSRF (Step 3) |
 
 ## Step 2: Inspect `sec-ch-ua`

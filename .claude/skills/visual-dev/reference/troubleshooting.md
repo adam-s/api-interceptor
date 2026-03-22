@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | `goto` timeout (15s+) | Wrong port — another project's server | `curl` ALL listening ports, match `<title>` |
 | `tsx: command not found` | PATH issue with `npx` | Use `./node_modules/.bin/tsx` |
-| "Undeclared Automated Tool" / Access Blocked | Using `@playwright/test` or missing stealth args | Use Patchright + `launchPersistentContext` + stealth args + real UA |
+| "Undeclared Automated Tool" / Stubborn Page | Using `@playwright/test` or missing stealth args | Use Patchright + `launchPersistentContext` + stealth args + real UA |
 | "Request Rate Threshold Exceeded" | Too many requests | Wait 10+ min; add 2-3s delays |
 | Redirected to `/login` after login | Wrong creds or cookies not persisting | Verify creds; use `ctx.newPage()` |
 | Screenshot is blank/white | Page hasn't hydrated | `waitForTimeout(2000)` or wait for element |
