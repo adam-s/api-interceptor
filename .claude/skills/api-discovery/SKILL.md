@@ -22,6 +22,6 @@ Discover how a website delivers data, then create a domain plugin that exposes i
 ## References
 
 - [reference/decoding.md](reference/decoding.md) — When API values don't match rendered DOM
-- [reference/anti-bot.md](reference/anti-bot.md) — 429/403 troubleshooting checklist
+- [reference/rate-limits.md](reference/rate-limits.md) — 429/403 troubleshooting checklist
 - [reference/gotchas.md](reference/gotchas.md) — Singleton browser, background polling, multi-domain pages
 - [reference/session-harvest.md](reference/session-harvest.md) — Capture, eliminate, trace, build: getting data from auth-gated endpoints

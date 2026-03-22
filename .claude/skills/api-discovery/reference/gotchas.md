@@ -12,10 +12,10 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | 429 on API endpoint | Don't retry. Check if embedded JSON has the same data — if yes, use embedded JSON. If no, try browserFetch once. See `discovery.md` pipeline. |
 | 202 WAF challenge | Same as 429 — try browserFetch for raw HTML, or use homepage data. |
 | Token endpoint returns 429 | Token is almost always in the page HTML, cookies, or JS globals. Don't call dedicated token endpoints. |
-| Body text empty after navigate | Bot-protected — check for captcha iframe |
+| Body text empty after navigate | Access-protected — check for captcha iframe |
 | `browserFetch` loses session cookies | Use `navigateTo` for CORS subdomains |
 | Direct fetch 429 but browser 200 | TLS fingerprinting — use `browserFetch()` |
-| Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see anti-bot.md) |
+| Persistent 429, curl returns 200 | Poisoned profile — wipe and recreate (see rate-limits.md) |
 | Script tags missing from DOM | Framework hydration stripped them. Fetch raw HTML with `rateLimitedFetch` instead of `page.evaluate(document.outerHTML)`. See Route 20 in boardshop. |
 | Route 404 after editing routes.ts | Kill port 3001, rerun `pnpm dev` |
 | `page.evaluate` throws `__name is not defined` | tsx/esbuild injects `__name` — use string-based evaluate |

@@ -1,4 +1,4 @@
-# Anti-Bot and Rate Limiting Checklist
+# Rate Limiting and Access Troubleshooting
 
 When an API returns 429 or 403, work through in order:
 
@@ -15,12 +15,12 @@ When an API returns 429 or 403, work through in order:
 | Pattern | Root cause | Fix |
 |---------|-----------|-----|
 | All 429 | IP globally rate-limited | Wait 1-24h; proxy IP; reduce frequency |
-| Some 200 (CDN), others 429 | Bot detection on real-time endpoints | Check `sec-ch-ua` (Step 2) |
+| Some 200 (CDN), others 429 | Automated access detection on real-time endpoints | Check `sec-ch-ua` (Step 2) |
 | API 429, page loads 200 | Missing session token | Check for crumb/CSRF (Step 3) |
 
 ## Step 2: Inspect `sec-ch-ua`
 
-If `"HeadlessChrome"` appears in captured `sec-ch-ua` headers, the browser is detected as headless. Framework overrides this in `service.ts` — restart server to pick up the fix.
+If `"HeadlessChrome"` appears in captured `sec-ch-ua` headers, the browser is being fingerprinted. Framework overrides this in `service.ts` — restart server to pick up the fix.
 
 ## Step 3: Session tokens (crumb, CSRF)
 

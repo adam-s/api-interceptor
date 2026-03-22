@@ -4,7 +4,7 @@
 | --- | --- | --- |
 | `goto` timeout (15s+) | Wrong port — another project's server | `curl` ALL listening ports, match `<title>` |
 | `tsx: command not found` | PATH issue with `npx` | Use `./node_modules/.bin/tsx` |
-| "Undeclared Automated Tool" / Bot Detection | Using `@playwright/test` or missing stealth args | Use Patchright + `launchPersistentContext` + stealth args + real UA |
+| "Undeclared Automated Tool" / Access Blocked | Using `@playwright/test` or missing stealth args | Use Patchright + `launchPersistentContext` + stealth args + real UA |
 | "Request Rate Threshold Exceeded" | Too many requests | Wait 10+ min; add 2-3s delays |
 | Redirected to `/login` after login | Wrong creds or cookies not persisting | Verify creds; use `ctx.newPage()` |
 | Screenshot is blank/white | Page hasn't hydrated | `waitForTimeout(2000)` or wait for element |
@@ -17,6 +17,6 @@
 
 ## Why Patchright, Not Playwright
 
-**Playwright** sets `navigator.webdriver = true` and has fingerprints that bot detection catches. Sites return CAPTCHAs or empty pages.
+**Playwright** sets `navigator.webdriver = true` and has fingerprints that automated access detection catches. Sites return CAPTCHAs or empty pages.
 
 **Patchright** patches detection vectors at the Chromium level. Combined with stealth args, `launchPersistentContext`, and real User-Agent strings, it passes as a real browser. Verified working against government sites, financial data providers, and news services.

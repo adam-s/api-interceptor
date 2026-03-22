@@ -89,7 +89,7 @@ curl -s -X DELETE http://localhost:3001/browser/traffic | jq '.'
 - **Type C** — `handler` with `browserFetch()`. Single same-origin request, no navigation.
 
 **Common L3 failures:**
-- Browser navigates but page renders empty (bot detection, CAPTCHA) → check page content with `page.evaluate(() => document.body.innerText.slice(0, 500))`
+- Browser navigates but page renders empty (access protection, CAPTCHA) → check page content with `page.evaluate(() => document.body.innerText.slice(0, 500))`
 - Traffic buffer empty after navigation (Type B2) → XHR/API calls not firing; increase wait time
 - RegionalDomain mismatch → filter extracted URLs to correct domain
 

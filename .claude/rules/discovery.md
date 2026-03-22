@@ -165,7 +165,7 @@ After each route returns data, fill this **mandatory completeness check**:
 
 If total > items returned, the route is NOT DONE. Paginate until all items are returned. If pagination requires cookies the initial request didn't need, that is session harvest — read the reference file.
 
-**Every ✓ row requires a route. No exceptions.** Only change ✓ to ✗ if all approaches including session harvest fail. "Bot-protected" or "signed URLs" is not ✗ — it means session harvest.
+**Every ✓ row requires a route. No exceptions.** Only change ✓ to ✗ if all approaches including session harvest fail. "Access-protected" or "signed URLs" is not ✗ — it means session harvest.
 
 #### Session Harvest (for Gap=Y endpoints)
 
