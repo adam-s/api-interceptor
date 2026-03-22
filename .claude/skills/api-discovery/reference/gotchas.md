@@ -9,8 +9,8 @@ One browser instance, module-level singleton. New WebSocket profile connection d
 | Problem | Fix |
 |---------|-----|
 | Traffic shows 0 entries | Verify WS-connected browser (auto-start has no capture). Wait 15s. Follow the pipeline in `discovery.md`. |
-| 429 on API endpoint | Don't retry. Check if embedded JSON has the same data — if yes, use embedded JSON. If no, try browserFetch once. See `discovery.md` pipeline. |
-| 202 WAF challenge | Same as 429 — try browserFetch for raw HTML, or use homepage data. |
+| 429 on API endpoint | Don't retry with curl. Use `browserFetch` (it has cookies). Then run elimination to find minimum auth set. |
+| 202 WAF challenge | WAF blocks direct HTTP. Use `browserFetch` — it has the browser session. Then eliminate to find required cookies. |
 | Token endpoint returns 429 | Token is almost always in the page HTML, cookies, or JS globals. Don't call dedicated token endpoints. |
 | Body text empty after navigate | Stubborn page — check for captcha iframe |
 | `browserFetch` loses session cookies | Use `navigateTo` for CORS subdomains |

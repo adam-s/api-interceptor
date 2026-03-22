@@ -1,6 +1,6 @@
 # Interceptor
 
-Discover a website's internal API via browser traffic interception, create a domain plugin with typed proxy routes, and prove each route with curl. The browser IS the API client.
+Discover a website's internal API via browser traffic interception, create a domain plugin with typed proxy routes. The browser IS the API client — use `browserFetch` first, run elimination to find minimum auth, store in `GenericSessionManager`, verify with `rateLimitedFetch` last.
 
 **After discovery, create a domain plugin** in `domains/<name>/` with routes that serve JSON. Follow `.claude/rules/` for the discovery protocol. See `domains/boardshop/` for working reference code — Routes 1-2 show embedded JSON extraction (the most common pattern), Routes 3-4 show direct HTTP and escalation.
 

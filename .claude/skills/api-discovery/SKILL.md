@@ -15,7 +15,7 @@ Discover how a website delivers data, then create a domain plugin that exposes i
 
 1. **Observe** — PRE-FLIGHT (write down what you know about the site), then GATHER (connect browser, navigate to a page with 100+ items, intercept pagination 2-3 times to capture the API pattern).
 2. **Classify** — Run the discovery protocol per data type. Produce Transport Elimination table (MANDATORY GATE)
-3. **Extract** — Write routes: public endpoints use rateLimitedFetch → browserFetch; auth-gated endpoints (Gap=Y) go directly to session harvest (see reference/session-harvest.md)
+3. **Extract** — Write routes: start with browserFetch → run elimination → store minimum auth in GenericSessionManager → verify with rateLimitedFetch last. For Gap=Y: read session-harvest.md first.
 4. **Verify** — Curl every route, confirm real data AND complete pagination (MANDATORY GATE — no dashboard until this passes)
 5. **Scaffold** — Create domain plugin, register, test end-to-end. Command: `bash ${CLAUDE_SKILL_DIR}/scripts/scaffold-domain.sh <name> <root-domain>`
 
