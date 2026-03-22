@@ -35,6 +35,7 @@ connectBrowserRateLimiter({
 });
 
 import { getBridge } from './bridge';
+import { browserMcp } from './browser-mcp';
 import { formatStartupBanner } from './format';
 import { addClient, getState, removeClient, resetState, setMultiplier, setRunning } from './state';
 
@@ -108,6 +109,9 @@ app.get('/browser/analysis', async (c) => {
 		);
 	}
 });
+
+// Browser MCP REST endpoints — used by the MCP server to control the browser
+app.route('/browser/mcp', browserMcp);
 
 // Domain API proxy routes — each domain's routes proxy through browserFetch()
 // GET /api → list all domains and their routes
