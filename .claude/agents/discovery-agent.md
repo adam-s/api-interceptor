@@ -35,7 +35,7 @@ Follow `.claude/rules/discovery.md` — **PRE-FLIGHT→GATHER→SCAN→CLASSIFY�
 
 Start with PRE-FLIGHT: write down what you already know about the target site (framework, APIs, pagination, auth, bot detection, content hierarchy). Name a specific page that will have 100+ items.
 
-In GATHER: navigate to that page, intercept pagination 2-3 times to capture the API pattern. Use `page.evaluate` to INTERACT only — not to read data.
+In GATHER: navigate to that page, intercept pagination 2-3 times to capture the API pattern. If you see an API endpoint with pagination params (e.g., `?page=1`) in initial traffic, confirm it via `page.evaluate("fetch('/api/path?page=2').then(r=>r.json())...")` — do not wait for new traffic entries. Use `page.evaluate` for interaction and `fetch()` testing — not to read `__NEXT_DATA__` or DOM data.
 
 Read `domains/boardshop/src/routes.ts` for working examples of every transport type.
 

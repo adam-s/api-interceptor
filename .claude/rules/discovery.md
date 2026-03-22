@@ -83,10 +83,22 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-after.json
 
 **Success:** New traffic entries appeared → record URL, method, headers, and response shape. Trigger pagination 2-3 times to confirm the pattern (e.g., page=1, page=2, page=3). You are capturing the API pattern, not downloading all the data. Once you have the endpoint URL, method, headers, and pagination mechanism, stop and move on.
 
-**If 0 new entries:** The most likely cause is the page didn't have enough items to trigger pagination. Try:
-1. A page with MORE items (check the count — you need 100+)
-2. A different control (scroll, "Next" link, page number)
-3. Only after trying 3+ pages with 100+ items and getting 0 XHR each time, conclude the site uses embedded data
+**If you already see an API endpoint with pagination params in initial traffic** (e.g., `?page=1`, `?offset=0`, `page` in POST body):
+Do not wait for new traffic from clicking. Test the endpoint directly via the browser's fetch:
+```bash
+curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"fetch(\"/api/path?page=2\").then(r=>r.json()).then(d=>JSON.stringify({count:d.items?.length,total:d.totalCount}).slice(0,500))"}'
+```
+If it returns different items, this is a confirmed paginated XHR API. Record the pattern and move on. You do not need new traffic entries to prove pagination works.
+
+**If 0 new entries after triggering pagination:**
+0 new entries does NOT mean no XHR API exists. Common causes:
+1. Data was prefetched by the initial API call (client-side pagination of already-fetched data)
+2. Service worker intercepted the fetch
+3. The request URL was deduplicated
+
+**Before concluding embedded/SSR:** Check if ANY endpoint with pagination params (`page`, `offset`, `cursor`) appeared in initial traffic. If yes, test it directly (see above). Only conclude "no XHR" after testing discovered endpoints AND trying 3+ pages with 100+ items.
 
 **1e. Repeat on a second page type.** Intercept at a different level of the content hierarchy.
 
@@ -98,7 +110,7 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 
 **GATHER rules:**
 - Browser only — no `rateLimitedFetch`, no `curl`, no direct HTML/JS fetching
-- `page.evaluate` is for interaction only — do NOT read `__NEXT_DATA__`, Redux state, DOM text, or HTML
+- `page.evaluate` for interaction (clicking, scrolling) AND for testing discovered API endpoints via `fetch()`. Using `page.evaluate("fetch(...)")` tests the API — this is allowed. Do NOT use `page.evaluate` to read `__NEXT_DATA__`, Redux state, or DOM text in GATHER — that belongs in SCAN.
 - Low traffic (1-4 entries) is normal after one page load — navigate more pages, don't panic
 
 ---

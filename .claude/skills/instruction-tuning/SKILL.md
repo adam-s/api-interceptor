@@ -106,7 +106,7 @@ Agent prompt template:
 Discover ALL transport types that [site] uses. Build a route for EVERY transport found.
 Target: [url]
 Follow .claude/rules/discovery.md — GATHER→SCAN→CLASSIFY→BUILD.
-In GATHER: intercept pagination traffic. Navigate to a page with list data, trigger pagination (activate the control via page.evaluate), and capture the request/response that fires. GATHER is not done until you have at least one new request/response pair from triggering pagination. Use page.evaluate to INTERACT only — do not use it to read __NEXT_DATA__ or extract DOM data during GATHER.
+In GATHER: intercept pagination traffic. Navigate to a page with list data, trigger pagination (activate the control via page.evaluate), and capture the request/response that fires. If you see an API endpoint with pagination params (e.g., ?page=1) in initial traffic, test it directly via page.evaluate("fetch('/api/path?page=2').then(r=>r.json())...") — you do not need new traffic entries to confirm it. Use page.evaluate for interaction and fetch() testing — do NOT use it to read __NEXT_DATA__ or DOM data during GATHER.
 In CLASSIFY: name the site's core data and verify your transports cover it.
 In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest. Read the session harvest reference file BEFORE writing any harvest code.
 In BUILD: after each route, fill the mandatory completeness check. If totalCount > items returned, the route is NOT DONE — paginate before moving to the next route.
@@ -120,8 +120,8 @@ Your port is XXXX.
 
 | Check | Pass/Fail |
 |-------|-----------|
-| Pagination intercepted in GATHER (new request/response captured from triggering pagination) | |
-| page.evaluate used ONLY for interaction in GATHER (not for reading __NEXT_DATA__ or DOM data) | |
+| Pagination intercepted in GATHER (new traffic captured OR discovered endpoint confirmed via browser fetch()) | |
+| page.evaluate used for interaction + fetch() testing only in GATHER (not for reading __NEXT_DATA__ or DOM data) | |
 | Full elimination table (all 8 rows ✓ or ✗) | |
 | Route built for EVERY ✓ transport | |
 | Used GATHER→SCAN→CLASSIFY→BUILD pipeline | |
