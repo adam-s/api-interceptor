@@ -27,7 +27,7 @@ Before connecting the browser, write down everything you already know about the 
 - Known rate limits or gotchas: [geo-restrictions, consent walls, login walls]
 ```
 
-This is your hypothesis. GATHER will confirm or correct it. Go in with a plan, not blind.
+**WARNING: Your training data may be stale.** Sites change their APIs, frameworks, and auth mechanisms constantly. Everything above is a hypothesis, not fact. GATHER must confirm or correct every assumption. Do NOT skip GATHER because you think you already know the answers. Do NOT build routes from pre-flight knowledge alone — every endpoint must be verified against the live site.
 
 ---
 
