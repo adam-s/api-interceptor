@@ -170,9 +170,15 @@ Every row needs ✓ or ✗ with evidence. Every Gap=Y endpoint needs a planned r
 
 **For each ✓ transport, build a route.** See `domains/boardshop/src/routes.ts` for working examples of every pattern.
 
-**Phase A — Prove it works.** Start with `browserFetch` (it has the browser's cookies and session). If it returns data, run elimination: retry with `rateLimitedFetch` removing one header/cookie at a time to find the minimum required set. For Gap=Y endpoints: read `session-harvest.md` first.
+**The route building flow:**
 
-**Phase B — Complete pagination.** After each route, fill:
+1. **`browserFetch`** — start here. It has the browser's cookies and session. If it returns data, you have a working request.
+2. **Elimination** — remove headers/cookies one at a time via `rateLimitedFetch`. Find the minimum required set. (See `session-harvest.md` for the full elimination process.)
+3. **`GenericSessionManager`** — store the minimum required values (cookies, tokens, API keys) using `GenericSessionManager.getInstance('yourdomain')`. See `domains/boardshop/src/session-manager.ts` for the pattern. The session manager persists to disk and handles expiry.
+4. **Route handler** — uses SessionManager to get fresh values, makes requests with only what's needed.
+5. **`rateLimitedFetch` / curl** — only as a final verification that the route works without the browser. This is dead last.
+
+**After each route, fill:**
 
 ```
 | Items returned | ___ |
@@ -180,8 +186,6 @@ Every row needs ✓ or ✗ with evidence. Every Gap=Y endpoint needs a planned r
 | Complete | yes / no |
 ```
 
-If total > items returned, paginate. Common patterns: URL params (`?page=2`), response cursors, POST body increment, offset+limit, click-intercept.
-
-**Session harvest:** Read `.claude/skills/api-discovery/reference/session-harvest.md` before writing any harvest code. Use traffic replay + elimination to find the minimum required auth set.
+If total > items returned, paginate (2-3 pages to confirm the pattern). Common patterns: URL params (`?page=2`), response cursors, POST body increment, offset+limit, click-intercept.
 
 **Test each route** through the API server proxy before building the next.
