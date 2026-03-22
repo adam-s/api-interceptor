@@ -78,7 +78,7 @@ If the minimum auth set includes values you can't just copy (they expire, rotate
 
    Map the full chain. Your route must replay each step.
 
-4. **For JS-challenge cookies** (WAF tokens like `aws-waf-token`, TM's `tmpt`): these are set by JavaScript execution, not by `Set-Cookie` headers. `rateLimitedFetch` to the seed page will NOT get them. You need Patchright:
+4. **For JS-challenge cookies** (WAF tokens, bot-verification cookies): these are set by JavaScript execution, not by `Set-Cookie` headers. `rateLimitedFetch` to the seed page will NOT get them. You need Patchright:
    ```typescript
    // Launch browser, navigate, let JS challenges complete
    const context = await browser.newContext();
