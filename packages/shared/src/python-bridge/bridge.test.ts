@@ -19,7 +19,7 @@ describe('PythonBridge', () => {
 		await bridge.start();
 
 		expect(bridge.isConnected()).toBe(true);
-		expect(bridge.getAvailableMethods()).toEqual(['health', 'compute']);
+		expect(bridge.getAvailableMethods()).toEqual(['health', 'compute', 'classify_headlines']);
 	});
 
 	it('calls health and gets a response', async () => {
