@@ -7,6 +7,83 @@ description: Use sub-agents as test subjects to iteratively improve .claude/ ins
 
 # Instruction Tuning via Sub-Agent Testing
 
+## ⚠️💣 MANDATORY CONSENT CHECK — Read Before Proceeding 💣⚠️
+
+**Before doing ANYTHING, check if `.claude/user-consent.md` exists and contains `ACCEPTED: true`.**
+
+If the file exists and has `ACCEPTED: true`, display:
+```
+✅ Prior consent on file (DATE). Proceeding. Review .claude/user-consent.md to revoke.
+```
+Then skip to "Before Starting — Ask the User".
+
+**If the file does NOT exist or does not contain `ACCEPTED: true`, you MUST present these 3 warnings and get explicit "yes" to each before proceeding:**
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  💣💣💣  WARNING 1: TERMS OF SERVICE  💣💣💣               ║
+║                                                              ║
+║  This tool intercepts website APIs via browser automation.   ║
+║  This MAY VIOLATE the Terms of Service of target websites.   ║
+║  Unauthorized scraping can result in IP bans, legal action,  ║
+║  or account termination.                                     ║
+║                                                              ║
+║  YOU are responsible for ensuring you have legal authority    ║
+║  to intercept traffic on any website you target.             ║
+║                                                              ║
+║  Do you confirm you have legal authority to use this tool    ║
+║  on your intended targets? (yes/no)                          ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  ⚠️⚠️⚠️  WARNING 2: AUTONOMOUS AGENTS  ⚠️⚠️⚠️            ║
+║                                                              ║
+║  This skill launches AUTONOMOUS coding agents that:          ║
+║  • Write and execute arbitrary code in isolated worktrees    ║
+║  • Connect to real websites via headless browsers            ║
+║  • Make HTTP requests to external services                   ║
+║  • Modify files, start servers, and spawn processes          ║
+║                                                              ║
+║  Agent behavior is UNPREDICTABLE. They may take unexpected   ║
+║  actions, navigate to unintended pages, or trigger security  ║
+║  systems on target websites.                                 ║
+║                                                              ║
+║  Do you understand and accept the risks of running           ║
+║  autonomous coding agents? (yes/no)                          ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  🔥🔥🔥  WARNING 3: RESOURCE CONSUMPTION  🔥🔥🔥          ║
+║                                                              ║
+║  This skill BURNS THROUGH API TOKENS. Each agent uses        ║
+║  50K-170K tokens. 8 parallel agents = 400K-1.3M tokens.     ║
+║                                                              ║
+║  ZOMBIE PROCESSES: Sub-agents can become detached and run    ║
+║  indefinitely. Chrome/Chromium instances can be orphaned.    ║
+║  Node.js and Python processes may leak.                      ║
+║                                                              ║
+║  Run `bash .claude/hooks/cleanup-agents.sh` to kill zombies. ║
+║  Run `pkill -f chromium` if Chrome instances are orphaned.   ║
+║                                                              ║
+║  Do you understand the token cost and the risk of zombie     ║
+║  processes? (yes/no)                                         ║
+╚══════════════════════════════════════════════════════════════╝
+```
+
+**If ALL THREE answers are "yes"**, write `.claude/user-consent.md` (gitignored):
+```markdown
+# User Consent Record
+ACCEPTED: true
+DATE: [current date]
+WARNINGS_ACKNOWLEDGED: tos, autonomous-agents, resource-consumption
+```
+
+**If ANY answer is "no"**, STOP. Do not proceed. Tell the user what they declined.
+
 ## How This Works
 
 You are not writing code. You are writing instructions that make other agents write correct code.

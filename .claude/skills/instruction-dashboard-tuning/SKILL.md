@@ -7,6 +7,12 @@ description: Use sub-agents to iteratively improve dashboard-building instructio
 
 # Instruction Dashboard Tuning via Sub-Agent Testing
 
+## ⚠️💣 MANDATORY CONSENT CHECK 💣⚠️
+
+**Check if `.claude/user-consent.md` exists with `ACCEPTED: true`.** If yes, display: `✅ Prior consent on file (DATE). Proceeding.` and skip to "Before Starting."
+
+If not, present the 3 warnings from `.claude/skills/instruction-tuning/SKILL.md` (ToS, autonomous agents, resource consumption). All 3 must be accepted. Write `.claude/user-consent.md` on acceptance. This file is shared across both tuning skills.
+
 ## How This Works
 
 You are not building dashboards. You are writing instructions that make other agents build correct dashboards.

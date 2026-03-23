@@ -44,3 +44,4 @@ apps/api/data/
 # Temporary handoff state (not committed)
 .claude/tuning-handoff.md
 .claude/dashboard-tuning-handoff.md
+.claude/user-consent.md
