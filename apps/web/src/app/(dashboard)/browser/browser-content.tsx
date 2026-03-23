@@ -32,7 +32,7 @@ export default function BrowserContent() {
 	const viewerRef = useRef<RemoteBrowserViewerHandle | null>(null);
 
 	// Build WebSocket URL from search params — supports any domain
-	// Usage: /browser?profile=hackernews&capture=news.ycombinator.com&url=https://news.ycombinator.com
+	// Usage: /browser?profile=example&capture=example.com&url=https://example.com
 	const wsUrl = useMemo(() => {
 		const params = new URLSearchParams();
 		const profile = searchParams.get('profile') || 'generic';

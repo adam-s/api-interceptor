@@ -17,7 +17,7 @@ If not, present the 3 warnings from `.claude/skills/instruction-tuning/SKILL.md`
 
 You are not building dashboards. You are writing instructions that make other agents build correct dashboards.
 
-1. **Capture a wireframe** — screenshot a real website (YouTube, Reddit, Yahoo Finance, etc.). This is the design target.
+1. **Capture a wireframe** — screenshot a real website (any data-rich site with lists, tables, or dashboards). This is the design target.
 2. **Launch a discovery agent** — discovers ALL transports via the already-tuned discovery protocol.
 3. **Launch a builder agent** — builds a dashboard matching the wireframe using the discovered API routes.
 4. **Launch a reviewer agent** — a SOTA frontier LLM that reviews the code + screenshots and produces structured findings.

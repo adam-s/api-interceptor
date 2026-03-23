@@ -1,6 +1,6 @@
 # What Your Editor Should Remember
 
-A hospital's institutional knowledge doesn't live in its medical textbooks. It lives in the attending who knows that the elevator to radiology jams on Tuesdays, that Dr. Park reads MRIs faster if you include the clinical question in the order notes, that the fourth-floor supply closet has backup O2 sensors when the main stock runs out. None of this is published. None of it is Googleable. All of it makes the difference between a smooth shift and a slow one.
+A hospital's institutional knowledge doesn't live in its medical textbooks. It lives in the attending who knows that the elevator to radiology jams on Tuesdays, that Dr. Park reads MRIs faster if you include the clinical question in the order notes, that the fourth-floor supply closet has backup O2 sensors when the main stock runs out. None of this is published. None of it is searchable online. All of it makes the difference between a smooth shift and a slow one.
 
 Software projects accumulate the same kind of knowledge. Not the documented kind — the kind that lives in one person's head until they leave, at which point the next person spends two weeks rediscovering it.
 

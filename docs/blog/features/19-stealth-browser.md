@@ -84,7 +84,7 @@ Route-level blocking is nuclear: the script never downloads, never parses, never
 
 Sessions now lasted minutes instead of seconds. But fresh browser profiles—the kind you get when you launch a new Chromium instance with a temp directory—kept getting challenged on the third or fourth page load.
 
-The pattern suggested behavioral fingerprinting. A brand new browser profile has no history, no cookies from previous sessions, no cached favicons. Real users have browsed Google, checked the weather, read Wikipedia. An empty profile is a strong signal on its own.
+The pattern suggested behavioral fingerprinting. A brand new browser profile has no history, no cookies from previous sessions, no cached favicons. Real users have browsed popular sites, checked the weather, read Wikipedia. An empty profile is a strong signal on its own.
 
 I added a warmup function that visits common sites before touching anything sensitive:
 
@@ -92,8 +92,8 @@ I added a warmup function that visits common sites before touching anything sens
 const WARMUP_SITES = [
   'https://www.wikipedia.org',
   'https://www.weather.com',
-  'https://news.ycombinator.com',
-  'https://www.reddit.com',
+  'https://www.npmjs.com',
+  'https://www.bbc.com',
 ];
 
 for (const site of sites) {
@@ -103,7 +103,7 @@ for (const site of sites) {
 }
 ```
 
-Warmup builds a browsing history in the profile: cached DNS, cookie jars, localStorage entries from Google and Reddit, scroll position data. The profile now looks inhabited.
+Warmup builds a browsing history in the profile: cached DNS, cookie jars, localStorage entries from visited sites, scroll position data. The profile now looks inhabited.
 
 ## The fifteen signals
 

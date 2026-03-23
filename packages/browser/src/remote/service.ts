@@ -80,12 +80,12 @@ const BLOCKED_TRACKING_URLS = [
 	'**/sentry.io/**',
 	'**/bugsnag.com/**',
 
-	// Google analytics
+	// Analytics services
 	'**/google-analytics.com/**',
 	'**/googletagmanager.com/**',
 	'**/gtag/**',
 
-	// Facebook pixel
+	// Social tracking pixels
 	'**/facebook.com/tr/**',
 	'**/connect.facebook.net/**',
 
@@ -821,11 +821,11 @@ export class RemoteBrowserService {
 	 * These are popular sites that a real user might visit, helping avoid bot detection.
 	 */
 	private static readonly WARMUP_SITES = [
-		'https://www.google.com',
 		'https://www.wikipedia.org',
 		'https://www.weather.com',
-		'https://news.ycombinator.com',
 		'https://www.github.com',
+		'https://www.npmjs.com',
+		'https://www.bbc.com',
 	];
 
 	/**

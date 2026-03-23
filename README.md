@@ -1,15 +1,7 @@
 <h1 align="center">Interceptor</h1>
 
 <p align="center">
-  Turn any website into a typed JSON API — discovered by AI agents through browser traffic interception.
-</p>
-
-<p align="center">
-  <a href="#the-self-improving-skill">Self-Improving Skill</a> &middot;
-  <a href="#how-it-works">How It Works</a> &middot;
-  <a href="#quick-start">Quick Start</a> &middot;
-  <a href="#architecture">Architecture</a> &middot;
-  <a href="#instruction-tuning">Instruction Tuning</a>
+  Turn any website into a typed JSON API — using Claude Code.
 </p>
 
 ---
@@ -28,131 +20,143 @@
 
 ---
 
-## The Self-Improving Skill
+## Prerequisites
 
-The core innovation of this project is not the API interceptor — it's the **self-improving instruction set** that teaches AI agents how to use it.
+- [Node.js](https://nodejs.org/) v20+
+- [pnpm](https://pnpm.io/) v10+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
 
-The `.claude/` directory contains rules, skills, and agent definitions that Claude Code reads before performing any task. After every iteration of testing, these instructions are **automatically refined** based on what agents did wrong. The agents' code is throwaway. The instruction improvements are the product.
+## Getting Started
 
-```
-Iteration 1:  Rule says "you should capture traffic first"
-              → Agent skips it, guesses the API instead
-              → Fix: "MUST produce Transport Elimination table BEFORE code"
+**Step 1: Clone and install.**
 
-Iteration 15: Agents capture traffic but miss WebSocket transports
-              → Fix: Add real-time transport checklist to PRE-FLIGHT step
-
-Iteration 43: 7/8 sites complete, agents follow full protocol
-              → 48+ routes across 8 sites, all tested through proxy
-
-Iteration 44: Two-pass strategy doubles transport coverage (2.1 → 4.3 avg)
-              → 70+ routes, new transports: Firebase WS, SSE, HLS, PubSub
+```bash
+git clone <this-repo>
+cd api-interceptor
+pnpm install
 ```
 
-Each iteration produces a batch of fresh agents that read ONLY the `.claude/` instructions — no hints, no coaching, no prior context. If they fail, the instructions are wrong. The loop runs until fresh agents consistently complete the full discovery protocol on any website.
+**Step 2: Start the services.** Leave this running in a terminal tab.
 
-This is [reflective programming](https://en.wikipedia.org/wiki/Reflective_programming) applied to AI agents — Claude Code examining, introspecting, and modifying its own instructions after every run.
-
-```mermaid
-graph TD
-    O[Orchestrator] -->|"launches 8 parallel agents<br/>in isolated worktrees"| A1[Agent 1]
-    O --> A2[Agent 2]
-    O --> AN[Agent N...]
-
-    A1 --> S[Score against 18-check scorecard]
-    A2 --> S
-    AN --> S
-
-    S --> D{All passed?}
-    D -- Yes --> C["Instructions converged"]
-    D -- No --> F["Diagnose: which rule<br/>was too soft or missing?"]
-    F --> R["Fix the instruction<br/>(generalized, not site-specific)"]
-    R --> CC["Consistency check<br/>across all .claude/ files"]
-    CC --> O
+```bash
+pnpm dev
 ```
 
-## Using the Skills
+You'll see three things start:
 
-In the Claude Code console, type a `/` command. The skill handles everything — setup, agents, monitoring, cleanup. Answer the prompts and watch it work.
+- **API server** on `localhost:3001` — this is the proxy that serves your discovered routes
+- **Web frontend** on `localhost:3000` — Next.js dashboard for viewing results
+- **Headless browser** — launches automatically for traffic capture (no visible window)
 
-| Command | What it does | You provide |
-|---|---|---|
-| `/instruction-tuning` | Improve discovery instructions by testing agents on real sites. Launches parallel agents, scores them, fixes `.claude/` rules. | Passes (1 or 2), websites, cleanup preference |
-| `/instruction-dashboard-tuning` | Improve dashboard-building instructions. Discover API, build dashboard from wireframe, SOTA reviewer finds instruction gaps. | Passes, websites, cleanup preference |
-| `/app` | Build a complete app from a description. Asks questions, discovers APIs, builds dashboard. | Plain-language description of what you want |
-| `/api-discovery` | Discover one website's API. Full protocol: PRE-FLIGHT, GATHER, SCAN, CLASSIFY, BUILD. | Target URL |
-| `/dashboard-builder` | Build a Next.js page against existing API routes. | Page name, which routes to use |
-| `/visual-dev` | Screenshot + judge loop. 7 criteria, iterate until zero issues. | Page to review |
-| `/debug-logs` | Add targeted logs, read output, narrow the search, repeat. | What's broken |
-| `/systematic-testing` | Bottom-up validation. Test each layer before integration. | What to test |
-| `/ci-check` | Lint, build, typecheck, test. Run before committing. | Nothing — just run it |
-| `/ec2-deploy` | Deploy to production. Docker build, push, restart containers. | Nothing — just run it |
+**Step 3: Open Claude Code** in a second terminal tab, from the project directory.
+
+```bash
+claude
+```
+
+Claude reads the `.claude/` directory automatically — it contains all the rules, skills, and agent definitions that drive the system. You don't need to configure anything. Just tell Claude what you want.
+
+### Discover a website's API
+
+Tell Claude what site you want:
+
+```text
+> Discover the API for Hacker News
+```
+
+Or use the slash command directly:
+
+```text
+> /api-discovery https://news.ycombinator.com
+```
+
+Claude will:
+
+1. Connect a browser to the site
+2. Navigate pages and capture network traffic
+3. Classify every data transport (JSON, WebSocket, GraphQL, SSE, etc.)
+4. Build typed proxy routes that return clean JSON
+5. Test every route through the API server
+
+When it's done, you can curl your new API:
+
+```bash
+curl localhost:3001/api/hackernews/top?page=1&limit=5
+curl localhost:3001/api/hackernews/search?query=rust
+curl localhost:3001/api/hackernews/story/12345
+```
+
+### Build a dashboard
+
+Once routes exist, ask Claude to build a frontend:
+
+```text
+> /dashboard-builder
+```
+
+Or just describe what you want:
+
+```text
+> Build a dashboard page for Hacker News with search, story list, and comments
+```
+
+Claude builds a Next.js page at `apps/web/app/<domain>/page.tsx` that calls your proxy routes.
+
+### Build an entire app from a description
+
+```text
+> /app
+```
+
+Describe what you want in plain language ("compare ticket prices across sites", "track HN trends over time"). Claude asks clarifying questions, discovers the APIs, and builds the dashboard.
+
+## Slash Commands
+
+Type `/` in Claude Code to see available commands:
+
+| Command | What it does |
+| --- | --- |
+| `/api-discovery` | Discover a website's API and create proxy routes |
+| `/dashboard-builder` | Build a Next.js page for existing routes |
+| `/app` | Build a complete app from a plain-language description |
+| `/visual-dev` | Screenshot-driven UI iteration |
+| `/debug-logs` | Iterative debugging with targeted logs |
+| `/ci-check` | Run lint, build, typecheck, and tests |
+| `/instruction-tuning` | Improve the discovery instructions by testing agents on real sites |
+| `/instruction-dashboard-tuning` | Improve dashboard-building instructions the same way |
+| `/ec2-deploy` | Deploy to production |
 
 ## How It Works
 
-Paste a URL. An AI agent connects a real browser, navigates the target site as a user, captures every network request via CDP, classifies each data transport (JSON, WebSocket, GraphQL, protobuf, embedded SSR, HLS, SSE), and generates typed proxy routes that return clean JSON. No API keys. No scraping guides. Just the real requests the browser makes.
+Claude Code reads the `.claude/` directory on startup. That directory contains:
 
+- **Rules** — mandatory protocols the agent follows (discovery steps, workflow gates, compliance checks)
+- **Skills** — slash commands that orchestrate multi-step tasks
+- **Agents** — specialized sub-agent identities (discovery, dashboard, reviewer)
+- **Hooks** — shell scripts that run on events (cleanup, worktree isolation, write guards)
+
+When you ask Claude to discover a site's API, it follows a 5-step protocol: pre-flight analysis, browser traffic gathering, HTML/JS scanning, transport classification, and route building. The protocol was refined over 47+ iterations of self-improving instruction tuning — agents testing the instructions, failing, and the instructions being fixed until fresh agents consistently succeed.
+
+The generated domain plugins live in `domains/<name>/` and expose routes through the Hono API server at `localhost:3001/api/<domain>/<path>`.
+
+## The Self-Improving Skill
+
+The `.claude/` instructions aren't static — they're the product of iterative refinement. The `/instruction-tuning` skill launches parallel agents against real websites, scores their results, diagnoses failures, and fixes the instructions. The agents' code is throwaway. The instruction improvements are the product.
+
+```text
+Iteration 1:  "you should capture traffic first" → agent skips it
+              → Fix: "MUST produce elimination table BEFORE code"
+
+Iteration 15: Agents miss WebSocket transports
+              → Fix: Add real-time transport checklist to pre-flight
+
+Iteration 44: Two-pass strategy doubles transport coverage (2.1 → 4.3 avg)
+              → 70+ routes, new transports: WS, SSE, HLS, PubSub
 ```
-$ curl localhost:3001/api/example/search?q=boards
-
-{
-  "results": [
-    { "sku": "DECK-001", "name": "Street Destroyer 8.25", "price": 64.99 },
-    { "sku": "DECK-002", "name": "Park Rider Pro 8.0", "price": 72.50 }
-  ],
-  "total": 847
-}
-```
-
-### Two Systems
-
-**API Discovery** turns websites into typed endpoints. **Instruction Tuning** iteratively improves the agent rules that drive discovery. A third system, **Dashboard Tuning**, uses the same self-improving loop to teach agents how to build Next.js dashboards from discovered APIs.
-
-### API Discovery Protocol
-
-The agent follows a mandatory 5-step protocol before writing any code:
-
-1. **Pre-flight** — Write down everything you already know about the target (framework, APIs, pagination, auth, bot detection, real-time transports). Name specific pages with 100+ items.
-2. **Gather** — Connect browser to homepage, browse naturally, navigate to data-heavy pages, intercept pagination traffic. Test discovered endpoints via browser fetch.
-3. **Scan** — Fetch HTML + JS bundles. Scan for transport markers across all 8 categories. Check for access gaps (browser vs direct HTTP).
-4. **Classify** — Fill the 8-row Transport Elimination table with evidence for every row. No exceptions.
-5. **Build** — Create typed proxy routes for every transport found. Session harvest for auth-gated endpoints. Pagination until data is complete. Test every route through the API server proxy.
-
-### Transport Types Discovered
-
-| Transport | Example Sites | How Detected |
-|---|---|---|
-| Embedded JSON | Airbnb (`data-deferred-state`), TM (`__NEXT_DATA__`), YF (`data-sveltekit-fetched`) | HTML scan for framework markers |
-| JSON API (XHR) | Reddit (`.json` suffix), YF (query1/query2 APIs) | Traffic capture + pagination params |
-| GraphQL | Twitch (`gql.twitch.tv/gql`), Airbnb (v3 persisted queries) | Traffic + JS bundle scan |
-| WebSocket | HN (Firebase real-time), Reddit (`gql-realtime`), Twitch (IRC + Hermes) | JS bundle scan for `wss://` URLs |
-| HLS/Media | YouTube (live streams via googlevideo.com), Twitch (live + VOD) | Traffic + PlaybackAccessToken GQL |
-| SSE | HN (Firebase REST with `Accept: text/event-stream`) | Direct endpoint testing |
-| Encoded/Binary | YouTube (UMP protocol, DASH adaptive formats) | Traffic content-type analysis |
-| RSS/XML | Reddit (`.rss`), HN (`/rss`), YouTube (`/feeds/videos.xml`) | Direct URL testing |
-
-### The `.claude/` Directory
-
-| File | Purpose | Self-Improves? |
-|---|---|---|
-| `CLAUDE.md` | Project-wide instructions every agent reads | Yes — tuning refines language |
-| `rules/discovery.md` | 5-step discovery protocol with gates | Yes — primary tuning target |
-| `rules/workflow.md` | Process cleanup, retry policy | Yes — infrastructure fixes |
-| `agents/discovery-agent.md` | Discovery agent identity + budget | Yes — efficiency improvements |
-| `agents/dashboard-agent.md` | Dashboard builder identity + budget | Yes — via dashboard tuning |
-| `agents/reviewer-agent.md` | Read-only SOTA code + UI reviewer | Yes — review criteria evolve |
-| `skills/instruction-tuning/` | Self-improvement loop for discovery | Meta — improves itself |
-| `skills/instruction-dashboard-tuning/` | Self-improvement loop for dashboards | Meta — improves itself |
-| `skills/api-discovery/` | Discovery skill with templates + references | Yes — patterns added |
-| `skills/dashboard-builder/` | Dashboard build patterns + component library | Yes — via dashboard tuning |
-| `skills/visual-dev/` | Screenshot + judge loop (7 criteria) | Yes — criteria refined |
-| `hooks/cleanup-agents.sh` | Kill zombies, remove worktrees, revert files | Yes — port ranges expand |
-| `hooks/guard-worktree-writes.sh` | Prevent agents from writing to main repo | Stable |
-| `hooks/create-worktree.sh` | Isolated worktrees outside repo tree | Stable |
 
 ## Tech Stack
 
-TypeScript &middot; Hono &middot; Next.js &middot; Patchright &middot; Turborepo &middot; pnpm &middot; Vitest &middot; Biome &middot; Claude Code
+TypeScript · Hono · Next.js · Patchright · Turborepo · pnpm · Vitest · Biome · Claude Code
 
 ## License
 

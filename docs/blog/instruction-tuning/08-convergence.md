@@ -80,7 +80,7 @@ I added the real-time transport checklist to PRE-FLIGHT:
 
 ```
 - WebSocket: [chat pages, live feeds, dashboards, notifications]
-- SSE: [streaming APIs, live updates, Firebase REST]
+- SSE: [streaming APIs, live updates, REST with event-stream]
 - HLS/DASH: [video player pages, live streams, VOD archives]
 - PubSub: [event feeds, channel subscriptions]
 ```

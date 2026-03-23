@@ -32,7 +32,7 @@ Before connecting the browser, write down everything you already know about the 
 **Real-time transport checklist.** Breadth-first discovery often misses streaming transports because they require specific page types. In PRE-FLIGHT, name where these might live:
 ```
 - WebSocket: [chat pages, live feeds, real-time dashboards, notifications]
-- SSE: [streaming APIs, live updates, Firebase REST with Accept: text/event-stream]
+- SSE: [streaming APIs, live updates, REST with Accept: text/event-stream]
 - HLS/DASH: [video player pages, live stream pages, VOD archives]
 - PubSub: [event feeds, channel subscriptions, real-time notifications]
 ```
@@ -73,7 +73,7 @@ Two jobs: (A) confirm/correct your pre-flight, (B) intercept pagination.
 sleep 15
 ```
 
-Connect to the HOMEPAGE first, not directly to a deep page. Browse naturally: scroll, click 1-2 links, then navigate to your target page. This establishes cookies and avoids bot detection (reCAPTCHA, Akamai). Direct deep-link navigation triggers bot walls.
+Connect to the HOMEPAGE first, not directly to a deep page. Browse naturally: scroll, click 1-2 links, then navigate to your target page. This establishes cookies and avoids bot detection (CAPTCHAs, WAFs). Direct deep-link navigation triggers bot walls.
 
 **1b. Confirm your pre-flight (1-2 tool calls).** Navigate the homepage and verify your pre-flight hypotheses. Correct anything that's wrong. You already know what this site is — don't spend tool calls rediscovering it.
 
