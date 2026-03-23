@@ -1,7 +1,7 @@
 <h1 align="center">Interceptor</h1>
 
 <p align="center">
-  Turn any website into a typed JSON API — using Claude Code.
+  Turn any website into a typed JSON API — using Claude Code with self improving agents.
 </p>
 
 ---
@@ -31,8 +31,8 @@
 **Step 1: Clone and install.**
 
 ```bash
-git clone <this-repo>
-cd api-interceptor
+git clone https://github.com/adam-s/intercept.git
+cd intercept
 pnpm install
 ```
 
