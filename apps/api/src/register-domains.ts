@@ -12,15 +12,16 @@
 
 import { registerDomain } from '@interceptor/browser/handler/domain-loader';
 import { plugin as boardshop } from '@interceptor/domain-boardshop';
+import { plugin as youtube } from '@interceptor/domain-youtube';
 import { registerRateLimit } from '@interceptor/shared';
 
 // ─── Domain plugins ──────────────────────────────────────────────────
-// boardshop is the reference example on base. Real domain plugins are
-// imported on test branches (e.g., test/tickets-v1, test/jobs-v1).
 
 registerDomain(boardshop);
+registerDomain(youtube);
 
 // ─── Outbound rate limits (per-hostname) ─────────────────────────────
-// Register per-host limits here when domain plugins use rateLimitedFetch().
 
 registerRateLimit('api.boardshop.example.com', { maxPerMinute: 30, retryOn429: 2 });
+registerRateLimit('www.youtube.com', { maxPerMinute: 30, retryOn429: 2 });
+registerRateLimit('suggestqueries-clients6.youtube.com', { maxPerMinute: 60, retryOn429: 0 });
