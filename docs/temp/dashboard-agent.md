@@ -51,8 +51,10 @@ curl -s http://localhost:3001/api | python3 -m json.tool
 ## Available Data
 
 - **API routes:** `curl -s http://localhost:3001/api` lists all registered domains and routes
-- **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Use these to understand data shapes without hitting the live API.
-- **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, etc.)
+- **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Use these to understand data shapes without hitting the live API. Cache routes: `./scripts/cache-routes.sh --domain <name>`
+- **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, Sonner toast, etc.)
+- **Python bridge:** `POST /api/python/:method` calls the Python worker. Example: `fetch('/api/python/compute', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ numbers: [1,2,3] }) })`
+- **Toast notifications:** Import `toast` from `sonner`. `<Toaster />` is mounted in root layout. Use `toast.success()`, `toast.error()`, `toast.loading()` for user feedback.
 
 ## The Build Loop
 
@@ -72,16 +74,8 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 
 3. **Screenshot it:**
    ```bash
-   node -e "
-   const { chromium } = require('patchright');
-   (async () => {
-     const browser = await chromium.launch();
-     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-     await page.goto('http://localhost:3000/PAGE_PATH', { waitUntil: 'networkidle' });
-     await page.screenshot({ path: '/tmp/screenshot.png' });
-     await browser.close();
-   })();
-   "
+   ./scripts/screenshot-dashboard.sh --path /PAGE_PATH --output /tmp/screenshot.png
+   # Mobile: ./scripts/screenshot-dashboard.sh --path /PAGE_PATH --width 375 --output /tmp/mobile.png
    ```
 
 4. **Judge it** against 7 criteria (from visual-dev SKILL):
@@ -110,13 +104,15 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 
 ## DEBUG Logs
 
-When data doesn't flow correctly, follow `.claude/skills/debug-logs/SKILL.md`:
+Use `@/lib/debug` for browser-side logging (NOT `@interceptor/shared` which pulls Node deps):
 ```typescript
-import { DEBUG } from '@interceptor/shared';
+import { DEBUG } from '@/lib/debug';
 DEBUG('youtube', `search: fetching q=${q}`);
 DEBUG('youtube', `search: got ${results.length} results`);
 ```
-Add logs at: fetch call, response parse, component render. Read logs at `/tmp/interceptor-debug/`.
+Add logs at: fetch call, response parse, component render. Logs appear in browser console in dev mode.
+
+For server-side route debugging, use `@interceptor/shared` DEBUG → writes to `/tmp/interceptor-debug/`.
 
 ## Process Cleanup
 

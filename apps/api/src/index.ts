@@ -12,6 +12,7 @@ process.on('uncaughtException', (err) => {
 	console.error('[FATAL] Uncaught exception:', err);
 	// Don't exit — keep the server running so agents can recover
 });
+
 import { analyzeDiscovery } from '@interceptor/browser/analysis/discovery';
 import {
 	autoStartHeadlessBrowser,
