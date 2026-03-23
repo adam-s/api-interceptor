@@ -205,7 +205,11 @@ Every row needs ✓ or ✗ with evidence. Every Gap=Y endpoint needs a planned r
 
 ### STEP 4: BUILD
 
-**For each ✓ transport, build a route.** See `domains/boardshop/src/routes.ts` for working examples of every pattern.
+**Budget check:** You should have ~60-80 calls remaining for BUILD. If you have fewer than 40, simplify: build routes for the primary transport only (the one with pagination), skip secondary transports.
+
+**For each ✓ transport, build a route.** See `domains/boardshop/ROUTES.md` for a quick-reference index to find the right pattern.
+
+**The server does NOT auto-reload domain files.** Write ALL files first (routes.ts, config.ts, interceptor.ts, index.ts, package.json), update register-domains.ts and apps/api/package.json, run `pnpm install`, then kill and restart the server ONCE. If you need to fix a route, edit the file, kill -9 the server, and restart. Do NOT debug "why old code is running" — just kill and restart.
 
 **The route building flow:**
 

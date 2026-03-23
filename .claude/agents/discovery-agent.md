@@ -58,18 +58,19 @@ Returns `{status, contentType, data}`. Uses the browser's cookies for cross-orig
 
 ## Testing Routes (MANDATORY)
 
-Write ALL route files first, THEN restart the server ONCE and test. Do not restart after every edit — the tsx watcher is unreliable for new files. One restart, test everything.
+**The server does NOT auto-reload domain file changes.** Write ALL files (routes, config, interceptor, index, package.json, register-domains), then kill and restart ONCE:
 
 ```bash
-# Write all files first, then:
-lsof -ti:XXXX | xargs kill 2>/dev/null; sleep 2
+# After writing ALL files:
+lsof -ti:XXXX | xargs kill -9 2>/dev/null; sleep 2
+pnpm install 2>&1 | tail -3
 PORT=XXXX pnpm --filter @interceptor/api dev > /tmp/api-server-XXXX.log 2>&1 &
 .claude/hooks/track-pid.sh $! XXXX "api-server"
 sleep 8
 curl -s http://localhost:XXXX/api/yourdomain/route | head -50
 ```
 
-A route passes when it returns HTTP 200 with real data and pagination works. If a route needs fixing, edit the file, then kill and restart ONCE more.
+If a route needs fixing, edit the file, `kill -9` the server, and restart. Do NOT expect tsx to detect domain file changes — it won't. Do NOT debug "why old code is running" — just kill and restart.
 
 ## Process Management
 
