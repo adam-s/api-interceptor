@@ -147,6 +147,19 @@ for (const name of listDomains()) {
 	}
 }
 
+// Python bridge REST endpoint — dashboard pages call Python methods via HTTP
+app.post('/api/python/:method', async (c) => {
+	const method = c.req.param('method');
+	try {
+		const params = await c.req.json().catch(() => ({}));
+		const bridge = await getBridge();
+		const result = await bridge.call(method, params);
+		return c.json({ result });
+	} catch (err) {
+		return c.json({ error: err instanceof Error ? err.message : String(err) }, 500);
+	}
+});
+
 // Create Node.js HTTP server
 const server = createServer(async (req, res) => {
 	try {

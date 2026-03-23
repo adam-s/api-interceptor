@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import './globals.css';
 
@@ -12,6 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 		<html lang="en" className="dark">
 			<body className="bg-background text-foreground min-h-screen">
 				<TooltipProvider>{children}</TooltipProvider>
+				<Toaster />
 			</body>
 		</html>
 	);
