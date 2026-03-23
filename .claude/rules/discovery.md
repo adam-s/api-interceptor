@@ -1,4 +1,6 @@
 > **GATE: Fill the elimination table BEFORE writing route code.**
+>
+> **MANDATORY: Full breadth exploration. Discover ALL transports before building ANY routes. NEVER target specific endpoints — let the protocol find them. Listing specific routes or endpoints in agent prompts causes tunnel vision and wastes hundreds of calls.**
 
 # Discovery Protocol
 
