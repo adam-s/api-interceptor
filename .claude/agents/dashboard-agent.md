@@ -57,12 +57,14 @@ curl -s http://localhost:3001/api | python3 -m json.tool
 ## Available Data
 
 - **API routes:** `curl -s http://localhost:3001/api` lists all registered domains and routes
-- **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Use these to understand data shapes without hitting the live API.
-- **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, etc.)
+- **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Cache routes: `./scripts/cache-routes.sh --domain <name>`
+- **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, Sonner toast, etc.)
+- **Python bridge:** `POST /api/python/:method` calls the Python worker for NLP, matching, stats
+- **Toast notifications:** Import `toast` from `sonner`. Use `toast.success()`, `toast.error()` for user feedback.
 
 ## The Build Loop
 
-Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The core loop:
+Follow `docs/temp/dashboard-builder.md` for the build process (live version). The core loop:
 
 1. **Enumerate states** (BEFORE writing code) — list every visual state the page needs:
    - idle (no search yet)
@@ -78,19 +80,11 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 
 3. **Screenshot it:**
    ```bash
-   node -e "
-   const { chromium } = require('patchright');
-   (async () => {
-     const browser = await chromium.launch();
-     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
-     await page.goto('http://localhost:3000/PAGE_PATH', { waitUntil: 'networkidle' });
-     await page.screenshot({ path: '/tmp/screenshot.png' });
-     await browser.close();
-   })();
-   "
+   ./scripts/screenshot-dashboard.sh --path /PAGE_PATH --output /tmp/screenshot.png
+   # Mobile: ./scripts/screenshot-dashboard.sh --path /PAGE_PATH --width 375 --output /tmp/mobile.png
    ```
 
-4. **Judge it** against 7 criteria (from visual-dev SKILL):
+4. **Judge it** against 7 criteria (from `docs/temp/visual-dev.md`):
    - 3-second test: can a new user understand what this page does?
    - Data accuracy: does the displayed data match the API response?
    - Visual hierarchy: is the most important content most prominent?
