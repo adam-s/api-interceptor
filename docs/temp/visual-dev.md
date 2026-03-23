@@ -5,8 +5,6 @@ description: Visual development with Patchright screenshots. Use when building, 
 
 # Visual Development Loop
 
-> **IMPORTANT:** The live, editable version of this skill is at `docs/temp/visual-dev.md`. Read that file for the current instructions. This file is the stable version — `docs/temp/` may have overnight improvements not yet promoted here.
-
 **This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the iteration is complete.
 
 **Core principle:** Build, screenshot, judge, fix, re-screenshot, repeat until zero problems. The screenshot loop IS the development loop.

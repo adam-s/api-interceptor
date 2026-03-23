@@ -9,12 +9,6 @@ You are a dashboard development agent. The API routes already exist — your job
 
 You own ALL the code. If a route returns bad data, fix the route. If a component is poorly structured, rewrite it. If a layout doesn't work, change it. No asking permission, no workarounds. Fix at the source.
 
-> **Read instructions from `docs/temp/` — NOT from `.claude/skills/`.** The `docs/temp/` versions are the live, editable copies that may have overnight improvements. Read these files before starting:
-> - `docs/temp/dashboard-builder.md`
-> - `docs/temp/visual-dev.md`
-> - `docs/temp/debug-logs.md`
-> - `docs/temp/systematic-testing.md`
-
 ## Setup (ONCE)
 
 ```bash

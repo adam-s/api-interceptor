@@ -5,8 +5,6 @@ description: Bottom-up systematic validation for multi-layer architectures. Use 
 
 # Systematic Validation
 
-> **IMPORTANT:** The live, editable version of this skill is at `docs/temp/systematic-testing.md`. Read that file for the current instructions. This file is the stable version — `docs/temp/` may have overnight improvements not yet promoted here.
-
 When testing or debugging a multi-layer system, work bottom-up. Never test a higher layer until the layer below it is verified. This approach isolates failures to the specific layer where they occur.
 
 ## The Four Layers

@@ -5,8 +5,6 @@ description: Build Next.js dashboard pages that consume domain proxy APIs. Use w
 
 # Dashboard Builder
 
-> **IMPORTANT:** The live, editable version of this skill is at `docs/temp/dashboard-builder.md`. Read that file for the current instructions. This file is the stable version — `docs/temp/` may have overnight improvements not yet promoted here.
-
 Create Next.js dashboard pages that consume domain proxy API endpoints. Each page lives in `apps/web/src/app/(dashboard)/` and uses shadcn/ui components.
 
 **Development principle: DEBUG logging is mandatory.** The build loop IS the debug-log + screenshot loop. `import { DEBUG } from '@interceptor/shared'` in every new file. Add `DEBUG('component-name', () => ({ step, data }))` at every data flow point: API fetch, response parsing, state updates, render decisions. Build a component → check debug logs to verify data flow → screenshot it → fix what's wrong → re-screenshot. **Verification output is required input for the next step** (see CLAUDE.md "The Rule That Makes This Work").

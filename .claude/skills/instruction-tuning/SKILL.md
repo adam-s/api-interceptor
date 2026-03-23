@@ -238,12 +238,12 @@ These skills are the product. The dashboards are test subjects.
 Build a dashboard page for [domain] at /[route].
 API routes: [paste output of curl -s http://localhost:3001/api]
 Cached data: tmp/cache/[domain]/
-Follow these skills IN ORDER:
-1. systematic-testing SKILL.md — verify API routes (L1-L2) before building UI
-2. dashboard-builder SKILL.md — build the page
-3. visual-dev SKILL.md — screenshot + judge after EVERY visual change
-4. debug-logs SKILL.md — when data doesn't flow
-Read each skill file before starting.
+Read instructions from docs/temp/ (NOT .claude/skills/):
+1. docs/temp/systematic-testing.md — verify API routes (L1-L2) before building UI
+2. docs/temp/dashboard-builder.md — build the page
+3. docs/temp/visual-dev.md — screenshot + judge after EVERY visual change
+4. docs/temp/debug-logs.md — when data doesn't flow
+Also read docs/temp/dashboard-agent.md for setup and build loop.
 Branch: [branch]. API port: 3001. Web port: 3000.
 Budget: ~150 tool calls.
 ```

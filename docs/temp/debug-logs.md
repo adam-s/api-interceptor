@@ -5,8 +5,6 @@ description: Iterative debugging with targeted logs. Use when browser connection
 
 # Iterative Debug Logging
 
-> **IMPORTANT:** The live, editable version of this skill is at `docs/temp/debug-logs.md`. Read that file for the current instructions. This file is the stable version — `docs/temp/` may have overnight improvements not yet promoted here.
-
 When you can't solve a problem by reading code alone, use DEBUG() to observe runtime behavior. This is a methodical process — not a one-shot fix.
 
 ## The DEBUG() Function
