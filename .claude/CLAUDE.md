@@ -45,7 +45,7 @@ If you are running in a worktree (`pwd` contains `/tmp/interceptor-worktrees/`):
 
 ## Code Ownership
 
-We own ALL the code — packages, apps, domains, scripts, test-server, infrastructure. When something is broken, we fix it at the source with production-quality code. No workarounds, no "document it for later," no dummy values to satisfy a type. If an interface is wrong, fix the interface. If a script wastes calls, rewrite the script. Apply the same standards as the best open-source projects: clean types, proper error handling, backward-compatible changes, tests passing.
+We own ALL the code — packages, apps, domains, scripts, test-server, infrastructure. When something is broken, we fix it at the source with production-quality code. No workarounds, no "document it for later," no dummy values to satisfy a type. If an interface is wrong, fix the interface. If a script wastes calls, rewrite the script. Breaking changes are fine — this is pre-release. Delete dead code, rename freely, change interfaces. Tests must pass.
 
 ## Conventions
 
