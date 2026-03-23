@@ -65,14 +65,20 @@ export abstract class GenericInterceptor {
 			if (value) headers[name] = value;
 		}
 
-		// Validate with Zod schema
-		const result = this.config.headerSchema.safeParse(headers);
-		if (!result.success) {
-			console.warn(`[${this.config.domainName}Interceptor] Invalid headers:`, result.error.message);
-			return null;
+		// Validate with Zod schema (skip if no schema provided — public APIs with no required headers)
+		if (this.config.headerSchema) {
+			const result = this.config.headerSchema.safeParse(headers);
+			if (!result.success) {
+				console.warn(
+					`[${this.config.domainName}Interceptor] Invalid headers:`,
+					result.error.message,
+				);
+				return null;
+			}
+			return result.data as Record<string, string>;
 		}
 
-		return result.data as Record<string, string>;
+		return headers;
 	}
 
 	/**

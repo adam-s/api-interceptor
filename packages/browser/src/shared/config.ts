@@ -41,6 +41,7 @@ export interface InterceptorConfig {
 	/**
 	 * Zod schema to validate captured headers.
 	 * Called via .safeParse() to ensure captured headers are valid.
+	 * Optional — defaults to z.object({}) if requiredHeaders is empty.
 	 *
 	 * Example:
 	 * ```typescript
@@ -51,7 +52,7 @@ export interface InterceptorConfig {
 	 * })
 	 * ```
 	 */
-	headerSchema: z.ZodSchema;
+	headerSchema?: z.ZodSchema;
 
 	/**
 	 * Optional: Base URLs for the domain (for API calls).

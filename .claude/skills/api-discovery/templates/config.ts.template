@@ -5,7 +5,6 @@
  */
 
 import type { InterceptorConfig } from '@interceptor/browser/shared/config';
-import { z } from 'zod';
 
 export const {{DOMAIN_CAMEL}}InterceptorConfig: InterceptorConfig = {
 	domainName: '{{DOMAIN_NAME}}',
@@ -16,10 +15,8 @@ export const {{DOMAIN_CAMEL}}InterceptorConfig: InterceptorConfig = {
 	],
 
 	requiredHeaders: [],
-
-	headerSchema: z.object({
-		Cookie: z.string().optional(),
-	}),
+	// headerSchema is optional — omit for public APIs with no required headers.
+	// For auth-gated APIs, add: headerSchema: z.object({ 'X-Api-Key': z.string() })
 
 	baseUrls: [
 		// Add base URLs discovered from traffic capture
