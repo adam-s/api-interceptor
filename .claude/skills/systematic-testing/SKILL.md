@@ -43,7 +43,7 @@ curl -s http://localhost:3001/api | jq '.domains[] | select(.name == "<domain>")
 
 ### L2 — API Proxy
 
-Browser must be connected before proxy routes work.
+Browser must be connected before proxy routes work. Note: the Access Gap table (browser vs direct HTTP status per endpoint) is generated during discovery Step 2e — this layer uses those results but does not regenerate them.
 
 ```bash
 # Check browser health

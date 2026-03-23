@@ -10,4 +10,4 @@ Before committing, list every requirement with evidence. Any row without evidenc
 | 1 | [from prompt] | PASS/FAIL | [curl output or screenshot] |
 ```
 
-Row 0 is mandatory. ANY FAIL = fix before committing.
+Row 0 is a MANDATORY GATE — a filled elimination table must exist before any route code. ANY FAIL = fix before committing.

@@ -5,7 +5,7 @@ description: Visual development with Patchright screenshots. Use when building, 
 
 # Visual Development Loop
 
-**This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the iteration is complete.
+**This skill is a mandatory validation gate, not an optional polish step.** Every dashboard page must be screenshotted and judged against the 7 criteria before the iteration is complete. See `dashboard-builder/SKILL.md` "Required states" table for the full list of visual states to implement and screenshot.
 
 **Core principle:** Build, screenshot, judge, fix, re-screenshot, repeat until zero problems. The screenshot loop IS the development loop.
 

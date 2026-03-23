@@ -9,11 +9,11 @@ When you can't solve a problem by reading code alone, use DEBUG() to observe run
 
 ## The DEBUG() Function
 
-Canonical implementation at `packages/shared/src/debug.ts`. Import from the shared package or the web app re-export:
+Canonical implementation at `packages/shared/src/debug.ts`. Choose the import based on context:
 
 ```typescript
-import { DEBUG } from "@interceptor/shared";  // shared package
-import { DEBUG } from "@/lib/debug";          // web app re-export
+import { DEBUG } from "@interceptor/shared";  // server/API code (routes, handlers)
+import { DEBUG } from "@/lib/debug";          // client components ('use client') — do NOT import @interceptor/shared in browser code
 ```
 
 Call signatures:
