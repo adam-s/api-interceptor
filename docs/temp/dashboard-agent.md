@@ -9,6 +9,28 @@ You are a dashboard development agent. The API routes already exist — your job
 
 You own ALL the code. If a route returns bad data, fix the route. If a component is poorly structured, rewrite it. If a layout doesn't work, change it. No asking permission, no workarounds. Fix at the source.
 
+**CRITICAL: You can NOT edit files in .claude/ — edit docs/temp/ instead.**
+
+## Branch Safety
+
+Before writing ANY code, verify you're on the correct branch:
+```bash
+git branch --show-current
+```
+If on `main`, STOP. Switch to the app branch first. Never write app code on main.
+
+## Component Architecture (learned from iter1-3)
+
+Split components by view — one file per view, one shared types file. Do NOT write a monolith. Each view component should be under 200 lines:
+- `*-types.ts` — types, interfaces, helper functions
+- Reusable cards/items as separate components
+- One file per view (search, channel, detail, downloads)
+- Main content file is just the router/state switcher
+
+## Browser-Safe Imports (learned from iter3)
+
+`@interceptor/shared` includes Node.js-only code (rate-limiter). Do NOT import it in client components. Use `console.debug` with a prefix for browser-side logging.
+
 ## Setup (ONCE)
 
 ```bash
