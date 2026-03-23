@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cache API route responses for offline dashboard development.
-# Usage: ./scripts/cache-routes.sh [--port 3001] [--domain youtube]
+# Usage: ./scripts/cache-routes.sh [--port 3001] [--domain boardshop]
 set -euo pipefail
 
 PORT=3001

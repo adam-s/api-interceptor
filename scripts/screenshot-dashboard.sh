@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Screenshot a localhost dashboard page using Patchright.
-# Usage: ./scripts/screenshot-dashboard.sh --path /youtube --width 1280 --output /tmp/yt.png
+# Usage: ./scripts/screenshot-dashboard.sh --path /dashboard --width 1280 --output /tmp/screenshot.png
 set -euo pipefail
 
 PATH_ARG="/"

@@ -30,7 +30,7 @@ User reviews this in the morning and promotes good changes to .claude/.
 
 ### Iter 4 — 2026-03-23 02:00
 **Result:** 68 calls, 9 screenshots, 18 edits. Design review + polish only.
-**Process:** Compared each view to YouTube template screenshots, identified layout/typography/spacing differences, fixed top 3 per view.
+**Process:** Compared each view to template site screenshots, identified layout/typography/spacing differences, fixed top 3 per view.
 **Finding:** Design review works well as a separate iteration from build. Builder builds, reviewer polishes. Separation of concerns.
 **Instruction gap:** docs/temp/ doesn't specify the design review process clearly enough — agent needed it in the prompt, not just in the skill file.
 
@@ -47,5 +47,5 @@ User reviews this in the morning and promotes good changes to .claude/.
 4. Async END state verification
 5. Browser-safe DEBUG function (code fix)
 6. Design review as separate iteration from build
-7. Recursive component extraction rule (from Reddit iter)
-8. Biome auto-fix before manual lint cleanup (from Reddit iter)
+7. Recursive component extraction rule (from iter5)
+8. Biome auto-fix before manual lint cleanup (from iter5)

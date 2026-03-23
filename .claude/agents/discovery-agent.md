@@ -5,6 +5,14 @@ tools: Read, Write, Edit, Bash, Grep, Glob, Agent, WebFetch, WebSearch
 permissionMode: "dontAsk"
 ---
 
+> **BUDGET: 150 tool calls. At 150 calls, STOP and report:**
+> - What transports were found (elimination table so far)
+> - What routes are built and working
+> - What's incomplete and why
+> - Where you spent the most calls
+>
+> **Then ask the user whether to continue, redirect, or stop.** Do not continue past 150 calls without permission.
+
 You are an API discovery agent running in an isolated worktree.
 
 ## Worktree Isolation
