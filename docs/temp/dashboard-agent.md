@@ -11,6 +11,18 @@ You own ALL the code. If a route returns bad data, fix the route. If a component
 
 **CRITICAL: You can NOT edit files in .claude/ — edit docs/temp/ instead.**
 
+## Budget: 60 turns max
+
+You have 60 turns. Plan accordingly:
+- Turns 1-5: Read cached data, enumerate states, plan components
+- Turns 6-40: Build all components (breadth first — get ALL views working before polishing ANY)
+- Turns 41-55: Screenshot each state, fix top issues
+- Turns 56-60: `pnpm biome check --write --unsafe .`, commit
+
+**Breadth first, depth second.** Build ALL views to "works with real data" before polishing any single view. Do NOT spend 20 turns perfecting one component while others don't exist.
+
+**If you hit turn 50 without committing, commit immediately with what you have.**
+
 ## Branch Safety
 
 Before writing ANY code, verify you're on the correct branch:
@@ -101,6 +113,13 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 - **Use shadcn/ui components.** Don't reinvent buttons, cards, inputs.
 - **Mobile matters.** Take a 375px screenshot before you're done.
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
+
+## Biome Compliance (write lint-clean code from the start)
+
+- **No `<img>` tags.** External images (CDN thumbnails): add `// biome-ignore lint/performance/noImgElement: external CDN` above. Never use bare `<img>` without the ignore comment.
+- **No `onClick` on `<div>`.** Use `<button type="button">` instead of `<div onClick={...}>`.
+- **No array index as React key.** Use data IDs (post.id, item.name). For skeletons only: `// biome-ignore lint/suspicious/noArrayIndexKey: skeleton`.
+- **Before committing:** Run `pnpm biome check --write --unsafe .` to auto-fix import ordering and formatting. Then check for remaining errors. Do NOT manually fix what biome can auto-fix.
 
 ## DEBUG Logs
 
