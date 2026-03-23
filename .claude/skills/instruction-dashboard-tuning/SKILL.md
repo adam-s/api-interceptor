@@ -18,6 +18,16 @@ You are not building dashboards. You are writing instructions that make other ag
 5. **Apply findings** — instruction improvements go to `.claude/`, framework code fixes go to `packages/`, `apps/`, etc.
 6. **Discard the worktree** — the dashboard is throwaway. The instruction and code improvements are the product.
 
+## Before Starting — Ask the User
+
+**Turn 1:** Ask how many discovery passes — 1 or 2? Default to 1.
+- **1 pass:** Full breadth discovery, then build dashboard.
+- **2 passes:** Pass 1 = breadth. Pass 2 = deep dive on missed transports. Then build dashboard with the combined routes.
+
+**Turn 2:** Ask which websites to use as wireframes. The user picks the sites.
+
+Do NOT launch agents until the user answers both questions.
+
 ## The Three-Phase Pipeline
 
 ```

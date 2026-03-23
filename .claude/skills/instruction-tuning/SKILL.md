@@ -18,6 +18,16 @@ You are not writing code. You are writing instructions that make other agents wr
 
 The sub-agent's code is throwaway. The instruction improvements are the product. Every iteration should close the gap between "what the agent does" and "what you would do."
 
+## Before Starting — Ask the User
+
+**Turn 1:** Ask how many passes — 1 or 2? Default to 1.
+- **1 pass:** Full breadth discovery. Find all transports, build routes.
+- **2 passes:** Pass 1 = breadth discovery. Pass 2 = focused deep dive on transports pass 1 missed (WebSocket, streaming, session harvest). Seed pass 2 prompts with pass 1 findings.
+
+**Turn 2:** Ask which websites to test. The user picks the sites. Assign ports starting at 3011. Max 8 per batch.
+
+Do NOT launch agents until the user answers both questions.
+
 ## The Loop
 
 ```
