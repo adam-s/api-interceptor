@@ -81,9 +81,16 @@ SCREENSHOT of real website = the "wireframe"
 6.  Verify: elimination table filled, routes return data via curl
 7.  Launch Phase 2 (Build) in SAME worktree (run_in_background: true)
 8.  LIVE MONITOR every 60s until build completes
+8b. VERIFY PROXY — before screenshots, confirm the web proxy reaches the API:
+    curl -s http://localhost:$WEB_PORT/api/$DOMAIN/ROUTE | head -c 200
+    If this fails (500, empty), the web server was started without API_PORT=$API_PORT.
+    Kill, restart with API_PORT=$API_PORT PORT=$WEB_PORT, re-verify.
+8c. VERIFY PLACEMENT — check page is in (dashboard)/ group:
+    ls apps/web/src/app/\(dashboard\)/PAGE_NAME/page.tsx
+    If the page is at apps/web/src/app/PAGE_NAME/ instead, that's a finding.
 9.  Capture dashboard screenshots at 4 viewports (375, 768, 1280, 1920):
     mkdir -p /tmp/dashboard-tuning/screenshots
-    ./scripts/screenshot-dashboard.sh --path /PAGE --width W --output /tmp/dashboard-tuning/screenshots/WxH.png
+    ./scripts/screenshot-dashboard.sh --path /PAGE --width W --port $WEB_PORT --output /tmp/dashboard-tuning/screenshots/WxH.png
 10. Launch Phase 3 (Review) — reviewer reads worktree + screenshots (run_in_background: true)
 11. MONITOR until reviewer produces findings report
 12. Process findings:
@@ -146,6 +153,18 @@ This is a real website screenshot. Match its:
 
 The gap between your dashboard screenshot and the wireframe IS the bug.
 
+Structural requirements:
+- Place page in (dashboard)/ group: apps/web/src/app/(dashboard)/<page-name>/page.tsx
+- If the wireframe has its own header/footer/nav, add a layout.tsx opt-out:
+  export default function Layout({ children }: { children: React.ReactNode }) { return <>{children}</>; }
+- Use shadcn/ui Button (not raw <button>), Alert (not raw <div>), for ALL interactive/status elements
+- Override visual tokens (className + style), not component choice
+- If API returns HTML fragments, sanitize with DOMPurify before dangerouslySetInnerHTML
+
+When starting servers, set ports explicitly:
+  PORT=$API_PORT pnpm --filter @interceptor/api dev
+  API_PORT=$API_PORT PORT=$WEB_PORT pnpm --filter @interceptor/web dev
+
 Before finishing: run `pnpm biome check --write --unsafe .` and fix any remaining lint or type errors. CI must be clean.
 API port: XXXX. Web port: YYYY.
 Budget: 80 tool calls.
@@ -182,10 +201,47 @@ Budget: 40 tool calls.
 
 ## Live Monitoring
 
-Same JSONL parsing as discovery monitoring. At each check:
+Parse the agent output file every 60 seconds:
 
-| Agent | Calls | Phase | Notes |
-|-------|-------|-------|-------|
+```bash
+FILE="$AGENT_OUTPUT_FILE"
+cat "$FILE" | python3 -c "
+import sys, json
+tool_calls = 0; screenshots = 0; skill_reads = 0; writes = 0; edits = 0
+files_written = []; last_texts = []
+for line in sys.stdin:
+    try:
+        d = json.loads(line)
+        if d.get('type') == 'assistant':
+            for c in d.get('message',{}).get('content',[]):
+                if isinstance(c,dict):
+                    if c.get('type')=='text' and len(c.get('text',''))>20:
+                        last_texts.append(c['text'][:200])
+                        if len(last_texts) > 3: last_texts.pop(0)
+                    elif c.get('type')=='tool_use':
+                        tool_calls += 1
+                        n=c.get('name','');inp=c.get('input',{})
+                        if n=='Bash':
+                            cmd = inp.get('command','')
+                            if 'screenshot' in cmd.lower(): screenshots += 1
+                        elif n=='Write':
+                            writes += 1; files_written.append(inp.get('file_path','').split('/')[-1])
+                        elif n=='Edit': edits += 1
+                        elif n=='Read':
+                            fp = inp.get('file_path','')
+                            if 'SKILL.md' in fp or 'visual-dev' in fp: skill_reads += 1
+        if d.get('type') == 'result': print('*** AGENT COMPLETE ***')
+    except: pass
+print(f'Calls: {tool_calls}/80 | Screenshots: {screenshots} | Skills read: {skill_reads} | Writes: {writes} | Edits: {edits}')
+print(f'Files: {files_written}')
+for t in last_texts: print(t[:150]); print('---')
+"
+```
+
+At each check, update the monitoring table:
+
+| Agent | Calls | Screenshots | Skills | Files | Notes |
+|-------|-------|-------------|--------|-------|-------|
 
 **Phase 1 watch for:**
 - Elimination table progress
@@ -197,11 +253,16 @@ Same JSONL parsing as discovery monitoring. At each check:
 - State enumeration — should happen in first 5-10 calls
 - Skill file reads — should read dashboard-builder + visual-dev early
 - Component granularity — one 500-line file vs multiple small files
+- Route group placement — page should be under `(dashboard)/`, not top-level `/app/`
+- shadcn/ui coverage — check for raw `<button>` or raw `<div>` for errors
+- API_PORT set correctly when web server started
 
 **Phase 3 watch for:**
 - Did reviewer read all component files?
 - Did reviewer read all 4 viewport screenshots + wireframe?
 - Are findings GENERALIZED or site-specific?
+
+**Budget overrun:** If an agent exceeds its budget, let it finish its current output but note the overrun. In findings, check whether the overrun was caused by a monolith rewrite (instruction gap) or unnecessary retries (agent error).
 
 ## Scorecards
 

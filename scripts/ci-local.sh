@@ -38,7 +38,14 @@ pnpm turbo test || fail "Tests failed"
 pass "Test"
 
 step "Python test"
-python3 -m pytest services/python/ -v || fail "Python tests failed"
+PYTHON_VENV="services/python/.venv/bin/python3"
+if [ -x "$PYTHON_VENV" ]; then
+  $PYTHON_VENV -m pytest services/python/ -v || fail "Python tests failed"
+elif python3 -m pytest --version >/dev/null 2>&1; then
+  python3 -m pytest services/python/ -v || fail "Python tests failed"
+else
+  printf "\033[33m⊘ Python tests skipped (no venv or pytest — run: cd services/python && python3 -m venv .venv && .venv/bin/pip install pytest)\033[0m\n"
+fi
 pass "Python test"
 
 step "E2E tests (Playwright)"

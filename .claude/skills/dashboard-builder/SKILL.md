@@ -64,7 +64,21 @@ If the reference site uses a legacy aesthetic (custom fonts, table-based layout,
   style={{ fontFamily: 'Verdana, sans-serif' }}
   placeholder="Search..."
 />
+
+// For plain-text link buttons (like HN "comments" or "More"):
+<Button variant="link" className="p-0 h-auto text-[7pt] no-underline hover:underline"
+  style={{ color: '#828282', fontFamily: 'Verdana, sans-serif' }}>
+  {comments} comments
+</Button>
+
+// For error banners matching a non-shadcn aesthetic:
+<Alert variant="destructive" className="rounded-none"
+  style={{ background: '#ffe0e0', border: '1px solid #cc0000' }}>
+  <AlertDescription>{error}</AlertDescription>
+</Alert>
 ```
+
+**The rule: if it's clickable, use `Button`. If it shows a status message, use `Alert`. Override the visual tokens, not the component choice.** A raw `<button>` or `<div>` with inline styles loses focus management, keyboard handling, and ARIA attributes that shadcn provides for free.
 
 Save template screenshots to `/tmp/template-<domain>/` for reference throughout the build.
 
@@ -109,7 +123,8 @@ Split components by view — one file per view, one shared types file. Each view
 - `*-types.ts` — types, interfaces, helper functions
 - Reusable cards/items as separate components
 - One file per view (search, channel, detail, downloads)
-- Main content file is just the router/state switcher
+- Main content file is just the router/state switcher — under 150 lines
+- Site chrome (header, footer, nav bar) goes in separate components even when they contain state-dependent logic. Pass state as props.
 - Recursive components (e.g., CommentTree): extract the recursive item as a separate component file. The parent handles state/routing; the child handles rendering + recursion.
 
 Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manually fix what auto-fix can't.
@@ -391,6 +406,7 @@ These principles override the implementation patterns in this skill file. They d
 11. **Sequential fetches need progress narration.** Show which source is being queried. `"Searching Source B... (2 of 3)"` not a generic spinner for 30 seconds.
 12. **Normalize before merging.** Different formats of the same entity must produce the same key. `"Austin, TX"` and `"Austin TX"` must match. Trim, lowercase, strip punctuation.
 13. **Mobile is a different product.** Test at 375px for: overlapping text, truncated inputs, hidden hover-only elements, 44px minimum touch targets, single-column layout.
+15. **Small visual, large touch target.** When matching a reference site with tiny clickable text, keep the visual small but wrap it in a touch-friendly hit area: `<button className="min-h-[44px] min-w-[44px] flex items-center"><span className="text-xs">text</span></button>`. The rendered text stays small; the tap target is accessible.
 14. **`dangerouslySetInnerHTML` requires a sanitization decision.** If an API returns HTML fragments, make one of these choices: (a) sanitize in the API route handler using `sanitize-html` before sending to the client, (b) sanitize in the component using `DOMPurify.sanitize(html)` before passing to `dangerouslySetInnerHTML`, or (c) document specifically why the source is trusted and what prevents injection. A biome-ignore comment alone is not sufficient documentation.
 
 ## Loading & Error Patterns

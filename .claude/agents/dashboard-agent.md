@@ -49,23 +49,24 @@ Split components by view — one file per view, one shared types file. Do NOT wr
 ## Setup (ONCE)
 
 ```bash
+# Ports are set by the orchestrator prompt. Defaults: API=3001, Web=3000.
 # Start API server
-lsof -ti:3001 | xargs kill -9 2>/dev/null; sleep 2
-PORT=3001 pnpm --filter @interceptor/api dev > /tmp/api-server.log 2>&1 &
-sleep 8 && curl -s http://localhost:3001/health
+lsof -ti:${API_PORT:-3001} | xargs kill -9 2>/dev/null; sleep 2
+PORT=${API_PORT:-3001} pnpm --filter @interceptor/api dev > /tmp/api-server.log 2>&1 &
+sleep 8 && curl -s http://localhost:${API_PORT:-3001}/health
 
-# Start web server
-lsof -ti:3000 | xargs kill -9 2>/dev/null; sleep 2
-pnpm --filter @interceptor/web dev > /tmp/web-server.log 2>&1 &
-sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:3000
+# Start web server — API_PORT tells Next.js where to proxy /api/* requests
+lsof -ti:${WEB_PORT:-3000} | xargs kill -9 2>/dev/null; sleep 2
+API_PORT=${API_PORT:-3001} PORT=${WEB_PORT:-3000} pnpm --filter @interceptor/web dev > /tmp/web-server.log 2>&1 &
+sleep 10 && curl -s -o /dev/null -w "%{http_code}" http://localhost:${WEB_PORT:-3000}
 
 # Discover available API routes
-curl -s http://localhost:3001/api | python3 -m json.tool
+curl -s http://localhost:${API_PORT:-3001}/api | python3 -m json.tool
 ```
 
 ## Available Data
 
-- **API routes:** `curl -s http://localhost:3001/api` lists all registered domains and routes
+- **API routes:** `curl -s http://localhost:${API_PORT:-3001}/api` lists all registered domains and routes
 - **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Cache routes: `./scripts/cache-routes.sh --domain <name>`
 - **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, Sonner toast, etc.)
 - **Python bridge:** `POST /api/python/:method` calls the Python worker for NLP, matching, stats
