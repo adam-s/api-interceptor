@@ -123,6 +123,24 @@ The generated domain plugins live in `domains/<name>/` and expose routes through
 
 The `.claude/` instructions aren't static — they're the product of iterative refinement. The `/instruction-tuning` skill launches parallel agents against real websites, scores their results, diagnoses failures, and fixes the instructions. The agents' code is throwaway. The instruction improvements are the product.
 
+```mermaid
+graph TD
+    O[Orchestrator] -->|"launches 8 parallel agents<br/>in isolated worktrees"| A1[Agent 1]
+    O --> A2[Agent 2]
+    O --> AN[Agent N...]
+
+    A1 --> S[Score against 18-check scorecard]
+    A2 --> S
+    AN --> S
+
+    S --> D{All passed?}
+    D -- Yes --> C["Instructions converged"]
+    D -- No --> F["Diagnose: which rule<br/>was too soft or missing?"]
+    F --> R["Fix the instruction<br/>(generalized, not site-specific)"]
+    R --> CC["Consistency check<br/>across all .claude/ files"]
+    CC --> O
+```
+
 ```text
 Iteration 1:  "you should capture traffic first" → agent skips it
               → Fix: "MUST produce elimination table BEFORE code"
