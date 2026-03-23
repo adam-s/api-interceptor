@@ -24,7 +24,7 @@ Before connecting the browser, write down everything you already know about the 
 - Pagination pattern: [cursor, offset/limit, page numbers, infinite scroll, "Show More"]
 - Authentication: [public, API key, CSRF token, cookies, OAuth]
 - Bot detection: [Cloudflare, Kasada, Akamai, DataDome, none known]
-- Embedded data pattern: [__NEXT_DATA__, data-deferred-state, window.__INITIAL_STATE__, etc.]
+- Embedded data pattern: [__NEXT_DATA__, data-deferred-state, data-sveltekit-fetched, window.__INITIAL_STATE__, etc.]
 - Known gotchas: [geo-restrictions, consent walls, login walls]
 ```
 
@@ -123,6 +123,8 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 - For cross-origin API endpoints (different subdomain), always use `{credentials: "include"}` in fetch() to forward browser cookies. Without it, WAF-gated APIs return 403.
 - `browserFetch` is a route-handler method for route code. During discovery, use `POST /browser/mcp/fetch` instead — it runs fetch() in the browser context with all cookies: `curl -s -X POST http://localhost:PORT/browser/mcp/fetch -H 'Content-Type: application/json' -d '{"url":"..."}'`
 - Low traffic (1-4 entries) is normal after one page load — navigate more pages, don't panic
+- **Traffic resets on navigation.** After `page.goto()` or `extractFromPage()`, previous traffic entries may be cleared. Always capture `/browser/traffic` BEFORE navigating to a new page. If you need traffic from the new page, wait and re-fetch traffic after the page loads.
+- **Browser connection drops.** If a browser command returns an error about closed context or lost connection, reconnect ONCE with `./scripts/connect-browser.sh`. Do not spend more than 2 calls reconnecting — if it fails twice, the browser session is dead, proceed with what you have.
 
 ---
 
@@ -171,6 +173,8 @@ curl -s -X POST http://localhost:PORT/browser/mcp/fetch \
 ```
 This reveals ALL available queries in one call. If it works, mark GraphQL ✓ and plan routes for each query.
 
+**2d-METHOD-DISPATCH.** Some sites use a single URL with `?method=X` query params to dispatch different API actions (e.g., `POST /page?method=GetListings`). If traffic shows POST requests to page URLs returning `application/json`, test the pattern — it may be a JSON API hidden behind a method-dispatch pattern. These always require browser cookies (Gap=Y).
+
 **2e. Access Gap table.** Make ONE curl per endpoint — no repeated tests. If you get 429, that IS the answer: mark Gap=Y. Do not retry.
 
 ```
@@ -207,7 +211,7 @@ Every row needs ✓ or ✗ with evidence. Every Gap=Y endpoint needs a planned r
 
 ### STEP 4: BUILD
 
-**Budget check:** You should have ~60-80 calls remaining for BUILD. If you have fewer than 40, simplify: build routes for the primary transport only (the one with pagination), skip secondary transports.
+**Budget check:** You should have ~60-80 calls remaining for BUILD. If you have fewer than 40, simplify: build routes for the primary transport only (the one with pagination), skip secondary transports. Sites with WAF (Akamai, Kasada, Cloudflare) typically need 40-50 GATHER calls instead of 25-30 — factor this into your budget planning.
 
 **For each ✓ transport, build a route.** See `domains/boardshop/ROUTES.md` for a quick-reference index to find the right pattern.
 

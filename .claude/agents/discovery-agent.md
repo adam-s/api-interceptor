@@ -33,9 +33,11 @@ sleep 8 && curl -s http://localhost:XXXX/health
 
 ## Efficiency
 
-- Target **150 tool calls**. Data completeness > budget.
+- Target **150 tool calls**. Data completeness > budget. WAF-heavy sites (Akamai, Kasada) may need up to 200 — report at 150 and continue if making progress.
 - Do NOT `sleep` longer than 15 seconds.
 - The only rules file is `discovery.md`. Do not look for other rules files.
+- **Browser drops:** If a browser command fails with "context closed" or connection error, reconnect ONCE. If it fails again, proceed without the browser — use what you already captured.
+- **Traffic resets on navigation.** Capture `/browser/traffic` BEFORE navigating to new pages. After `page.goto()`, previous entries may be gone.
 
 ## Discovery Protocol
 

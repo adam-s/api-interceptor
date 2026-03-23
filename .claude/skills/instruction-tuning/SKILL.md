@@ -138,7 +138,7 @@ The new session reads this file to pick up context. Subagents get clean system-r
 
 ## Parallel Testing
 
-Launch agents with worktree isolation. Each gets a unique port (3010 + N).
+Launch agents with worktree isolation. Each gets a unique port (3010 + N). **Concurrency limit: 8 agents max.** Beyond 8, browser instances compete for resources and connections drop. If you need more sites, run in batches of 8.
 
 Agent prompt template:
 ```
