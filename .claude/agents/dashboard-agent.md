@@ -91,6 +91,7 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 - **Use shadcn/ui components.** Don't reinvent buttons, cards, inputs.
 - **Mobile matters.** Take a 375px screenshot before you're done.
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
+- **Verify async actions to their END state.** If a user clicks "Download," don't just screenshot the "downloading" state. Wait for it to complete (or fail), then screenshot the result. Every user journey must be walked to its final state — started is not finished.
 
 ## DEBUG Logs
 

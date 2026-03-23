@@ -265,6 +265,7 @@ Budget: ~150 tool calls.
 | Data flows through /api/ proxy — no hardcoded URLs | |
 | Used shadcn/ui components — no reinvented primitives | |
 | Tested with 3+ different inputs for diverse data shapes | |
+| Async actions verified to END state (not just triggered) | |
 
 ### Dashboard Live Monitoring
 
