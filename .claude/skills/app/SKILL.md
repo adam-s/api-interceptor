@@ -156,6 +156,34 @@ Bottom-up validation using `systematic-testing` skill:
 
 **Only hand off when verified working on localhost:3000.**
 
+## Python Bridge
+
+The project includes a Python worker at `services/python/` that can be called from route handlers or dashboard API routes. Use it for anything that's better in Python than TypeScript:
+
+**NLP & Text Analysis:**
+- Sentiment analysis on reviews, news headlines, social posts (NLTK, TextBlob, transformers)
+- Named entity recognition — extract people, companies, locations from text
+- Text summarization — condense long descriptions or reviews
+- Keyword extraction — pull topics from listings or job postings
+
+**Data Science:**
+- Fuzzy entity matching across sites (fuzzywuzzy, rapidfuzz, scikit-learn cosine similarity)
+- Statistical outlier detection — flag unusually priced listings
+- Clustering — group similar items (KMeans, DBSCAN on feature vectors)
+- Trend analysis — price changes over time, moving averages
+
+**Machine Learning:**
+- Classification — categorize items, detect spam/duplicates
+- Regression — predict prices, estimate value scores
+- Feature engineering — normalize and compare across different site schemas
+
+**When to use the Python bridge:**
+- The developer's spec mentions sentiment, scoring, matching, analysis, or ML
+- Cross-site entity deduplication (Python fuzzy matching >> JS string comparison)
+- Any computation where numpy/pandas/scikit-learn is the natural tool
+
+**How:** Route handlers call the Python bridge via IPC. The bridge runs as a sidecar service. See `services/python/` for the interface.
+
 ## Rules
 
 - The developer's domain knowledge is the most valuable input. Ask for it. Don't guess.
