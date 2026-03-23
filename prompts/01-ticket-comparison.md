@@ -1,1 +1,0 @@
-Build domain plugins for ticketmaster.com and stubhub.com. Discover all transports, build all routes. Dashboard at `/tickets` — search by performer, match events by date/venue across both platforms, compare prices side by side, cheaper highlighted.

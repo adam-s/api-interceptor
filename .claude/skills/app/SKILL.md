@@ -99,6 +99,12 @@ Layout: [description]
 
 ## Phase 3: Build API
 
+**Create a branch first:**
+```bash
+git checkout -b app/<name>
+```
+All app work happens on this branch. Main stays clean.
+
 Follow `.claude/rules/discovery.md` for the full protocol, but with the advantage of knowing exactly what to look for from Phase 2.
 
 **3a. Build the domain plugin** — routes, config, interceptor, index. Use the spec from 2d.
