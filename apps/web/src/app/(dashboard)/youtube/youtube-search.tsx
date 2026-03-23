@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, type MutableRefObject } from 'react';
+import { Play, Search, Users } from 'lucide-react';
+import { type MutableRefObject, useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Play, Users } from 'lucide-react';
+import { VideoCard } from './video-card';
 import type { Channel, VideoItem } from './youtube-types';
 import { DEBUG, fixThumbnailUrl, ytFetch } from './youtube-types';
-import { VideoCard } from './video-card';
 
 interface YouTubeSearchProps {
 	query: string;
@@ -16,7 +16,14 @@ interface YouTubeSearchProps {
 	searchTriggerRef: MutableRefObject<((q: string) => void) | null>;
 }
 
-export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpenVideo, searchTriggerRef }: YouTubeSearchProps) {
+export function YouTubeSearch({
+	query: _query,
+	setQuery,
+	onSearch,
+	onOpenChannel,
+	onOpenVideo,
+	searchTriggerRef,
+}: YouTubeSearchProps) {
 	const [searchResults, setSearchResults] = useState<(Channel | VideoItem)[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -29,11 +36,18 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 		setSearched(true);
 		DEBUG('youtube-search', () => ({ action: 'search', query: q }));
 		try {
-			const data = await ytFetch<{ results?: (Channel | VideoItem)[] }>('Search', `/api/youtube/search?q=${encodeURIComponent(q)}`);
+			const data = await ytFetch<{ results?: (Channel | VideoItem)[] }>(
+				'Search',
+				`/api/youtube/search?q=${encodeURIComponent(q)}`,
+			);
 			setSearchResults(data.results ?? []);
-			DEBUG('youtube-search', () => ({ action: 'search-results', count: (data.results ?? []).length }));
+			DEBUG('youtube-search', () => ({
+				action: 'search-results',
+				count: (data.results ?? []).length,
+			}));
 		} catch (e) {
-			const msg = e instanceof Error ? e.message : 'Search failed. Check your connection and try again.';
+			const msg =
+				e instanceof Error ? e.message : 'Search failed. Check your connection and try again.';
 			setError(msg);
 			setSearchResults([]);
 		}
@@ -43,7 +57,9 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 	// Register the search trigger so the header can call it
 	useEffect(() => {
 		searchTriggerRef.current = doSearch;
-		return () => { searchTriggerRef.current = null; };
+		return () => {
+			searchTriggerRef.current = null;
+		};
 	});
 
 	return (
@@ -59,6 +75,7 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 			{loading && (
 				<div className="space-y-4">
 					{Array.from({ length: 6 }).map((_, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders have no unique ID
 						<div key={`skel-${i}`} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
 							<Skeleton className="w-full sm:w-[300px] lg:w-[360px] shrink-0 aspect-video rounded-xl" />
 							<div className="flex-1 space-y-2 pt-1">
@@ -87,19 +104,21 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-2 justify-center">
-						{['Veritasium', '3Blue1Brown', 'Kurzgesagt', 'Fireship', 'The Coding Train'].map((name) => (
-							<button
-								key={name}
-								type="button"
-								className="px-4 py-2 rounded-full bg-muted/60 hover:bg-muted text-sm transition-colors cursor-pointer"
-								onClick={() => {
-									setQuery(name.toLowerCase());
-									onSearch(name.toLowerCase());
-								}}
-							>
-								{name}
-							</button>
-						))}
+						{['Veritasium', '3Blue1Brown', 'Kurzgesagt', 'Fireship', 'The Coding Train'].map(
+							(name) => (
+								<button
+									key={name}
+									type="button"
+									className="px-4 py-2 rounded-full bg-muted/60 hover:bg-muted text-sm transition-colors cursor-pointer"
+									onClick={() => {
+										setQuery(name.toLowerCase());
+										onSearch(name.toLowerCase());
+									}}
+								>
+									{name}
+								</button>
+							),
+						)}
 					</div>
 				</div>
 			)}
@@ -132,14 +151,7 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 							);
 						}
 						const v = item as VideoItem;
-						return (
-							<VideoCard
-								key={v.videoId}
-								video={v}
-								onClick={onOpenVideo}
-								layout="list"
-							/>
-						);
+						return <VideoCard key={v.videoId} video={v} onClick={onOpenVideo} layout="list" />;
 					})}
 				</div>
 			)}
@@ -155,13 +167,15 @@ interface ChannelResultProps {
 
 function ChannelResult({ channel, onClick }: ChannelResultProps) {
 	return (
-		<div
-			className="flex items-center gap-4 py-4 cursor-pointer group"
+		<button
+			type="button"
+			className="flex items-center gap-4 py-4 cursor-pointer group text-left w-full bg-transparent border-0 p-0"
 			onClick={onClick}
 		>
 			{/* Channel avatar */}
 			<div className="w-20 sm:w-[200px] lg:w-[360px] shrink-0 flex items-center justify-center">
 				{channel.thumbnail ? (
+					// biome-ignore lint/performance/noImgElement: external YouTube thumbnails
 					<img
 						src={fixThumbnailUrl(channel.thumbnail)}
 						alt={channel.title}
@@ -180,7 +194,9 @@ function ChannelResult({ channel, onClick }: ChannelResultProps) {
 				</h3>
 				<p className="text-xs text-muted-foreground mt-1">
 					{channel.subscribers}
-					{channel.videoCount && channel.videoCount !== channel.subscribers ? ` \u00B7 ${channel.videoCount}` : ''}
+					{channel.videoCount && channel.videoCount !== channel.subscribers
+						? ` \u00B7 ${channel.videoCount}`
+						: ''}
 				</p>
 				{channel.description && (
 					<p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 line-clamp-2">
@@ -188,6 +204,6 @@ function ChannelResult({ channel, onClick }: ChannelResultProps) {
 					</p>
 				)}
 			</div>
-		</div>
+		</button>
 	);
 }

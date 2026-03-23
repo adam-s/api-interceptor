@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Clock, Download, Loader2, Play, Share2, ThumbsUp, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-	Play, Download, Clock, Users, Loader2, ThumbsUp, Share2,
-} from 'lucide-react';
-import type { VideoDetail, VideoItem, DownloadItem } from './youtube-types';
-import { DEBUG, formatDuration, formatViews, formatViewsShort, fixThumbnailUrl, ytFetch } from './youtube-types';
 import { VideoCard } from './video-card';
+import type { DownloadItem, VideoDetail, VideoItem } from './youtube-types';
+import {
+	DEBUG,
+	fixThumbnailUrl,
+	formatDuration,
+	formatViews,
+	formatViewsShort,
+	ytFetch,
+} from './youtube-types';
 
 interface YouTubeVideoProps {
 	videoDetail: VideoDetail | null;
@@ -20,13 +25,19 @@ interface YouTubeVideoProps {
 }
 
 export function YouTubeVideo({
-	videoDetail, relatedVideos, loading, onOpenVideo, onOpenChannel, onDownloadStarted,
+	videoDetail,
+	relatedVideos,
+	loading,
+	onOpenVideo,
+	onOpenChannel,
+	onDownloadStarted,
 }: YouTubeVideoProps) {
 	const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 	const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
 	const [downloadError, setDownloadError] = useState<string | null>(null);
 
 	// Reset description expanded when video changes
+	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset state when videoId changes
 	useEffect(() => {
 		setDescriptionExpanded(false);
 		setDownloadError(null);
@@ -70,7 +81,10 @@ export function YouTubeVideo({
 		for (let i = 0; i < maxAttempts; i++) {
 			await new Promise((r) => setTimeout(r, 3000));
 			try {
-				const data = await ytFetch<{ downloads?: DownloadItem[] }>('Download status', '/api/youtube/downloads');
+				const data = await ytFetch<{ downloads?: DownloadItem[] }>(
+					'Download status',
+					'/api/youtube/downloads',
+				);
 				const dl = data.downloads?.find((d) => d.videoId === videoId);
 				DEBUG('youtube-video', () => ({ action: 'download-poll', attempt: i, status: dl?.status }));
 				if (dl?.status === 'complete') return;
@@ -79,7 +93,11 @@ export function YouTubeVideo({
 					return;
 				}
 			} catch (e) {
-				DEBUG('youtube-video', () => ({ action: 'download-poll-error', attempt: i, error: e instanceof Error ? e.message : 'unknown' }));
+				DEBUG('youtube-video', () => ({
+					action: 'download-poll-error',
+					attempt: i,
+					error: e instanceof Error ? e.message : 'unknown',
+				}));
 			}
 		}
 	};
@@ -96,6 +114,7 @@ export function YouTubeVideo({
 					</div>
 					<div className="w-full lg:w-[400px] shrink-0 space-y-3">
 						{Array.from({ length: 5 }).map((_, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders have no unique ID
 							<div key={`rskel-${i}`} className="flex gap-2">
 								<Skeleton className="w-[168px] aspect-video rounded-lg shrink-0" />
 								<div className="flex-1 space-y-1">
@@ -120,6 +139,7 @@ export function YouTubeVideo({
 				<div className="flex-1 min-w-0">
 					{/* Video player area */}
 					<div className="relative aspect-video rounded-xl overflow-hidden bg-black mb-3">
+						{/* biome-ignore lint/performance/noImgElement: external YouTube thumbnails */}
 						<img
 							src={fixThumbnailUrl(videoDetail.thumbnail)}
 							alt={videoDetail.title}
@@ -133,9 +153,7 @@ export function YouTubeVideo({
 					</div>
 
 					{/* Title */}
-					<h1 className="text-lg sm:text-xl font-bold leading-snug mb-2">
-						{videoDetail.title}
-					</h1>
+					<h1 className="text-lg sm:text-xl font-bold leading-snug mb-2">{videoDetail.title}</h1>
 
 					{/* Channel row + actions */}
 					<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -163,7 +181,10 @@ export function YouTubeVideo({
 						</div>
 						<div className="flex items-center gap-2">
 							<div className="flex items-center bg-muted/60 rounded-full overflow-hidden">
-								<button type="button" className="flex items-center gap-1.5 px-4 py-2 hover:bg-muted transition-colors text-sm">
+								<button
+									type="button"
+									className="flex items-center gap-1.5 px-4 py-2 hover:bg-muted transition-colors text-sm"
+								>
 									<ThumbsUp className="h-4 w-4" />
 									{formatViewsShort(videoDetail.views)}
 								</button>
@@ -172,7 +193,10 @@ export function YouTubeVideo({
 									<ThumbsUp className="h-4 w-4 rotate-180" />
 								</button>
 							</div>
-							<button type="button" className="flex items-center gap-1.5 px-4 py-2 bg-muted/60 rounded-full hover:bg-muted transition-colors text-sm">
+							<button
+								type="button"
+								className="flex items-center gap-1.5 px-4 py-2 bg-muted/60 rounded-full hover:bg-muted transition-colors text-sm"
+							>
 								<Share2 className="h-4 w-4" />
 								Share
 							</button>
@@ -188,7 +212,9 @@ export function YouTubeVideo({
 								{formatDuration(videoDetail.duration)}
 							</span>
 						</div>
-						<p className={`text-sm text-muted-foreground whitespace-pre-line ${descriptionExpanded ? '' : 'line-clamp-3'}`}>
+						<p
+							className={`text-sm text-muted-foreground whitespace-pre-line ${descriptionExpanded ? '' : 'line-clamp-3'}`}
+						>
 							{videoDetail.description}
 						</p>
 						{videoDetail.description && videoDetail.description.length > 200 && (
@@ -230,9 +256,7 @@ export function YouTubeVideo({
 								);
 							})}
 						</div>
-						{downloadError && (
-							<p className="text-sm text-destructive mt-2">{downloadError}</p>
-						)}
+						{downloadError && <p className="text-sm text-destructive mt-2">{downloadError}</p>}
 					</div>
 
 					{/* Keywords */}
@@ -255,12 +279,7 @@ export function YouTubeVideo({
 					{relatedVideos.length > 0 && (
 						<div className="space-y-2">
 							{relatedVideos.slice(0, 15).map((v) => (
-								<VideoCard
-									key={v.videoId}
-									video={v}
-									onClick={onOpenVideo}
-									layout="compact"
-								/>
+								<VideoCard key={v.videoId} video={v} onClick={onOpenVideo} layout="compact" />
 							))}
 						</div>
 					)}

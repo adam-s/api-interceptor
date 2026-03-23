@@ -1,7 +1,7 @@
 'use client';
 
-import { getVideoThumbnail } from './youtube-types';
 import type { VideoItem } from './youtube-types';
+import { getVideoThumbnail } from './youtube-types';
 
 interface VideoCardProps {
 	video: VideoItem;
@@ -13,12 +13,14 @@ interface VideoCardProps {
 export function VideoCard({ video, onClick, layout = 'grid' }: VideoCardProps) {
 	if (layout === 'compact') {
 		return (
-			<div
-				className="flex gap-2 cursor-pointer hover:bg-muted/40 rounded-lg p-1 transition-colors group"
+			<button
+				type="button"
+				className="flex gap-2 cursor-pointer hover:bg-muted/40 rounded-lg p-1 transition-colors group text-left w-full bg-transparent border-0"
 				onClick={() => onClick(video.videoId)}
 			>
 				{/* Thumbnail */}
 				<div className="w-[168px] shrink-0 relative rounded-lg overflow-hidden bg-muted">
+					{/* biome-ignore lint/performance/noImgElement: external YouTube thumbnails */}
 					<img
 						src={getVideoThumbnail(video.videoId, video.thumbnail)}
 						alt={video.title}
@@ -35,26 +37,26 @@ export function VideoCard({ video, onClick, layout = 'grid' }: VideoCardProps) {
 					<h4 className="text-sm font-medium line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
 						{video.title}
 					</h4>
-					{video.channel && (
-						<p className="text-xs text-muted-foreground mt-1">{video.channel}</p>
-					)}
+					{video.channel && <p className="text-xs text-muted-foreground mt-1">{video.channel}</p>}
 					<p className="text-xs text-muted-foreground">
 						{video.views}
 						{video.publishedTime ? ` \u00B7 ${video.publishedTime}` : ''}
 					</p>
 				</div>
-			</div>
+			</button>
 		);
 	}
 
 	if (layout === 'list') {
 		return (
-			<div
-				className="flex flex-col sm:flex-row gap-2 sm:gap-4 cursor-pointer group"
+			<button
+				type="button"
+				className="flex flex-col sm:flex-row gap-2 sm:gap-4 cursor-pointer group text-left w-full bg-transparent border-0 p-0"
 				onClick={() => onClick(video.videoId)}
 			>
 				{/* Thumbnail */}
 				<div className="w-full sm:w-[300px] lg:w-[360px] shrink-0 relative rounded-xl overflow-hidden bg-muted">
+					{/* biome-ignore lint/performance/noImgElement: external YouTube thumbnails */}
 					<img
 						src={getVideoThumbnail(video.videoId, video.thumbnail)}
 						alt={video.title}
@@ -81,18 +83,20 @@ export function VideoCard({ video, onClick, layout = 'grid' }: VideoCardProps) {
 						{video.publishedTime ? ` \u00B7 ${video.publishedTime}` : ''}
 					</p>
 				</div>
-			</div>
+			</button>
 		);
 	}
 
 	// grid layout (default) - channel video grid
 	return (
-		<div
-			className="cursor-pointer group"
+		<button
+			type="button"
+			className="cursor-pointer group text-left w-full bg-transparent border-0 p-0"
 			onClick={() => onClick(video.videoId)}
 		>
 			{/* Thumbnail */}
 			<div className="relative aspect-video rounded-xl overflow-hidden bg-muted mb-2">
+				{/* biome-ignore lint/performance/noImgElement: external YouTube thumbnails */}
 				<img
 					src={getVideoThumbnail(video.videoId, video.thumbnail)}
 					alt={video.title}
@@ -112,6 +116,6 @@ export function VideoCard({ video, onClick, layout = 'grid' }: VideoCardProps) {
 				{video.views}
 				{video.publishedTime ? ` \u00B7 ${video.publishedTime}` : ''}
 			</p>
-		</div>
+		</button>
 	);
 }

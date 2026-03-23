@@ -1,12 +1,12 @@
 'use client';
 
+import { ChevronDown, Loader2, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Loader2, ChevronDown } from 'lucide-react';
+import { VideoCard } from './video-card';
 import type { ChannelData } from './youtube-types';
 import { DEBUG, ytFetch } from './youtube-types';
-import { VideoCard } from './video-card';
 
 interface YouTubeChannelProps {
 	channelData: ChannelData | null;
@@ -15,7 +15,12 @@ interface YouTubeChannelProps {
 	onOpenVideo: (videoId: string) => void;
 }
 
-export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVideo }: YouTubeChannelProps) {
+export function YouTubeChannel({
+	channelData,
+	setChannelData,
+	loading,
+	onOpenVideo,
+}: YouTubeChannelProps) {
 	const [channelTab, setChannelTab] = useState<'videos' | 'about'>('videos');
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
@@ -25,11 +30,17 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 		setLoadingMore(true);
 		setLoadMoreError(null);
 		try {
-			const data = await ytFetch<{ videos?: typeof channelData.videos; continuation?: string | null }>(
+			const data = await ytFetch<{
+				videos?: typeof channelData.videos;
+				continuation?: string | null;
+			}>(
 				'Load more videos',
 				`/api/youtube/channel/${channelData.channel?.channelId}?continuation=${encodeURIComponent(channelData.continuation)}`,
 			);
-			DEBUG('youtube-channel', () => ({ action: 'load-more', newVideos: (data.videos ?? []).length }));
+			DEBUG('youtube-channel', () => ({
+				action: 'load-more',
+				newVideos: (data.videos ?? []).length,
+			}));
 			setChannelData({
 				...channelData,
 				videos: [...channelData.videos, ...(data.videos ?? [])],
@@ -56,6 +67,7 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 				</div>
 				<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
 					{Array.from({ length: 8 }).map((_, i) => (
+						// biome-ignore lint/suspicious/noArrayIndexKey: skeleton placeholders have no unique ID
 						<div key={`vskel-${i}`} className="space-y-2">
 							<Skeleton className="aspect-video rounded-xl" />
 							<Skeleton className="h-4 w-3/4" />
@@ -81,6 +93,7 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 				{channelData.channel && (
 					<div className="flex items-start gap-4 sm:gap-6 py-4 sm:py-6">
 						{channelData.channel.avatar ? (
+							// biome-ignore lint/performance/noImgElement: external YouTube avatar URL
 							<img
 								src={channelData.channel.avatar}
 								alt={channelData.channel.title}
@@ -165,7 +178,12 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 						{/* Load more */}
 						{channelData.continuation && (
 							<div className="flex justify-center pb-6">
-								<Button variant="outline" onClick={loadMoreVideos} disabled={loadingMore} className="gap-2 rounded-full">
+								<Button
+									variant="outline"
+									onClick={loadMoreVideos}
+									disabled={loadingMore}
+									className="gap-2 rounded-full"
+								>
 									{loadingMore ? (
 										<Loader2 className="h-4 w-4 animate-spin" />
 									) : (

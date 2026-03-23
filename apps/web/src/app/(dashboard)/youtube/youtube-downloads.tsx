@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft, CheckCircle, Download, Loader2, Play, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import {
-	Download, Play, ArrowLeft, Loader2, CheckCircle, XCircle,
-} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import type { DownloadItem } from './youtube-types';
 import { DEBUG, formatDuration, getVideoThumbnail, ytFetch } from './youtube-types';
 
@@ -20,9 +18,15 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 
 	const loadDownloads = useCallback(async () => {
 		try {
-			const data = await ytFetch<{ downloads?: DownloadItem[] }>('Downloads list', '/api/youtube/downloads');
+			const data = await ytFetch<{ downloads?: DownloadItem[] }>(
+				'Downloads list',
+				'/api/youtube/downloads',
+			);
 			setDownloads(data.downloads ?? []);
-			DEBUG('youtube-downloads', () => ({ action: 'loaded', count: (data.downloads ?? []).length }));
+			DEBUG('youtube-downloads', () => ({
+				action: 'loaded',
+				count: (data.downloads ?? []).length,
+			}));
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : 'Failed to load downloads';
 			setLoadError(msg);
@@ -48,8 +52,15 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 			<div className="flex items-center justify-between">
 				<h2 className="text-xl font-bold">Downloads</h2>
 				{downloads.length > 0 && (
-					<Button variant="ghost" size="sm" onClick={loadDownloads} className="gap-1.5 rounded-full">
-						<Loader2 className={`h-3.5 w-3.5 ${downloads.some((d) => d.status === 'downloading') ? 'animate-spin' : ''}`} />
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={loadDownloads}
+						className="gap-1.5 rounded-full"
+					>
+						<Loader2
+							className={`h-3.5 w-3.5 ${downloads.some((d) => d.status === 'downloading') ? 'animate-spin' : ''}`}
+						/>
 						Refresh
 					</Button>
 				)}
@@ -95,6 +106,7 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 						>
 							{/* Thumbnail */}
 							<div className="w-full sm:w-[200px] shrink-0 relative rounded-lg overflow-hidden bg-muted">
+								{/* biome-ignore lint/performance/noImgElement: external YouTube thumbnails */}
 								<img
 									src={getVideoThumbnail(dl.videoId)}
 									alt={dl.title}
@@ -124,7 +136,9 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 										className="text-xs"
 									>
 										{dl.status === 'complete' && <CheckCircle className="h-3 w-3 mr-1" />}
-										{dl.status === 'downloading' && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+										{dl.status === 'downloading' && (
+											<Loader2 className="h-3 w-3 mr-1 animate-spin" />
+										)}
 										{dl.status === 'error' && <XCircle className="h-3 w-3 mr-1" />}
 										{dl.status}
 									</Badge>
@@ -147,7 +161,11 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 												className="gap-1 text-xs h-7 rounded-full"
 												asChild
 											>
-												<a href={`/api/youtube/downloads/${dl.videoId}`} target="_blank" rel="noreferrer">
+												<a
+													href={`/api/youtube/downloads/${dl.videoId}`}
+													target="_blank"
+													rel="noreferrer"
+												>
 													<Download className="h-3 w-3" />
 													File
 												</a>
@@ -157,7 +175,9 @@ export function YouTubeDownloads({ onOpenVideo, onBackToSearch }: YouTubeDownloa
 								</div>
 
 								{dl.status === 'error' && dl.error && (
-									<p className="text-xs text-destructive mt-1 line-clamp-1">{dl.error.split('\n')[0]}</p>
+									<p className="text-xs text-destructive mt-1 line-clamp-1">
+										{dl.error.split('\n')[0]}
+									</p>
 								)}
 							</div>
 						</div>

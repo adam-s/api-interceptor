@@ -10,7 +10,11 @@ export function DEBUG(arg1: string, arg2?: string | DataFactory): void {
 	let data: Record<string, unknown> | undefined;
 	let msg = 'debug';
 	if (typeof arg2 === 'function') {
-		try { data = arg2(); } catch { /* skip */ }
+		try {
+			data = arg2();
+		} catch {
+			/* skip */
+		}
 	} else if (typeof arg2 === 'string') {
 		msg = arg2;
 	}

@@ -1,17 +1,17 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { AlertCircle, ArrowLeft, Library, Play, Search } from 'lucide-react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Play, Library, AlertCircle, Search } from 'lucide-react';
-import type { View, ChannelData, VideoDetail, VideoItem } from './youtube-types';
-import { DEBUG, ytFetch } from './youtube-types';
-import { YouTubeSearch } from './youtube-search';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { YouTubeChannel } from './youtube-channel';
-import { YouTubeVideo } from './youtube-video';
 import { YouTubeDownloads } from './youtube-downloads';
+import { YouTubeSearch } from './youtube-search';
+import type { ChannelData, VideoDetail, VideoItem, View } from './youtube-types';
+import { DEBUG, ytFetch } from './youtube-types';
+import { YouTubeVideo } from './youtube-video';
 
 export function YouTubeContent() {
 	const [view, setView] = useState<View>('search');
@@ -41,7 +41,10 @@ export function YouTubeContent() {
 		}
 		suggestTimerRef.current = setTimeout(async () => {
 			try {
-				const data = await ytFetch<{ suggestions?: string[] }>('suggestions', `/api/youtube/suggest?q=${encodeURIComponent(q)}`);
+				const data = await ytFetch<{ suggestions?: string[] }>(
+					'suggestions',
+					`/api/youtube/suggest?q=${encodeURIComponent(q)}`,
+				);
 				setSuggestions(data.suggestions?.slice(0, 8) ?? []);
 			} catch {
 				setSuggestions([]);
@@ -81,46 +84,62 @@ export function YouTubeContent() {
 	}, []);
 
 	// --- Channel ---
-	const openChannel = useCallback(async (channelId: string) => {
-		pushNav(view);
-		setLoading(true);
-		setError(null);
-		setView('channel');
-		DEBUG('youtube-content', () => ({ action: 'open-channel', channelId }));
-		try {
-			const data = await ytFetch<ChannelData>('Channel', `/api/youtube/channel/${channelId}`);
-			setChannelData(data);
-			DEBUG('youtube-content', () => ({ action: 'channel-loaded', videoCount: data.videos?.length }));
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : 'Failed to load channel.';
-			setError(msg);
-			setChannelData(null);
-		}
-		setLoading(false);
-	}, [view, pushNav]);
+	const openChannel = useCallback(
+		async (channelId: string) => {
+			pushNav(view);
+			setLoading(true);
+			setError(null);
+			setView('channel');
+			DEBUG('youtube-content', () => ({ action: 'open-channel', channelId }));
+			try {
+				const data = await ytFetch<ChannelData>('Channel', `/api/youtube/channel/${channelId}`);
+				setChannelData(data);
+				DEBUG('youtube-content', () => ({
+					action: 'channel-loaded',
+					videoCount: data.videos?.length,
+				}));
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : 'Failed to load channel.';
+				setError(msg);
+				setChannelData(null);
+			}
+			setLoading(false);
+		},
+		[view, pushNav],
+	);
 
 	// --- Video ---
-	const openVideo = useCallback(async (videoId: string) => {
-		pushNav(view);
-		setLoading(true);
-		setError(null);
-		setView('video');
-		DEBUG('youtube-content', () => ({ action: 'open-video', videoId }));
-		try {
-			const [detail, related] = await Promise.all([
-				ytFetch<VideoDetail>('Video detail', `/api/youtube/video/${videoId}`),
-				ytFetch<{ related?: VideoItem[] }>('Related videos', `/api/youtube/video/${videoId}/related`).catch(() => ({ related: [] })),
-			]);
-			setVideoDetail(detail);
-			setRelatedVideos(related.related ?? []);
-			DEBUG('youtube-content', () => ({ action: 'video-loaded', title: detail.title, relatedCount: (related.related ?? []).length }));
-		} catch (e) {
-			const msg = e instanceof Error ? e.message : 'Failed to load video details.';
-			setError(msg);
-			setVideoDetail(null);
-		}
-		setLoading(false);
-	}, [view, pushNav]);
+	const openVideo = useCallback(
+		async (videoId: string) => {
+			pushNav(view);
+			setLoading(true);
+			setError(null);
+			setView('video');
+			DEBUG('youtube-content', () => ({ action: 'open-video', videoId }));
+			try {
+				const [detail, related] = await Promise.all([
+					ytFetch<VideoDetail>('Video detail', `/api/youtube/video/${videoId}`),
+					ytFetch<{ related?: VideoItem[] }>(
+						'Related videos',
+						`/api/youtube/video/${videoId}/related`,
+					).catch(() => ({ related: [] })),
+				]);
+				setVideoDetail(detail);
+				setRelatedVideos(related.related ?? []);
+				DEBUG('youtube-content', () => ({
+					action: 'video-loaded',
+					title: detail.title,
+					relatedCount: (related.related ?? []).length,
+				}));
+			} catch (e) {
+				const msg = e instanceof Error ? e.message : 'Failed to load video details.';
+				setError(msg);
+				setVideoDetail(null);
+			}
+			setLoading(false);
+		},
+		[view, pushNav],
+	);
 
 	// --- Downloads ---
 	const openDownloads = useCallback(() => {
@@ -130,10 +149,16 @@ export function YouTubeContent() {
 
 	const refreshDownloadCount = useCallback(async () => {
 		try {
-			const data = await ytFetch<{ downloads?: unknown[] }>('Download count', '/api/youtube/downloads');
+			const data = await ytFetch<{ downloads?: unknown[] }>(
+				'Download count',
+				'/api/youtube/downloads',
+			);
 			setDownloadCount(data.downloads?.length ?? 0);
 		} catch (e) {
-			DEBUG('youtube-content', () => ({ action: 'download-count-error', error: e instanceof Error ? e.message : 'unknown' }));
+			DEBUG('youtube-content', () => ({
+				action: 'download-count-error',
+				error: e instanceof Error ? e.message : 'unknown',
+			}));
 		}
 	}, []);
 
@@ -209,7 +234,10 @@ export function YouTubeContent() {
 					<Library className="h-4 w-4" />
 					<span className="hidden sm:inline">Downloads</span>
 					{downloadCount > 0 && (
-						<Badge variant="secondary" className="ml-0.5 text-xs px-1.5 h-5 min-w-5 flex items-center justify-center">
+						<Badge
+							variant="secondary"
+							className="ml-0.5 text-xs px-1.5 h-5 min-w-5 flex items-center justify-center"
+						>
 							{downloadCount}
 						</Badge>
 					)}
@@ -258,10 +286,7 @@ export function YouTubeContent() {
 				)}
 
 				{view === 'downloads' && (
-					<YouTubeDownloads
-						onOpenVideo={openVideo}
-						onBackToSearch={() => setView('search')}
-					/>
+					<YouTubeDownloads onOpenVideo={openVideo} onBackToSearch={() => setView('search')} />
 				)}
 			</div>
 		</div>
