@@ -26,7 +26,13 @@ The sub-agent's code is throwaway. The instruction improvements are the product.
 
 **Turn 2:** Ask which websites to test. The user picks the sites. Assign ports starting at 3011. Max 8 per batch.
 
-Do NOT launch agents until the user answers both questions.
+**Turn 3:** Ask what to do when agents finish. Pick one:
+- **A) Full cleanup** (default) — kill processes, delete worktrees, revert shared files. Clean slate for next iteration.
+- **B) Keep worktrees** — kill processes but preserve worktree directories. Use this when worktrees will be reused (e.g., for dashboard tuning pass 2).
+- **C) Keep agents alive** — don't stop running agents. Use this when you want to continue or redirect agents mid-run.
+- **D) Keep both** — preserve worktrees AND keep agents alive. Use this for multi-pass runs where pass 2 agents need pass 1 worktrees and some agents are still running.
+
+Do NOT launch agents until the user answers all questions.
 
 ## The Loop
 

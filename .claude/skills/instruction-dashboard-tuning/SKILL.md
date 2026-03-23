@@ -26,7 +26,13 @@ You are not building dashboards. You are writing instructions that make other ag
 
 **Turn 2:** Ask which websites to use as wireframes. The user picks the sites.
 
-Do NOT launch agents until the user answers both questions.
+**Turn 3:** Ask what to do when agents finish. Pick one:
+- **A) Full cleanup** (default) — kill processes, delete worktrees, revert shared files.
+- **B) Keep worktrees** — kill processes but preserve worktree directories for reuse.
+- **C) Keep agents alive** — don't stop running agents, allow continuation or redirection.
+- **D) Keep both** — preserve worktrees AND keep agents alive.
+
+Do NOT launch agents until the user answers all questions.
 
 ## The Three-Phase Pipeline
 
