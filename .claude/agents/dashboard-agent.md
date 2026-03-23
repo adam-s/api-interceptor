@@ -75,31 +75,7 @@ curl -s http://localhost:3001/api | python3 -m json.tool
 
 Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The core loop:
 
-1. **Enumerate states** (BEFORE writing code) — list every visual state the page needs:
-   - idle (no search yet)
-   - loading (spinner/skeleton)
-   - populated (results showing)
-   - empty (search returned 0 results)
-   - error (API failed)
-   - detail (clicked into an item)
-   - mobile (375px viewport)
-   - wide (1920px viewport)
-
-   **Enumeration is a written artifact, not a thought exercise.** Before writing any `.tsx` file, add a comment block at the top of the main content file:
-   ```tsx
-   /*
-    * States:
-    * - idle: [description]
-    * - loading: [description]
-    * - populated: [description]
-    * - empty: [description]
-    * - error: [description]
-    * - detail-loading: [description]
-    * - detail-populated: [description]
-    * - mobile 375px: [description]
-    */
-   ```
-   This comment is required evidence for the reviewer. A component file without it is not compliant.
+1. **Enumerate states** (BEFORE writing code) — list every visual state from SKILL.md's "Required states" table as a comment block at the top of the main content `.tsx` file. This comment is required evidence for the reviewer.
 
 2. **Build ONE component** — not the whole page at once.
 

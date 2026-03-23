@@ -55,10 +55,13 @@ If the reference site uses a legacy aesthetic (custom fonts, table-based layout,
 3. Never write a 400+ line custom CSS file to replace shadcn primitives. If you find yourself writing `.custom-search-input { border: 1px solid #ccc; }`, stop and use `<Input className="..." style={{ ... }} />` instead.
 
 ```tsx
-// Use shadcn Input with overridden visual tokens — not a raw <input>
+// Prefer Tailwind classes when a utility exists
+<Input className="w-36 h-6 text-[9pt] font-mono border-gray-300" placeholder="Search..." />
+
+// Use inline style only for values Tailwind can't express (custom brand fonts, exact hex)
 <Input
   className="w-36 h-6 text-[9pt]"
-  style={{ fontFamily: 'Verdana, sans-serif', borderColor: '#ccc' }}
+  style={{ fontFamily: 'Verdana, sans-serif' }}
   placeholder="Search..."
 />
 ```
@@ -117,7 +120,12 @@ Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manua
 2. `mkdir -p apps/web/src/app/\(dashboard\)/<page-name>`
 3. Create `page.tsx` importing a `<PageContent />` client component
 
-**Layout group placement rule:** Pages that match a full-page reference site design (their own header, footer, and nav) should still be placed inside `(dashboard)/` and must add a local `layout.tsx` that returns `{children}` directly to opt out of the shared shell. Do NOT place the page outside the `(dashboard)` group — that removes it from the app's routing conventions and makes it invisible to the sidebar. If the reference site has its own nav/header, implement that nav inside the page component, not at the layout level.
+**Layout group placement rule:** Pages that match a full-page reference site design (their own header, footer, and nav) should still be placed inside `(dashboard)/` and must add a local `layout.tsx` to opt out of the shared shell. Do NOT place the page outside the `(dashboard)` group — that removes it from the app's routing conventions and makes it invisible to the sidebar. If the reference site has its own nav/header, implement that nav inside the page component, not at the layout level.
+
+```tsx
+// apps/web/src/app/(dashboard)/<page-name>/layout.tsx — opt out of shared shell
+export default function Layout({ children }: { children: React.ReactNode }) { return <>{children}</>; }
+```
 
 ## Step 4: Client Component Template
 
