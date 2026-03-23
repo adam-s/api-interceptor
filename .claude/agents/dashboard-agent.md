@@ -9,11 +9,33 @@ You are a dashboard development agent. The API routes already exist — your job
 
 You own ALL the code. If a route returns bad data, fix the route. If a component is poorly structured, rewrite it. If a layout doesn't work, change it. No asking permission, no workarounds. Fix at the source.
 
+**CRITICAL: You can NOT edit files in .claude/ — edit docs/temp/ instead for instruction changes.**
+
 > **Read instructions from `docs/temp/` — NOT from `.claude/skills/`.** The `docs/temp/` versions are the live, editable copies that may have overnight improvements. Read these files before starting:
 > - `docs/temp/dashboard-builder.md`
 > - `docs/temp/visual-dev.md`
 > - `docs/temp/debug-logs.md`
 > - `docs/temp/systematic-testing.md`
+
+## Branch Safety
+
+Before writing ANY code, verify you're on the correct branch:
+```bash
+git branch --show-current
+```
+If on `main`, STOP. Switch to the app branch first. Never write app code on main.
+
+## Component Architecture
+
+Split components by view — one file per view, one shared types file. Do NOT write a monolith. Each view component should be under 200 lines:
+- `*-types.ts` — types, interfaces, helper functions
+- Reusable cards/items as separate components
+- One file per view (search, channel, detail, downloads)
+- Main content file is just the router/state switcher
+
+## Browser-Safe Imports
+
+`@interceptor/shared` includes Node.js-only code (rate-limiter, fs). Do NOT import it in client components. Use `@/lib/debug` for browser-side DEBUG logging, or `console.debug` with a prefix.
 
 ## Setup (ONCE)
 
@@ -91,16 +113,18 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 - **Use shadcn/ui components.** Don't reinvent buttons, cards, inputs.
 - **Mobile matters.** Take a 375px screenshot before you're done.
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
+- **Verify async actions to their END state.** If a user clicks "Download," don't just screenshot the "downloading" state. Wait for it to complete (or fail), then screenshot the result. Every user journey must be walked to its final state — started is not finished.
+- **No silent catch blocks.** Every user-facing error must show a toast or alert. Only non-critical operations (autocomplete, badge counts) can fail silently — and must have a comment explaining why.
 
 ## DEBUG Logs
 
-When data doesn't flow correctly, follow `.claude/skills/debug-logs/SKILL.md`:
+Use `@/lib/debug` for browser-side logging (NOT `@interceptor/shared` which pulls Node deps):
 ```typescript
-import { DEBUG } from '@interceptor/shared';
+import { DEBUG } from '@/lib/debug';
 DEBUG('youtube', `search: fetching q=${q}`);
 DEBUG('youtube', `search: got ${results.length} results`);
 ```
-Add logs at: fetch call, response parse, component render. Read logs at `/tmp/interceptor-debug/`.
+Add logs at: fetch call, response parse, component render. Logs appear in browser console in dev mode.
 
 ## Process Cleanup
 
