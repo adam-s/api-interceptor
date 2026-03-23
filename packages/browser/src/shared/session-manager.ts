@@ -60,6 +60,7 @@ export const TOKEN_REFRESH_THRESHOLD_MS = 20 * 60 * 60 * 1000;
 export class GenericSessionManager extends EventEmitter {
 	private static instances: Map<string, GenericSessionManager> = new Map();
 	private sessions: Map<string, GenericSession> = new Map();
+	// biome-ignore lint/correctness/noUnusedPrivateClassMembers: used by subclass and persistence methods
 	private domainName: string;
 	private sessionFileName: string;
 	private maxAgeMs: number;
@@ -80,6 +81,7 @@ export class GenericSessionManager extends EventEmitter {
 		if (!GenericSessionManager.instances.has(domainName)) {
 			GenericSessionManager.instances.set(domainName, new GenericSessionManager(domainName));
 		}
+		// biome-ignore lint/style/noNonNullAssertion: just set above if missing
 		return GenericSessionManager.instances.get(domainName)!;
 	}
 

@@ -15,7 +15,7 @@
  * ## Usage
  *
  * ```typescript
- * import { ScraperRegistry } from '@volatio/browser';
+ * import { ScraperRegistry } from '@interceptor/browser';
  *
  * // Get registry singleton
  * const registry = ScraperRegistry.getInstance();
@@ -30,7 +30,7 @@
  * const health = await registry.checkHealth();
  * ```
  *
- * @module @volatio/browser/registry
+ * @module @interceptor/browser/registry
  */
 
 import type { Result, ScraperError } from './types';

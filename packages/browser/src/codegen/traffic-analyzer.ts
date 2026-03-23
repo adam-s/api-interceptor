@@ -145,6 +145,7 @@ export function analyzeTraffic(entries: TrafficEntry[]): EndpointPattern[] {
 			});
 		}
 
+		// biome-ignore lint/style/noNonNullAssertion: key was just set above if missing
 		const endpoint = patterns.get(key)!;
 		endpoint.examples.push(entry);
 

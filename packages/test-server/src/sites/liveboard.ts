@@ -104,6 +104,7 @@ export function createLiveboardSite(): Hono {
 		if (!sessionCookie || !crumbs.has(sessionCookie)) {
 			return c.text('Unauthorized', 401);
 		}
+		// biome-ignore lint/style/noNonNullAssertion: checked has() above
 		return c.text(crumbs.get(sessionCookie)!);
 	});
 

@@ -95,8 +95,10 @@ export default function MultiplierPanel() {
 	}, []);
 
 	// Auto-compute stats via Python bridge when history grows
+	const historyLength = state?.history.length ?? 0;
+	const history = state?.history;
 	useEffect(() => {
-		if (!state || state.history.length < 2 || computingRef.current) return;
+		if (!history || historyLength < 2 || computingRef.current) return;
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
 		computingRef.current = true;
@@ -104,10 +106,10 @@ export default function MultiplierPanel() {
 			JSON.stringify({
 				type: 'compute',
 				requestId: crypto.randomUUID(),
-				numbers: state.history,
+				numbers: history,
 			}),
 		);
-	}, [state?.history.length, state]);
+	}, [historyLength, history]);
 
 	const sendAction = useCallback((action: string, value?: number) => {
 		if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;

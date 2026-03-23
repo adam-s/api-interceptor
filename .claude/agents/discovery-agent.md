@@ -80,6 +80,10 @@ curl -s http://localhost:XXXX/api/yourdomain/route | head -50
 
 If a route needs fixing, edit the file, `kill -9` the server, and restart. Do NOT expect tsx to detect domain file changes — it won't. Do NOT debug "why old code is running" — just kill and restart.
 
+## CI Must Be Clean
+
+Before finishing, run `pnpm biome check --write --unsafe .` in your worktree. Fix any remaining lint, type, or build errors. You are responsible for leaving the worktree in a state where `pnpm build` succeeds and `pnpm biome check` returns zero errors. Do not leave broken code for the orchestrator to fix.
+
 ## Process Management
 
 Track every background process. Before exiting: `kill $(jobs -p) 2>/dev/null`

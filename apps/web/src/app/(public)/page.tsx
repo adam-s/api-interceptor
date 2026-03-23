@@ -6,9 +6,7 @@ export default function HomePage() {
 		<main className="flex min-h-screen flex-col items-center justify-center gap-6">
 			<div className="text-center">
 				<h1 className="text-3xl font-bold">Interceptor</h1>
-				<p className="mt-2 text-muted-foreground">
-					Discover web APIs through request interception
-				</p>
+				<p className="mt-2 text-muted-foreground">Discover web APIs through request interception</p>
 			</div>
 			<div className="flex gap-3">
 				<Button asChild>

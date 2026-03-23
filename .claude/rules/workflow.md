@@ -22,7 +22,7 @@ lsof -ti:3000 | xargs kill 2>/dev/null  # Web server
 On test branches, NEVER edit CLAUDE.md or `.claude/skills/` directly. Write to the fix queue:
 
 ```
-~/.claude/projects/-Users-adamsohn-Projects-api-interceptor/memory/base-fixes-needed.md
+~/.claude/projects/<project-hash>/memory/base-fixes-needed.md
 ```
 
 On return to `base`: read, apply, clear, run CI, commit.

@@ -151,6 +151,7 @@ In BUILD: auth-gated endpoints (Gap=Y) go directly to session harvest. Read the 
 In BUILD: after each route, fill the mandatory completeness check. If totalCount > items returned, the route is NOT DONE — paginate before moving to the next route.
 Fill ALL 8 elimination rows before writing code.
 After building routes, register your domain and test EVERY route through the API server proxy.
+Before finishing: run `pnpm biome check --write --unsafe .` and fix any remaining lint or type errors. CI must be clean — you are responsible for leaving the worktree in a buildable state.
 Budget: ~150 tool calls. Plan: ~30 GATHER, ~10 SCAN/CLASSIFY, ~80 BUILD, ~30 testing. Do not retry failed requests — unexpected output is information, not failure.
 Your port is XXXX.
 ```
@@ -206,7 +207,7 @@ Add any new patterns to test-server endpoints + boardshop reference routes befor
 
 Every instruction change must work for ANY website. If a fix only helps for a specific site, it's overfitting. Never put specific website names, URLs, or transport classifications in instruction files (test-server, boardshop, and CLAUDE.md are the only places for working code examples).
 
-## Convergence (Discovery)
+## Convergence
 
 The loop converges when fresh agents (clean session, no hints):
 1. Follow the GATHER→SCAN→CLASSIFY→BUILD pipeline
@@ -218,71 +219,3 @@ The loop converges when fresh agents (clean session, no hints):
 7. Complete pagination for all routes (completeness check: total == items returned)
 8. Stay near 150 tool calls (data completeness takes priority over budget)
 9. Write all files to worktree, not main repo
-
----
-
-## Dashboard Tuning
-
-The same tuning loop applies to dashboard development. The skills being tested:
-- `.claude/skills/dashboard-builder/SKILL.md`
-- `.claude/skills/visual-dev/SKILL.md`
-- `.claude/skills/debug-logs/SKILL.md`
-- `.claude/skills/systematic-testing/SKILL.md`
-- `.claude/skills/app/SKILL.md`
-
-These skills are the product. The dashboards are test subjects.
-
-### Dashboard Agent Prompt Template
-
-```
-Build a dashboard page for [domain] at /[route].
-API routes: [paste output of curl -s http://localhost:3001/api]
-Cached data: tmp/cache/[domain]/
-Read instructions from docs/temp/ (NOT .claude/skills/):
-1. docs/temp/systematic-testing.md — verify API routes (L1-L2) before building UI
-2. docs/temp/dashboard-builder.md — build the page
-3. docs/temp/visual-dev.md — screenshot + judge after EVERY visual change
-4. docs/temp/debug-logs.md — when data doesn't flow
-Also read docs/temp/dashboard-agent.md for setup and build loop.
-Branch: [branch]. API port: 3001. Web port: 3000.
-Budget: ~150 tool calls.
-```
-
-### Dashboard Scorecard
-
-| Check | Pass/Fail |
-|-------|-----------|
-| Read all 4 skill files before starting | |
-| API routes verified via curl before UI work (systematic-testing L1-L2) | |
-| States enumerated BEFORE writing component code (visual-dev Phase 2) | |
-| Built component-by-component, not whole page blind | |
-| Screenshot taken after EVERY visual change | |
-| 7 judgment criteria applied to each screenshot | |
-| Fixed issues one at a time between screenshots | |
-| All states rendered: idle, loading, populated, empty, error, detail | |
-| Mobile viewport (375px) screenshot taken and judged | |
-| DEBUG logs placed at fetch, parse, render points (debug-logs) | |
-| Data flows through /api/ proxy — no hardcoded URLs | |
-| Used shadcn/ui components — no reinvented primitives | |
-| Tested with 3+ different inputs for diverse data shapes | |
-| Async actions verified to END state (not just triggered) | |
-
-### Dashboard Live Monitoring
-
-Same JSONL parsing as discovery monitoring. Watch for:
-- **Screenshot frequency** — if 20+ calls pass without a screenshot, the agent is building blind
-- **State enumeration** — should happen in the first 5-10 calls after setup
-- **Skill file reads** — agent should read dashboard-builder + visual-dev early
-- **Component granularity** — is it writing one file with 500 lines, or building piece by piece?
-
-### Dashboard Convergence
-
-The skills converge when fresh agents:
-1. Read all skill files and follow the prescribed phases
-2. Enumerate all visual states before writing code
-3. Screenshot after every visual change and apply judgment criteria
-4. Build component by component, not whole page at once
-5. Add DEBUG logs at data flow points
-6. Verify API routes before building UI
-7. Test mobile viewport
-8. Produce a dashboard that passes all 7 visual-dev judgment criteria

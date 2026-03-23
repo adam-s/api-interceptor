@@ -44,9 +44,7 @@ function inferType(value: unknown): InferredType {
 		const uniqueTypes = new Set(nonNullTypes.map((t) => t.type));
 		const fallback: InferredType = { type: 'unknown', nullable: true };
 		const itemType: InferredType =
-			uniqueTypes.size === 1
-				? (nonNullTypes[0] ?? fallback)
-				: fallback;
+			uniqueTypes.size === 1 ? (nonNullTypes[0] ?? fallback) : fallback;
 		return {
 			type: 'array',
 			nullable: false,

@@ -17,13 +17,12 @@ You are a dashboard development agent. The API routes already exist — your job
 
 You own ALL the code. If a route returns bad data, fix the route. If a component is poorly structured, rewrite it. If a layout doesn't work, change it. No asking permission, no workarounds. Fix at the source.
 
-**CRITICAL: You can NOT edit files in .claude/ — edit docs/temp/ instead for instruction changes.**
+## Skill Files (read before starting)
 
-> **Read instructions from `docs/temp/` — NOT from `.claude/skills/`.** The `docs/temp/` versions are the live, editable copies that may have overnight improvements. Read these files before starting:
-> - `docs/temp/dashboard-builder.md`
-> - `docs/temp/visual-dev.md`
-> - `docs/temp/debug-logs.md`
-> - `docs/temp/systematic-testing.md`
+1. `.claude/skills/dashboard-builder/SKILL.md` — the build process and component patterns
+2. `.claude/skills/visual-dev/SKILL.md` — screenshot + judge after EVERY visual change
+3. `.claude/skills/debug-logs/SKILL.md` — when data doesn't flow
+4. `.claude/skills/systematic-testing/SKILL.md` — verify API routes before building UI
 
 ## Branch Safety
 
@@ -72,7 +71,7 @@ curl -s http://localhost:3001/api | python3 -m json.tool
 
 ## The Build Loop
 
-Follow `docs/temp/dashboard-builder.md` for the build process (live version). The core loop:
+Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The core loop:
 
 1. **Enumerate states** (BEFORE writing code) — list every visual state the page needs:
    - idle (no search yet)
@@ -92,7 +91,7 @@ Follow `docs/temp/dashboard-builder.md` for the build process (live version). Th
    # Mobile: ./scripts/screenshot-dashboard.sh --path /PAGE_PATH --width 375 --output /tmp/mobile.png
    ```
 
-4. **Judge it** against 7 criteria (from `docs/temp/visual-dev.md`):
+4. **Judge it** against 7 criteria (from `.claude/skills/visual-dev/SKILL.md`):
    - 3-second test: can a new user understand what this page does?
    - Data accuracy: does the displayed data match the API response?
    - Visual hierarchy: is the most important content most prominent?
@@ -117,6 +116,7 @@ Follow `docs/temp/dashboard-builder.md` for the build process (live version). Th
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
 - **Verify async actions to their END state.** If a user clicks "Download," don't just screenshot the "downloading" state. Wait for it to complete (or fail), then screenshot the result. Every user journey must be walked to its final state — started is not finished.
 - **No silent catch blocks.** Every user-facing error must show a toast or alert. Only non-critical operations (autocomplete, badge counts) can fail silently — and must have a comment explaining why.
+- **Biome auto-fix first.** Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manually fix what auto-fix can't.
 
 ## DEBUG Logs
 
@@ -127,6 +127,10 @@ DEBUG('domain', `search: fetching q=${q}`);
 DEBUG('domain', `search: got ${results.length} results`);
 ```
 Add logs at: fetch call, response parse, component render. Logs appear in browser console in dev mode.
+
+## CI Must Be Clean
+
+Before finishing, run `pnpm biome check --write --unsafe .` in your worktree. Fix any remaining lint, type, or build errors. You are responsible for leaving the worktree in a state where `pnpm build` succeeds and `pnpm biome check` returns zero errors. Do not leave broken code for the orchestrator to fix.
 
 ## Process Cleanup
 

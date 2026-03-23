@@ -90,7 +90,6 @@ I added a warmup function that visits common sites before touching anything sens
 
 ```typescript
 const WARMUP_SITES = [
-  'https://www.google.com',
   'https://www.wikipedia.org',
   'https://www.weather.com',
   'https://news.ycombinator.com',

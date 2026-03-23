@@ -152,7 +152,7 @@ These should require a human confirmation every time. The cost of an extra "yes"
 
 Every time Claude Code asks "Allow this command?" and you say yes, the command pattern gets saved to `settings.local.json`. Over time, this file grows.
 
-In the [volat](https://github.com/adam-s/volat) project, `settings.json` has two intentional rules:
+In this project, `settings.json` has two intentional rules:
 
 ```json
 {

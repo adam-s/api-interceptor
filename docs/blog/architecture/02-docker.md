@@ -14,7 +14,7 @@ WORKDIR /app
 # Stage 2: prune
 FROM base AS pruner
 COPY . .
-RUN turbo prune @volat/api --docker
+RUN turbo prune @interceptor/api --docker
 
 # Stage 3: install
 FROM base AS deps
@@ -28,7 +28,7 @@ COPY --from=deps /app/ ./
 COPY --from=pruner /app/out/full/ .
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 COPY turbo.json turbo.json
-RUN pnpm build --filter=@volat/api
+RUN pnpm build --filter=@interceptor/api
 
 # Stage 5: run
 FROM node:22-alpine AS runner
@@ -98,10 +98,10 @@ The base image every other stage inherits from. Three things happen here:
 ```dockerfile
 FROM base AS pruner
 COPY . .
-RUN turbo prune @volat/api --docker
+RUN turbo prune @interceptor/api --docker
 ```
 
-This is the key step that makes monorepo Docker builds work. `turbo prune` analyzes the dependency graph and creates a minimal subset of the monorepo containing only what `@volat/api` needs.
+This is the key step that makes monorepo Docker builds work. `turbo prune` analyzes the dependency graph and creates a minimal subset of the monorepo containing only what `@interceptor/api` needs.
 
 The `--docker` flag splits the output into two directories:
 
@@ -147,7 +147,7 @@ COPY --from=deps /app/ ./
 COPY --from=pruner /app/out/full/ .
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 COPY turbo.json turbo.json
-RUN pnpm build --filter=@volat/api
+RUN pnpm build --filter=@interceptor/api
 ```
 
 The installed `node_modules` from the deps stage are copied in, then the full source from the pruner stage is layered on top. Two files need explicit copying because `turbo prune` doesn't include them in `out/full/`:
@@ -157,7 +157,7 @@ The installed `node_modules` from the deps stage are copied in, then the full so
 
 > **Gotcha:** If you add a new root-level config file that packages depend on (like a shared `.eslintrc` or `biome.json`), you'll need to add another `COPY` line here. The build will fail with a confusing error that works locally but not in Docker — because locally the file exists, but `turbo prune` didn't include it.
 
-`pnpm build --filter=@volat/api` runs the `build` script for `@volat/api` and all its workspace dependencies. Turbo handles the ordering — `@volat/shared` builds first because `@volat/api` depends on it.
+`pnpm build --filter=@interceptor/api` runs the `build` script for `@interceptor/api` and all its workspace dependencies. Turbo handles the ordering — `@interceptor/shared` builds first because `@interceptor/api` depends on it.
 
 ---
 
@@ -176,7 +176,7 @@ A fresh Alpine image with only the compiled JavaScript. No source code, no `node
 
 `NODE_ENV=production` is set as a runtime environment variable. Node reads it at process start. This is different from [how Bun handles it](../01_to_bun_or_not_to_bun/README.md) — Bun's bundler inlines `process.env.NODE_ENV` at build time, so the value depends on when you built, not where you run.
 
-> **Note:** This runner has no `node_modules` because the API currently has no runtime npm dependencies (only the workspace dependency on `@volat/shared`, which is compiled into `dist/`). When you add dependencies like `hono` or `drizzle-orm`, you'll need to copy `node_modules` from the builder stage as well.
+> **Note:** This runner has no `node_modules` because the API currently has no runtime npm dependencies (only the workspace dependency on `@interceptor/shared`, which is compiled into `dist/`). When you add dependencies like `hono` or `drizzle-orm`, you'll need to copy `node_modules` from the builder stage as well.
 
 ---
 
@@ -226,7 +226,7 @@ One line in GitHub Actions. This catches Dockerfile breakage — missing `COPY` 
 
 ## War story: the healthcheck that was a fork bomb
 
-In the [volatio](https://github.com/adam-s/volat) project, the Docker HEALTHCHECK originally looked like this:
+In this project, the Docker HEALTHCHECK originally looked like this:
 
 ```dockerfile
 HEALTHCHECK CMD bun -e "import('./run.ts')"

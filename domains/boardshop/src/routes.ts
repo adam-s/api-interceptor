@@ -546,7 +546,7 @@ export const routes: DomainRoute[] = [
 		browserRequired: false,
 		handler: async (c) => {
 			const count = Math.min(Number(new URL(c.req.url).searchParams.get('count') ?? '3'), 10);
-			const wsUrl = LIVEBOARD_URL.replace('http://', 'ws://') + '/ws/json';
+			const wsUrl = `${LIVEBOARD_URL.replace('http://', 'ws://')}/ws/json`;
 
 			DEBUG('boardshop', `ws-json: connecting to ${wsUrl}, capturing ${count} updates`);
 
@@ -591,7 +591,7 @@ export const routes: DomainRoute[] = [
 		browserRequired: false,
 		handler: async (c) => {
 			const count = Math.min(Number(new URL(c.req.url).searchParams.get('count') ?? '3'), 10);
-			const wsUrl = LIVEBOARD_URL.replace('http://', 'ws://') + '/stream';
+			const wsUrl = `${LIVEBOARD_URL.replace('http://', 'ws://')}/stream`;
 
 			DEBUG('boardshop', `ws-protobuf: connecting to ${wsUrl}, capturing ${count} frames`);
 

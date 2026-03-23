@@ -23,9 +23,9 @@ if [[ -f "$PID_FILE" ]]; then
   rm -f "$PID_FILE"
 fi
 
-# 2. Kill agent API servers by port range (3011-3021)
+# 2. Kill agent API servers by port range (3011-3021, 3031-3049)
 echo "Clearing agent ports..."
-for port in $(seq 3011 3021); do
+for port in $(seq 3011 3021) $(seq 3031 3049); do
   pids=$(lsof -ti:"$port" 2>/dev/null || true)
   if [[ -n "$pids" ]]; then
     echo "$pids" | xargs kill -9 2>/dev/null || true
@@ -46,6 +46,7 @@ sleep 2
 echo "Cleaning tmp files..."
 rm -f /tmp/api-server-*.log 2>/dev/null || true
 rm -f /tmp/interceptor-debug/*.log 2>/dev/null || true
+rm -rf /tmp/dashboard-tuning/ 2>/dev/null || true
 
 # 5. Remove ALL worktrees (external + internal)
 echo "Removing worktrees..."

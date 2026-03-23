@@ -1328,6 +1328,7 @@ export class RemoteBrowserService {
 			const fetchPromise = this._browserFetchInner<T>(url, options);
 			return await Promise.race([fetchPromise, timeoutPromise]);
 		} finally {
+			// biome-ignore lint/style/noNonNullAssertion: timeoutHandle is set before try block
 			clearTimeout(timeoutHandle!);
 			if (!options.skipRateLimit && rateLimitRelease) {
 				rateLimitRelease(url);
@@ -1584,7 +1585,7 @@ export class RemoteBrowserService {
 			if (doc) {
 				documentRequests.delete(params.requestId);
 				try {
-					const bodyResult = await this.cdp!.send('Network.getResponseBody', {
+					const bodyResult = await this.cdp?.send('Network.getResponseBody', {
 						requestId: params.requestId,
 					});
 					this.networkCaptureCallback(
@@ -1593,7 +1594,7 @@ export class RemoteBrowserService {
 							url: doc.url,
 							status: 200,
 							headers: { 'content-type': 'text/html' },
-							body: bodyResult.body,
+							body: bodyResult?.body,
 						},
 					);
 				} catch {
@@ -1632,14 +1633,16 @@ export class RemoteBrowserService {
 			if (skip.some((s) => res.url.includes(s))) return;
 
 			try {
-				const bodyResult = await this.cdp!.send('Network.getResponseBody', {
+				const bodyResult = await this.cdp?.send('Network.getResponseBody', {
 					requestId: params.requestId,
 				});
-				let resBody: unknown;
-				try {
-					resBody = JSON.parse(bodyResult.body);
-				} catch {
-					resBody = bodyResult.body;
+				let resBody: unknown = bodyResult?.body;
+				if (resBody) {
+					try {
+						resBody = JSON.parse(resBody as string);
+					} catch {
+						// keep as string
+					}
 				}
 				this.networkCaptureCallback(req, {
 					url: res.url,

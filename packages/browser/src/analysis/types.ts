@@ -1,4 +1,3 @@
-
 /** Output of the Discovery Analyzer — structured summary of page + traffic */
 export interface DiscoveryAnalysis {
 	pageUrl: string;

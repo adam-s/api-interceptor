@@ -313,7 +313,11 @@ function truncateToken(value: string, maxLen = 20): string {
 	return `${value.slice(0, maxLen)}...`;
 }
 
-export function discoverTokens(html: string, trafficEntries: TrafficEntry[], $?: cheerio.CheerioAPI): DiscoveredToken[] {
+export function discoverTokens(
+	html: string,
+	trafficEntries: TrafficEntry[],
+	$?: cheerio.CheerioAPI,
+): DiscoveredToken[] {
 	$ = $ ?? cheerio.load(html);
 	const tokens: DiscoveredToken[] = [];
 

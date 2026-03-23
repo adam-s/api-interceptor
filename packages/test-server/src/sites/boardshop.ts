@@ -16,7 +16,6 @@ import {
 	buildPricingEmbedded,
 	COLLECTION_LISTINGS,
 	COLLECTIONS,
-	DROP_INVENTORY,
 	getCollectionListingsPage,
 	getDropInventoryPage,
 	getProductPage,
@@ -25,7 +24,6 @@ import {
 	MAX_PAGE_SIZE,
 	PRO_DROPS,
 	PRODUCTS,
-	RESALE_LISTINGS,
 } from '../data/products';
 import { renderEmbeddedPage } from '../transports/embedded-html';
 
@@ -41,6 +39,7 @@ function getOrCreateSession(sessionId: string | undefined): {
 	if (!sessions.has(sid)) {
 		sessions.set(sid, { csrf: randomUUID(), filterSessionId: randomUUID() });
 	}
+	// biome-ignore lint/style/noNonNullAssertion: sid was just set if missing
 	const session = sessions.get(sid)!;
 	return { sessionId: sid, ...session };
 }
@@ -134,6 +133,7 @@ export function createBoardshopSite(): Hono {
 		if (!sessionCookie || !sessions.has(sessionCookie)) {
 			return c.json({ items: [], error: 'Invalid session' }, 403);
 		}
+		// biome-ignore lint/style/noNonNullAssertion: checked has() on previous line
 		const session = sessions.get(sessionCookie)!;
 
 		// Validate CSRF token (from hidden input or header)
@@ -414,6 +414,7 @@ export function createBoardshopSite(): Hono {
 		const csrfHeader = c.req.header('x-csrf-token');
 		const sessionCookie = c.req.header('cookie')?.match(/_sid=([^;]+)/)?.[1];
 		if (csrfHeader && sessionCookie && sessions.has(sessionCookie)) {
+			// biome-ignore lint/style/noNonNullAssertion: checked has() on previous line
 			const session = sessions.get(sessionCookie)!;
 			if (csrfHeader !== session.csrf) {
 				return c.json({ error: 'Invalid CSRF token' }, 403);
@@ -806,7 +807,7 @@ ${PRO_DROPS.slice(0, 6)
 	const resaleSessions = new Map<string, { sid: string; pref: string }>();
 
 	// GET /resale — HTML page with first 6 listings + sets multiple cookies
-	app.get('/resale', (c) => {
+	app.get('/resale', (_c) => {
 		const wafToken = randomUUID();
 		const sid = randomUUID();
 		const pref = 'grid-view=true&currency=USD';
@@ -886,6 +887,7 @@ ${firstPage.items.map((l) => `<div data-testid="listing-card" data-listing-id="$
 
 		// Check session cookie — WAF passes but data requires session
 		const sidCookie = c.req.header('cookie')?.match(/market-sid=([^;]+)/)?.[1];
+		// biome-ignore lint/style/noNonNullAssertion: checked has() above
 		const session = resaleSessions.get(wafToken)!;
 		if (!sidCookie || sidCookie !== session.sid) {
 			// SH behavior: WAF passes, but without session → empty data

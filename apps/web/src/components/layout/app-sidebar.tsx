@@ -1,7 +1,7 @@
 'use client';
 
-import Link from 'next/link';
 import { TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 import {
 	Sidebar,
 	SidebarContent,
