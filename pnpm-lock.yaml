@@ -51,6 +51,9 @@ importers:
       '@interceptor/domain-boardshop':
         specifier: workspace:*
         version: link:../../domains/boardshop
+      '@interceptor/domain-youtube':
+        specifier: workspace:*
+        version: link:../../domains/youtube
       '@interceptor/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -177,6 +180,15 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+
+  domains/youtube:
+    dependencies:
+      '@interceptor/browser':
+        specifier: workspace:*
+        version: link:../../packages/browser
+      '@interceptor/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
 
   packages/browser:
     dependencies:

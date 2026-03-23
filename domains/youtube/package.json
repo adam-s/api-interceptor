@@ -1,0 +1,12 @@
+{
+	"name": "@interceptor/domain-youtube",
+	"version": "0.0.1",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@interceptor/browser": "workspace:*",
+		"@interceptor/shared": "workspace:*"
+	}
+}

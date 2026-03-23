@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, LayoutDashboard } from 'lucide-react';
+import { Globe, LayoutDashboard, Youtube } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -15,6 +15,7 @@ import {
 const items = [
 	{ title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
 	{ title: 'Browser', href: '/browser', icon: Globe },
+	{ title: 'YouTube', href: '/youtube', icon: Youtube },
 ];
 
 export function NavMain() {
