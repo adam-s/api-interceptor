@@ -110,7 +110,7 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 - **Mobile matters.** Take a 375px screenshot before you're done.
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
 - **Verify async actions to their END state.** If a user clicks "Download," don't just screenshot the "downloading" state. Wait for it to complete (or fail), then screenshot the result. Every user journey must be walked to its final state — started is not finished.
-- **No silent catch blocks.** Every user-facing error must show a toast or alert. Only non-critical operations (autocomplete, badge counts) can fail silently — and must have a comment explaining why.
+- **No silent catch blocks.** Every user-facing error must show a toast or alert. Only truly invisible operations (autocomplete prefetch, background cache warm) can fail silently — and must have a comment explaining why. If a failure causes visible UI elements to be absent (empty panels, missing badges), it is NOT silent-eligible — show a muted inline notice.
 - **Biome auto-fix first.** Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manually fix what auto-fix can't.
 
 ## DEBUG Logs

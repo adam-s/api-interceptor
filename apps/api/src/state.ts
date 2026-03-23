@@ -1,3 +1,7 @@
+// === DEMO: multiplier-panel WebSocket state ===
+// Used by the multiplier-panel dashboard page for testing WebSocket infra.
+// Not used by domain proxy routes or API interception.
+
 import type { WSContext } from 'hono/ws';
 
 // --- Mutable server-side state ---

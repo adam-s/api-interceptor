@@ -9,7 +9,7 @@ import pytest
 
 # Import handler functions directly for unit tests
 sys.path.insert(0, str(Path(__file__).parent))
-from worker import handle_health, handle_compute
+from worker import handle_health, handle_compute, handle_classify_headlines
 
 
 # ---------------------------------------------------------------------------
@@ -57,6 +57,51 @@ class TestComputeHandler:
     def test_non_list_raises(self):
         with pytest.raises(ValueError, match="non-empty list"):
             handle_compute({"numbers": "not a list"})
+
+
+class TestClassifyHeadlines:
+    def test_positive_headline(self):
+        result = handle_classify_headlines({
+            "headlines": [{"id": "1", "title": "New open source AI breakthrough released"}]
+        })
+        assert result["classifications"][0]["sentiment"]["label"] == "positive"
+        assert "ai" in result["classifications"][0]["topics"]
+
+    def test_negative_headline(self):
+        result = handle_classify_headlines({
+            "headlines": [{"id": "2", "title": "Major breach hack vulnerability exploit"}]
+        })
+        assert result["classifications"][0]["sentiment"]["label"] == "negative"
+        assert "security" in result["classifications"][0]["topics"]
+
+    def test_neutral_headline(self):
+        result = handle_classify_headlines({
+            "headlines": [{"id": "3", "title": "Show HN: My weekend project"}]
+        })
+        assert result["classifications"][0]["sentiment"]["label"] == "neutral"
+
+    def test_batch(self):
+        result = handle_classify_headlines({
+            "headlines": [
+                {"id": "1", "title": "New open source launch"},
+                {"id": "2", "title": "Company died after hack"},
+                {"id": "3", "title": "Ask HN: What editor do you use?"},
+            ]
+        })
+        assert result["summary"]["total"] == 3
+        assert result["summary"]["sentiment"]["positive"] >= 1
+        assert result["summary"]["sentiment"]["negative"] >= 1
+
+    def test_topic_detection(self):
+        result = handle_classify_headlines({
+            "headlines": [{"id": "1", "title": "Rust compiler improvements for Linux kernel"}]
+        })
+        topics = result["classifications"][0]["topics"]
+        assert "systems" in topics
+
+    def test_empty_raises(self):
+        with pytest.raises(ValueError, match="non-empty list"):
+            handle_classify_headlines({})
 
 
 # ---------------------------------------------------------------------------

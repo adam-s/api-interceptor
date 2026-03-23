@@ -97,7 +97,10 @@ SCREENSHOT of real website = the "wireframe"
     a. Apply GENERALIZED=yes instruction improvements to .claude/
     b. Apply framework code fixes to packages/, apps/, services/, scripts/, tests/
     c. CONSISTENCY CHECK — grep all .claude/ for the concept you changed
-13. PRUNE .claude/ — shorter files are followed better
+13. PRUNE .claude/ — run `wc -l .claude/skills/dashboard-builder/SKILL.md .claude/agents/dashboard-agent.md`.
+    If any file exceeds 300 lines, extract the bottom third to a `reference/` subdirectory.
+    Keep the main file focused on: architecture, build steps, states, wireframe fidelity, responsive, errors.
+    Niche patterns (comment trees, video, sparklines, CRUD) go in reference files.
 14. Process cleanup: kill servers, remove worktree
 15. Commit fixes to main
 16. Write handoff (.claude/dashboard-tuning-handoff.md, gitignored)

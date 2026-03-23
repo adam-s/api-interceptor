@@ -120,7 +120,7 @@ Then develop with `FIXTURE_DIR=data/fixtures pnpm dev` — the API serves cached
 ## Component Architecture
 
 Split components by view — one file per view, one shared types file. Each view component should be under 200 lines:
-- `*-types.ts` — types, interfaces, helper functions
+- `*-types.ts` — types, interfaces, helper functions, and shared constants (PAGE_SIZE, API paths, color maps)
 - Reusable cards/items as separate components
 - One file per view (search, channel, detail, downloads)
 - Main content file is just the router/state switcher — under 150 lines
@@ -138,9 +138,13 @@ Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manua
 **Layout group placement rule:** Pages that match a full-page reference site design (their own header, footer, and nav) should still be placed inside `(dashboard)/` and must add a local `layout.tsx` to opt out of the shared shell. Do NOT place the page outside the `(dashboard)` group — that removes it from the app's routing conventions and makes it invisible to the sidebar. If the reference site has its own nav/header, implement that nav inside the page component, not at the layout level.
 
 ```tsx
-// apps/web/src/app/(dashboard)/<page-name>/layout.tsx — opt out of shared shell
-export default function Layout({ children }: { children: React.ReactNode }) { return <>{children}</>; }
+// apps/web/src/app/(dashboard)/<page-name>/layout.tsx — full-viewport overlay to cover parent sidebar
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <div className="fixed inset-0 z-50 overflow-auto bg-background">{children}</div>;
+}
 ```
+
+**The content component must NOT contain `fixed inset-0` or `z-50`.** Viewport-level positioning belongs in the layout.tsx. The content component handles data and rendering only.
 
 ## Step 4: Client Component Template
 
