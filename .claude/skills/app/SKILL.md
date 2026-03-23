@@ -7,120 +7,159 @@ description: Build a complete application from a short description. Asks the dev
 
 Turn a plain-language description into a working application with domain plugins and dashboard UI.
 
-The developer says WHAT. This skill figures out HOW.
+The developer says WHAT. This skill figures out HOW — interactively.
 
-## Phase 1: Understand
+## Phase 0: Classify
 
-Read the developer's request. Then ask **exactly these questions** (skip any the request already answers):
+Before anything else, determine what the developer needs:
+
+**Ask:** Is this a full app (API + dashboard), or API only (domain plugin with routes, no frontend)?
+
+- **API only:** Phases 1-3 only. Deliver working proxy routes.
+- **Full app:** All 5 phases. API first, then dashboard.
+
+## Phase 1: Understand (interactive)
+
+Have a conversation with the developer. Ask these questions — skip any already answered:
+
+### Type
+> App with dashboard, or API only?
 
 ### Sites
-> Which websites should I pull data from?
+> Which website(s)? Can you give me a specific URL with the data you want?
+> Example: "stubhub.com — here's a Lakers game page with 400+ ticket listings: [url]"
+
+A specific URL is 10x more valuable than a site name. It tells us the page structure, item count, and exactly where to look.
 
 ### Data
-> What specific data do you need from each site?
-> Examples: "all ticket listings with section, row, price" / "job postings with salary" / "product prices"
+> What data do you need? Be specific about fields.
+> Example: "ticket listings with section, row, seat, price" / "job postings with title, company, salary, location"
 
 ### Completeness
-> Do you need ALL results (full pagination) or just the first page?
-> This matters because most sites show 20-50 results initially and load more via XHR. Getting everything takes more work but gives you complete data.
+> All results (full pagination) or just the first page?
 
-### Matching
+### Matching (multi-site only)
 > How should I match the same entity across sites?
-> Examples: "by venue + date" / "by job title + company" / "by product name"
+> Example: "by venue + date" / "by job title + company"
 
-### View
+### View (full app only)
 > What should the dashboard show?
-> Examples: "side-by-side price comparison" / "merged list sorted by price" / "timeline of changes"
+> Example: "side-by-side price comparison" / "timeline" / "search with filters"
 
-### Route
-> What URL path for the dashboard? (default: based on the domain name)
+### Route (full app only)
+> Dashboard URL path? (default: based on the domain name)
 
-**Do not proceed until the developer answers.** Their answers become the data requirements spec.
+**Do not proceed until the developer answers.**
 
-## Phase 2: Spec
+## Phase 2: Explore & Confirm
 
-Write a data requirements file at `prompts/.app-spec.md` (gitignored, temporary). Format:
+For each site, explore it together with the developer before launching any build work.
+
+**2a. Connect browser and explore.**
+```bash
+./scripts/connect-browser.sh --profile <domain> --url <homepage> --port 3001
+```
+
+Navigate to the URLs the developer provided. Check traffic, count items, identify APIs.
+
+**2b. Report findings to the developer:**
+> Here's what I found on [site]:
+> - [N] traffic entries: [list key endpoints]
+> - Page has [N] items with [pagination type]
+> - Embedded data: [yes/no, what framework]
+> - API endpoints: [list with response shapes]
+>
+> Does this match what you expect? Anything I should look at more closely?
+
+**2c. Developer confirms or redirects.** They might say "no, the ticket data loads when you click 'View Listings'" or "try searching for X instead." This saves the agent from guessing.
+
+**2d. Write the spec** at `prompts/.app-spec.md` with everything learned:
 
 ```markdown
 # App Spec: [name]
 
+## Type: [app / api-only]
+
 ## Sites
-- site1.com
-- site2.com
-
-## Data Requirements
-For each site, what data flows are needed:
-
 ### site1.com
-- Search: GET /search?q= → results[] with [fields]
-- Detail: GET /detail/:id → full listing with [fields]
-- Pagination: first page is SSR embedded JSON, pages 2+ are XHR to /api/search?page=N
-- Complete: YES — must follow pagination to get all results
+- Target URL: [specific URL developer provided]
+- Transport: [what we found — embedded JSON, XHR, GraphQL, etc.]
+- Key endpoints: [URLs with methods and response shapes]
+- Auth: [public / needs cookies / needs API key]
+- Pagination: [type and params]
+- Fields needed: [from developer's answer]
 
-### site2.com
-- [same structure]
+## Matching (if multi-site)
+[compound key and normalization]
 
-## Matching
-Match across sites by: [compound key]
-Normalize: [what to normalize]
-
-## Dashboard
+## Dashboard (if full app)
 Path: /[route]
 Layout: [description]
-Key interaction: [what the user does]
 ```
 
-## Phase 3: Discovery
+## Phase 3: Build API
 
-Create a branch: `app/[name]`
+Follow `.claude/rules/discovery.md` for the full protocol, but with the advantage of knowing exactly what to look for from Phase 2.
 
-Launch one discovery agent per site with worktree isolation. **Include the data requirements in the agent prompt.** The standard discovery prompt plus:
+**3a. Build the domain plugin** — routes, config, interceptor, index. Use the spec from 2d.
 
-```
-DATA REQUIREMENTS:
-After discovering transports, build routes that satisfy these requirements:
-[paste the site-specific section from the spec]
-
-COMPLETENESS:
-If the data is paginated (first page in SSR, more pages via XHR), build a route
-that returns ALL pages, not just the first. Follow the pagination XHR pattern
-found in browser traffic or JS bundles. The route should accept ?page=N or
-return all results in one call.
-
-Build routes for ALL discovered transports (standard discovery protocol),
-AND ensure the data requirements above are fully covered.
+**3b. Register and test every route** through the API proxy:
+```bash
+curl -s http://localhost:3001/api/<domain>/<route> | head -50
 ```
 
-Wait for agents to complete. Copy their domain plugins from worktrees into the branch. Register domains, install deps, verify each route returns real data (not empty, not error) via curl through the API proxy.
+**3c. Cache real data for dashboard development.** Hit every route with representative inputs and save responses:
+```bash
+mkdir -p tmp/cache/<domain>
+# Search/list results
+curl -s "http://localhost:3001/api/<domain>/search?q=example" > tmp/cache/<domain>/search.json
+# Detail page
+curl -s "http://localhost:3001/api/<domain>/detail/123" > tmp/cache/<domain>/detail-123.json
+# Pagination page 2
+curl -s "http://localhost:3001/api/<domain>/search?q=example&page=2" > tmp/cache/<domain>/search-page2.json
+# Edge cases: empty results, single result, max results
+```
 
-## Phase 4: Dashboard
+Cache enough data to build every view in the dashboard without hitting the live API: list views, detail views, empty states, pagination, cross-site matching samples.
 
-Use the `dashboard-builder` skill patterns to build the page. Key requirements from the spec:
+**3d. Commit checkpoint.** The working domain plugin + cached data is a safe checkpoint. If dashboard iterations go sideways, we never lose the API work.
+```bash
+git add domains/<name>/ apps/api/src/register-domains.ts apps/api/package.json
+git commit -m "feat: add <domain> domain plugin with <N> routes"
+```
 
-- Multi-source entity merging using the matching key from Phase 2
-- Sequential fetches with progress narration (singleton browser)
-- Per-platform loading/error states
-- The specific view the developer requested
+**If API only:** Done. Show the developer the route list and sample responses.
 
-Use `debug-logs` skill when data isn't flowing correctly — add targeted DEBUG logs at each layer (route handler → API fetch → response parse → component render), read the output, narrow the problem, fix, clean up.
+## Phase 4: Dashboard (full app only)
 
-Use `visual-dev` skill for every UI iteration — screenshot after each change, read the screenshot, fix what's wrong, re-screenshot until correct. Don't build multiple components blind then debug them all at once.
+Build the dashboard UI against cached data. This decouples UI iteration from API reliability — no browser sessions, no rate limits, no WAF while tweaking CSS.
 
-## Phase 5: Verify
+**4a. Scaffold the page** at `apps/web/app/<route>/page.tsx`.
 
-Use `systematic-testing` skill to validate bottom-up: route handlers → proxy endpoints → dashboard fetches → rendered UI. Each layer must pass before testing the next.
+**4b. Wire up data fetching.** Start with cached data to verify layout, then switch to live API calls.
 
-1. Start `pnpm dev`
-2. Curl every API route — confirm real data with `debug-logs` if anything returns empty or errors
-3. Use `visual-dev` to screenshot the dashboard in every state: empty, loading, populated, error, mobile (375px)
-4. Walk the full user journey via Patchright: search → results → detail → compare
-5. Test with 3 different inputs that exercise different data shapes
-6. Show the developer screenshots and route outputs
+**4c. Iterate with the developer.** Use `visual-dev` skill — screenshot after each change, show the developer, get feedback, fix, re-screenshot. Don't build blind.
+
+**4d. Use `debug-logs` skill** when data isn't flowing: add targeted DEBUG logs at each layer (route handler → API fetch → response parse → component render), read output, fix, clean up.
+
+**4e. Handle multi-source merging** if applicable — match entities across sites using the key from the spec, show source badges, highlight differences.
+
+## Phase 5: Verify (full app only)
+
+Bottom-up validation using `systematic-testing` skill:
+
+1. Curl every API route — confirm real data
+2. Screenshot the dashboard: empty, loading, populated, error, mobile (375px)
+3. Walk the full user journey: search → results → detail → compare
+4. Test with 3 different inputs
+5. Show the developer screenshots and sample data
 
 **Only hand off when verified working on localhost:3000.**
 
 ## Rules
 
-- Never add use-case bias to the discovery prompt beyond the data requirements section. The agent should still discover ALL transports — the data requirements are additive, not restrictive.
-- If a site requires browser session for pricing/listings, say so explicitly in the handoff. Don't hide limitations.
-- The spec file is temporary. The domain plugins and dashboard are the product.
+- The developer's domain knowledge is the most valuable input. Ask for it. Don't guess.
+- Commit after Phase 3. The API is the foundation — protect it.
+- Cache real data. Dashboard iterations should never depend on a live browser session.
+- If a site requires browser session for some routes, say so in the spec. Don't hide limitations.
+- The spec file is temporary. The domain plugin, cached data, and dashboard are the product.
