@@ -34,6 +34,13 @@ User reviews this in the morning and promotes good changes to .claude/.
 **Finding:** Design review works well as a separate iteration from build. Builder builds, reviewer polishes. Separation of concerns.
 **Instruction gap:** docs/temp/ doesn't specify the design review process clearly enough — agent needed it in the prompt, not just in the skill file.
 
+### Iter 5 — 2026-03-23 Reddit dashboard
+**Result:** 178+ calls, 9 component files, 1537 total lines
+**Gap 1:** `reddit-thread.tsx` is 344 lines — violates <200 mandate. Recursive comment tree naturally grows big. Instruction doesn't cover splitting recursive components into separate files.
+**Gap 2:** Agent spent 70+ turns on biome lint fixes (manually adding biome-ignore comments one at a time). Should run `pnpm biome check --write --unsafe` first, then only manually fix what auto-fix can't.
+**Fix needed:** docs/temp/dashboard-builder.md — add "recursive components: extract the recursive item (e.g. comment, tree node) as a separate component file" and "run biome auto-fix before manual lint cleanup"
+**Evidence:** /tmp/reddit-check.png (desktop), /tmp/reddit-mobile.png (mobile)
+
 ### Pending promotion to .claude/
 1. Component split mandate (<200 lines per view)
 2. Browser-safe imports warning
@@ -41,3 +48,5 @@ User reviews this in the morning and promotes good changes to .claude/.
 4. Async END state verification
 5. Browser-safe DEBUG function (code fix)
 6. Design review as separate iteration from build
+7. Recursive component extraction rule (from Reddit iter)
+8. Biome auto-fix before manual lint cleanup (from Reddit iter)

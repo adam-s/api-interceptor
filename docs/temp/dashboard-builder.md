@@ -52,6 +52,20 @@ Then develop with `FIXTURE_DIR=data/fixtures pnpm dev` — the API serves cached
 2. `mkdir -p apps/web/src/app/\(dashboard\)/<page-name>`
 3. Create `page.tsx` importing a `<PageContent />` client component
 
+## Component Architecture
+
+Split components by view — one file per view, one shared types file. **Every file must be under 200 lines.** No monoliths.
+
+- `*-types.ts` — types, interfaces, helper functions
+- Reusable cards/items as separate components (e.g. `reddit-post-card.tsx`)
+- One file per view (search, detail, list, etc.)
+- Main content file is just the router/state switcher
+- **Recursive components** (comment trees, file trees, nested replies): extract the recursive item as its own component file (e.g. `reddit-comment.tsx` separate from `reddit-thread.tsx`). Recursion naturally grows files past 200 lines — split early.
+
+## Lint Cleanup
+
+Run `pnpm biome check --write --unsafe .` BEFORE manually fixing lint issues. This auto-fixes import ordering, formatting, and many warnings. Only add manual `biome-ignore` comments for what auto-fix can't handle (external image URLs, intentional array index keys in skeletons).
+
 ## Step 4: Client Component Template
 
 Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `'use client'`. Use shadcn/ui components — not raw divs. Standard search page pattern:
