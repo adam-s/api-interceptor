@@ -5,6 +5,46 @@
  * All routes work against the test server (port 4444):
  *   pnpm --filter @interceptor/test-server start
  *
+ * ═══════════════════════════════════════════════════════════════════════
+ * REAL-WORLD ANALOGUE GUIDE
+ *
+ * When discovering a new site, find the route below that matches what
+ * the site does. The "like" column names the real-world pattern:
+ *
+ *   Route 32 (collection listings) → like TicketMaster ISMDS ticket pricing
+ *     Seed page → harvest session cookie → extract API config from embedded
+ *     data → call paginated XHR with harvested cookie + API key → decode
+ *
+ *   Route 33 (click-intercept)     → like StubHub POST ticket pagination
+ *     Page embeds first page of data; subsequent pages load via POST when
+ *     user clicks "Show More". Patchright clicks the button, intercepts
+ *     the POST responses, aggregates all pages.
+ *
+ *   Route 31 (resale listings)     → like WAF-gated POST pagination
+ *     Multiple cookies (WAF + session) required. Harvest from seed page,
+ *     then POST with JSON body for each page.
+ *
+ *   Route 30 (drops inventory)     → like httpOnly-cookie-gated APIs
+ *     httpOnly cookie can't be read via JS. Harvest from Set-Cookie
+ *     header on seed page fetch, pass to subsequent API calls.
+ *
+ *   Route 7 (POST pagination)      → like CSRF-protected form submission
+ *     POST body with CSRF token + session cookie + page number.
+ *
+ *   Route 15 (__NEXT_DATA__)        → like TicketMaster search/category pages
+ *     Next.js embeds full data in __NEXT_DATA__. Pagination may be
+ *     URL-based (?page=2) returning new HTML with new __NEXT_DATA__.
+ *
+ *   Route 8 (GraphQL)              → like TicketMaster /api/next/graphql
+ *     Public GraphQL endpoint, no auth needed. Pagination via query vars.
+ *
+ * For cross-origin APIs behind Akamai/WAF (like ISMDS):
+ *   - Direct curl returns 403 (Akamai blocks non-browser requests)
+ *   - page.evaluate("fetch(url, {credentials:'include'})") works because
+ *     the browser has WAF sensor cookies. Use this during GATHER to test.
+ *   - In route handlers, use browserFetch which operates at CDP level.
+ * ═══════════════════════════════════════════════════════════════════════
+ *
  * EMBEDDED JSON:
  *  1. GET /catalog              — Parse <script id="catalog-data"> from HTML
  *  2. GET /product/:sku         — Different script ID on detail page
@@ -76,17 +116,19 @@
  * FORMDATA POST:
  * 29. GET /formdata-search-example — Multipart/form-data search request
  *
- * SESSION HARVESTER — httpOnly cookie + correlation header (httpOnly cookie):
+ * SESSION HARVESTER — httpOnly cookie + correlation header:
  * 30. GET /drops/inventory        — Session-gated paginated inventory (drops pattern)
  *
- * SESSION HARVESTER — WAF cookie + POST pagination (WAF + POST):
+ * SESSION HARVESTER — WAF cookie + POST pagination:
  * 31. GET /resale/listings        — Multi-cookie session-gated POST pagination (resale pattern)
  *
- * ENCODED PRICING + SESSION HARVEST:
- * 32. GET /collection/:id/listings — Session harvest + indirect price refs + JS bundle decode + pagination
+ * ENCODED PRICING + SESSION HARVEST (like TicketMaster ISMDS ticket listings):
+ * 32. GET /collection/:id/listings — Seed page → harvest session → extract API config
+ *     from embedded data → call paginated XHR with cookie + API key → decode prices
  *
- * CLICK-INTERCEPT PAGINATION:
- * 33. GET /resale/all — Patchright clicks "Load More" button, intercepts POST responses, collects all pages
+ * CLICK-INTERCEPT PAGINATION (like StubHub "Show More" POST pagination):
+ * 33. GET /resale/all — Patchright clicks "Load More", intercepts POST responses,
+ *     collects all pages. Use when pagination requires browser interaction.
  *
  * @module domain-boardshop/routes
  */

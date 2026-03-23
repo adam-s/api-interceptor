@@ -54,12 +54,14 @@ Examples of hierarchies — your site follows one of these patterns:
 
 Two jobs: (A) confirm/correct your pre-flight, (B) intercept pagination.
 
-**1a. Connect browser.**
+**1a. Connect browser and warm up.**
 
 ```bash
-./scripts/connect-browser.sh --profile <domain> --url <target> --port PORT
+./scripts/connect-browser.sh --profile <domain> --url <homepage> --port PORT
 sleep 15
 ```
+
+Connect to the HOMEPAGE first, not directly to a deep page. Browse naturally: scroll, click 1-2 links, then navigate to your target page. This establishes cookies and avoids bot detection (reCAPTCHA, Akamai). Direct deep-link navigation triggers bot walls.
 
 **1b. Confirm your pre-flight (1-2 tool calls).** Navigate the homepage and verify your pre-flight hypotheses. Correct anything that's wrong. You already know what this site is — don't spend tool calls rediscovering it.
 
@@ -111,6 +113,8 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 **GATHER rules:**
 - Browser only — no `rateLimitedFetch`, no `curl`, no direct HTML/JS fetching
 - `page.evaluate` for interaction (clicking, scrolling) AND for testing discovered API endpoints via `fetch()`. Using `page.evaluate("fetch(...)")` tests the API — this is allowed. Do NOT use `page.evaluate` to read `__NEXT_DATA__`, Redux state, or DOM text in GATHER — that belongs in SCAN.
+- For cross-origin API endpoints (different subdomain), always use `{credentials: "include"}` in fetch() to forward browser cookies. Without it, WAF-gated APIs return 403.
+- `browserFetch` is a route-handler method, NOT an HTTP endpoint. Do NOT try `curl /browser/fetch`. During discovery, use `page.evaluate("fetch(...)")` instead.
 - Low traffic (1-4 entries) is normal after one page load — navigate more pages, don't panic
 
 ---
@@ -130,7 +134,15 @@ for e in d.get('entries',[]):
 "
 ```
 
-**2b.** Fetch HTML of 2 page types + largest JS bundle via `browserFetch`.
+**2a-CHECK (MANDATORY).** Scan traffic for pagination params. If ANY endpoint has `page=`, `offset=`, `cursor=`, `limit=` in the URL or POST body, test page 2 NOW:
+```bash
+curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"fetch(\"/api/path?page=2\", {credentials:\"include\"}).then(r=>r.json()).then(d=>JSON.stringify({keys:Object.keys(d),count:d.items?.length??d.data?.length??\"unknown\"}).slice(0,500))"}'
+```
+If it returns data, mark JSON API (XHR) ✓ in the elimination table immediately. For cross-origin endpoints (different subdomain), `credentials: "include"` forwards browser cookies.
+
+**2b.** Fetch HTML of 2 page types + largest JS bundle. Use `page.evaluate("fetch(url).then(r=>r.text())")` or direct curl if no auth needed.
 
 **2c. HTML scan** (both pages):
 ```bash

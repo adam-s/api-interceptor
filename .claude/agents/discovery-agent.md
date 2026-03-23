@@ -37,7 +37,19 @@ Start with PRE-FLIGHT: write down what you already know about the target site (f
 
 In GATHER: navigate to that page, intercept pagination 2-3 times to capture the API pattern. If you see an API endpoint with pagination params (e.g., `?page=1`) in initial traffic, confirm it via `page.evaluate("fetch('/api/path?page=2').then(r=>r.json())...")` — do not wait for new traffic entries. Use `page.evaluate` for interaction and `fetch()` testing — not to read `__NEXT_DATA__` or DOM data.
 
-Read `domains/boardshop/src/routes.ts` for working examples of every transport type.
+Read the REAL-WORLD ANALOGUE GUIDE at the top of `domains/boardshop/src/routes.ts` to find which route matches the site you're discovering. Key patterns: Route 32 = session-harvest ticket listings (like ISMDS), Route 33 = click-intercept pagination (like StubHub), Route 8 = public GraphQL.
+
+## browserFetch vs page.evaluate("fetch()")
+
+`browserFetch` is a method on `RemoteBrowserService` — it is ONLY available inside route handler code (`handler: async (c, browser) => { browser.browserFetch(...) }`). There is NO HTTP endpoint for it. Do NOT try `curl /browser/fetch` or `curl /browser/mcp/fetch`.
+
+During GATHER/SCAN, to make browser-authenticated requests use:
+```bash
+curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+  -H 'Content-Type: application/json' \
+  -d '{"script":"fetch(URL, {credentials:\"include\"}).then(r=>r.json()).then(d=>JSON.stringify(d).slice(0,1000))"}'
+```
+For cross-origin APIs (different subdomain), add `credentials: "include"` to forward cookies.
 
 ## Testing Routes (MANDATORY)
 
