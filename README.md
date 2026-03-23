@@ -28,33 +28,13 @@
 
 ## Getting Started
 
-**Step 1: Clone and install.**
-
 ```bash
 git clone https://github.com/adam-s/intercept.git
 cd intercept
-pnpm install
-```
-
-**Step 2: Start the services.** Leave this running in a terminal tab.
-
-```bash
-pnpm dev
-```
-
-You'll see three things start:
-
-- **API server** on `localhost:3001` — this is the proxy that serves your discovered routes
-- **Web frontend** on `localhost:3000` — Next.js dashboard for viewing results
-- **Headless browser** — launches automatically for traffic capture (no visible window)
-
-**Step 3: Open Claude Code** in a second terminal tab, from the project directory.
-
-```bash
 claude
 ```
 
-Claude reads the `.claude/` directory automatically — it contains all the rules, skills, and agent definitions that drive the system. You don't need to configure anything. Just tell Claude what you want.
+That's it. Claude Code reads the `.claude/` directory automatically — it contains all the rules, skills, and agent definitions that drive the system. It handles installing dependencies, starting services, and everything else. Just tell it what you want.
 
 ### Discover a website's API
 
