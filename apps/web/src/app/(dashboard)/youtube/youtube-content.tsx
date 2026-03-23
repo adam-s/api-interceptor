@@ -132,8 +132,8 @@ export function YouTubeContent() {
 		try {
 			const data = await ytFetch<{ downloads?: unknown[] }>('Download count', '/api/youtube/downloads');
 			setDownloadCount(data.downloads?.length ?? 0);
-		} catch {
-			// Non-critical, don't surface
+		} catch (e) {
+			DEBUG('youtube-content', () => ({ action: 'download-count-error', error: e instanceof Error ? e.message : 'unknown' }));
 		}
 	}, []);
 

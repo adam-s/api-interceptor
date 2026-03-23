@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-	Play, Download, Clock, Users, Loader2, ThumbsUp, Share2, ChevronDown,
+	Play, Download, Clock, Users, Loader2, ThumbsUp, Share2,
 } from 'lucide-react';
 import type { VideoDetail, VideoItem, DownloadItem } from './youtube-types';
 import { DEBUG, formatDuration, formatViews, formatViewsShort, fixThumbnailUrl, ytFetch } from './youtube-types';
@@ -26,7 +25,6 @@ export function YouTubeVideo({
 	const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 	const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
 	const [downloadError, setDownloadError] = useState<string | null>(null);
-	const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 	// Reset description expanded when video changes
 	useEffect(() => {
@@ -80,18 +78,11 @@ export function YouTubeVideo({
 					setDownloadError(dl.error || 'Download failed');
 					return;
 				}
-			} catch {
-				// Poll error is non-fatal, just continue polling
+			} catch (e) {
+				DEBUG('youtube-video', () => ({ action: 'download-poll-error', attempt: i, error: e instanceof Error ? e.message : 'unknown' }));
 			}
 		}
 	};
-
-	// Cleanup poll on unmount
-	useEffect(() => {
-		return () => {
-			if (pollRef.current) clearInterval(pollRef.current);
-		};
-	}, []);
 
 	// Loading skeleton
 	if (loading && !videoDetail) {
@@ -189,8 +180,8 @@ export function YouTubeVideo({
 					</div>
 
 					{/* Description card */}
-					<div className="bg-muted/40 rounded-xl p-3 mb-4">
-						<div className="flex items-center gap-2 text-sm font-medium mb-1">
+					<div className="bg-muted/40 rounded-xl p-3 sm:p-4 mb-4">
+						<div className="flex items-center gap-2 text-sm font-medium mb-1.5">
 							<span>{formatViews(videoDetail.views)}</span>
 							<span className="flex items-center gap-1 text-muted-foreground">
 								<Clock className="h-3.5 w-3.5" />
@@ -212,8 +203,8 @@ export function YouTubeVideo({
 					</div>
 
 					{/* Download section */}
-					<div className="bg-muted/40 rounded-xl p-3 mb-4">
-						<p className="text-sm font-medium mb-2 flex items-center gap-2">
+					<div className="bg-muted/40 rounded-xl p-3 sm:p-4 mb-4">
+						<p className="text-sm font-medium mb-2.5 flex items-center gap-2">
 							<Download className="h-4 w-4" />
 							Download
 						</p>
@@ -250,7 +241,7 @@ export function YouTubeVideo({
 							{videoDetail.keywords.slice(0, 12).map((kw) => (
 								<span
 									key={kw}
-									className="text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded-full cursor-pointer hover:bg-blue-500/20 transition-colors"
+									className="text-xs text-blue-400/80 hover:text-blue-400 cursor-pointer transition-colors"
 								>
 									#{kw}
 								</span>

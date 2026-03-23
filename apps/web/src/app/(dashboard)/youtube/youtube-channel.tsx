@@ -72,7 +72,7 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 	return (
 		<div>
 			{/* Banner */}
-			<div className="w-full h-[100px] sm:h-[150px] bg-gradient-to-r from-blue-900/40 via-blue-800/20 to-purple-900/30 relative overflow-hidden">
+			<div className="w-full h-[120px] sm:h-[180px] bg-gradient-to-r from-blue-900/40 via-blue-800/20 to-purple-900/30 relative overflow-hidden">
 				<div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/40" />
 			</div>
 
@@ -84,15 +84,15 @@ export function YouTubeChannel({ channelData, setChannelData, loading, onOpenVid
 							<img
 								src={channelData.channel.avatar}
 								alt={channelData.channel.title}
-								className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover bg-muted shrink-0"
+								className="w-20 h-20 sm:w-[128px] sm:h-[128px] rounded-full object-cover bg-muted shrink-0"
 							/>
 						) : (
-							<div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-muted flex items-center justify-center shrink-0">
-								<Users className="h-8 w-8 text-muted-foreground" />
+							<div className="w-20 h-20 sm:w-[128px] sm:h-[128px] rounded-full bg-muted flex items-center justify-center shrink-0">
+								<Users className="h-10 w-10 text-muted-foreground" />
 							</div>
 						)}
 						<div className="flex-1 min-w-0">
-							<h1 className="text-xl sm:text-2xl font-bold">{channelData.channel.title}</h1>
+							<h1 className="text-2xl sm:text-3xl font-bold">{channelData.channel.title}</h1>
 							<p className="text-sm text-muted-foreground mt-1">
 								{channelData.channel.subscribers && `${channelData.channel.subscribers}`}
 								{channelData.videos.length > 0 && ` \u00B7 ${channelData.videos.length} videos`}

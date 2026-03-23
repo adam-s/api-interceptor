@@ -47,7 +47,7 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 	});
 
 	return (
-		<div className="max-w-3xl mx-auto px-4 sm:px-6 py-4">
+		<div className="max-w-[860px] mx-auto px-4 sm:px-6 py-4">
 			{/* Error */}
 			{error && (
 				<div className="mb-4 p-3 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive text-sm">
@@ -95,7 +95,6 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 								onClick={() => {
 									setQuery(name.toLowerCase());
 									onSearch(name.toLowerCase());
-									doSearch(name.toLowerCase());
 								}}
 							>
 								{name}
@@ -120,7 +119,7 @@ export function YouTubeSearch({ query, setQuery, onSearch, onOpenChannel, onOpen
 
 			{/* Search Results */}
 			{!loading && searchResults.length > 0 && (
-				<div className="space-y-3">
+				<div className="space-y-4">
 					{searchResults.map((item) => {
 						if ('type' in item && item.type === 'channel') {
 							const ch = item as Channel;

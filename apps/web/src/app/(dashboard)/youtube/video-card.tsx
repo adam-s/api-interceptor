@@ -71,15 +71,15 @@ export function VideoCard({ video, onClick, layout = 'grid' }: VideoCardProps) {
 					<h3 className="text-sm sm:text-base font-medium line-clamp-2 leading-snug group-hover:text-blue-400 transition-colors">
 						{video.title}
 					</h3>
-					<p className="text-xs text-muted-foreground mt-1 sm:mt-2">
-						{video.views}
-						{video.publishedTime ? ` \u00B7 ${video.publishedTime}` : ''}
-					</p>
 					{video.channel && (
-						<p className="text-xs text-muted-foreground mt-1 sm:mt-2 hover:text-foreground transition-colors">
+						<p className="text-xs text-muted-foreground mt-1.5 hover:text-foreground transition-colors">
 							{video.channel}
 						</p>
 					)}
+					<p className="text-xs text-muted-foreground mt-0.5">
+						{video.views}
+						{video.publishedTime ? ` \u00B7 ${video.publishedTime}` : ''}
+					</p>
 				</div>
 			</div>
 		);
