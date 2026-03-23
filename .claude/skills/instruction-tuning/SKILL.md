@@ -22,30 +22,28 @@ The sub-agent's code is throwaway. The instruction improvements are the product.
 
 ```
 1. Clean: bash .claude/hooks/cleanup-agents.sh
-2. Launch sub-agents with worktree isolation
-3. Wait for completion
-4. Inspect: did they follow the pipeline? Full elimination table?
-5. Diagnose: which instruction was too soft, missing, or contradictory?
-6. Fix the instruction (generalized, not site-specific)
-7. CONSISTENCY CHECK — before committing, search ALL .claude/ files for contradictions:
+2. Verify commit: ensure worktrees will branch from the latest committed instructions
+3. Launch sub-agents with worktree isolation (run_in_background: true)
+4. LIVE MONITOR every 60 seconds (see Live Monitoring below)
+5. Stop agents when you have enough data or they're stuck
+6. Inspect: did they follow the pipeline? Full elimination table?
+7. Diagnose: which instruction was too soft, missing, or contradictory?
+8. Fix the instruction (generalized, not site-specific)
+9. CONSISTENCY CHECK — before committing, search ALL .claude/ files for contradictions:
    - Grep for the concept you changed (pagination, testing, session harvest, etc.)
    - Verify every mention says the same thing across rules/, agents/, skills/
    - Fix any file that contradicts or uses softer language than your change
-8. PRUNE .claude/ — delete redundant lines, reduce noise, keep instructions tight. Shorter files are followed better. If a rule can be said in 1 line instead of 3, use 1 line.
-9. PROCESS CLEANUP — kill all zombie processes before and after every iteration:
-   ```bash
-   bash .claude/hooks/cleanup-agents.sh
-   # Verify nothing is left:
-   pgrep -f "chromium|patchright|tsx.*src/index|next-server|node.*api" | head -20
-   lsof -iTCP:3010-3020 -sTCP:LISTEN 2>/dev/null
-   ```
-   Chrome instances, API servers, Next.js servers, Patchright browsers, and Claude sub-agents all leak if not cleaned up. This is critical — orphaned processes consume memory and block ports.
-10. FIX INFRASTRUCTURE — if agents waste calls on browser crashes, server restarts, package linking, or port conflicts, fix the underlying infrastructure (scripts, server code, browser service) not just the instructions. Infrastructure bugs burn more tokens than protocol bugs.
-11. BUILD UTILITIES — if agents repeat the same multi-step operation (connect browser + wait + check traffic, restart server + wait + health check), create a script or endpoint that does it in one call. Fewer tool calls = fewer tokens.
-12. Add any new patterns to test-server + boardshop reference routes
-13. Commit and push all fixes
-14. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
-15. Start fresh Claude Code session to clear stale context, repeat
+10. PRUNE .claude/ — delete redundant lines, reduce noise, keep instructions tight. Shorter files are followed better. If a rule can be said in 1 line instead of 3, use 1 line.
+11. PROCESS CLEANUP — kill all zombie processes before and after every iteration:
+    ```bash
+    bash .claude/hooks/cleanup-agents.sh
+    ```
+12. FIX INFRASTRUCTURE — if agents waste calls on browser crashes, server restarts, package linking, or port conflicts, fix the underlying infrastructure not just the instructions.
+13. BUILD UTILITIES — if agents repeat the same multi-step operation, create a script or endpoint that does it in one call.
+14. Add any new patterns to test-server + boardshop reference routes
+15. Commit fixes (ensure worktrees will get them on next iteration)
+16. Write handoff doc (.claude/tuning-handoff.md) — gitignored, not committed
+17. Start fresh Claude Code session to clear stale context, repeat
 ```
 
 ## Consistency Check (Step 7)
@@ -69,6 +67,47 @@ Every hit must be consistent with your change. Files to check:
 - `.claude/CLAUDE.md` — top-level project instructions
 
 A single soft "check for" in any file undoes a hard "MUST" in another.
+
+## Live Monitoring (Step 4)
+
+Do NOT wait for agents to complete. Monitor every 60 seconds by reading their output JSONL files:
+
+```bash
+FILE="/Users/...subagents/agent-XXXX.jsonl"
+cat "$FILE" | python3 -c "
+import sys, json
+for line in sys.stdin:
+    try:
+        d = json.loads(line)
+        if d.get('type') == 'assistant':
+            for c in d.get('message',{}).get('content',[]):
+                if isinstance(c,dict):
+                    if c.get('type')=='text' and len(c.get('text',''))>20:
+                        print('TEXT:',c['text'][:400]); print('---')
+                    elif c.get('type')=='tool_use':
+                        n=c.get('name','');inp=c.get('input',{})
+                        if n=='Bash': print(f'BASH: {inp.get(\"command\",\"\")[:140]}')
+                        elif n in('Read','Write','Edit'): print(f'{n}: ...{inp.get(\"file_path\",\"\")[-55:]}')
+                        else: print(f'{n}')
+    except: pass
+" | tail -25
+```
+
+**At each check, write a brief analysis:**
+
+| Agent | Calls | Phase | Notes |
+|-------|-------|-------|-------|
+| SH | ~35 | GATHER | Found XHR POST, navigating to event page |
+| TM | ~40 | GATHER | Clicked "Show More", 0 new traffic — not testing ?page=2 |
+
+**For each agent, ask:** "What would I do differently right now?"
+- If the agent is wasting calls on something you wouldn't do, that's an instruction gap
+- If it's stuck in a pattern you've seen before, note the specific failure for the fix phase
+- If it's doing something smart that isn't in the instructions, note it for addition
+
+**When to stop early:** If an agent is burning calls on the same pattern that failed in prior iterations (e.g., re-clicking "Show More" with 0 new traffic, trying curl /browser/fetch), stop it. You already know the failure — fix the instruction instead of watching it fail again.
+
+**Guided agents:** When you identify a specific failure, launch a targeted agent with explicit instructions about what to do differently. Compare the guided agent's path to the unguided one — the delta reveals what the instructions are missing.
 
 ## Cleanup Before EVERY Iteration
 
