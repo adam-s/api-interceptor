@@ -1,41 +1,4 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(./scripts:*)",
-      "Bash(curl:*)",
-      "Bash(node:*)",
-      "Bash(npx:*)",
-      "Bash(pnpm:*)",
-      "Bash(lsof:*)",
-      "Bash(kill:*)",
-      "Bash(pkill:*)",
-      "Bash(sleep:*)",
-      "Bash(cat:*)",
-      "Bash(ls:*)",
-      "Bash(wc:*)",
-      "Bash(grep:*)",
-      "Bash(mkdir:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(rm:*)",
-      "Bash(chmod:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(echo:*)",
-      "Bash(gh run:*)",
-      "Bash(gh pr:*)",
-      "Bash(git:*)",
-      "Bash(docker build:*)",
-      "Edit(.claude/**)",
-      "Write(.claude/**)",
-      "Edit(domains/**)",
-      "Write(domains/**)",
-      "Edit(apps/**)",
-      "Write(apps/**)",
-      "Edit(packages/**)",
-      "Write(packages/**)"
-    ]
-  },
   "hooks": {
     "WorktreeCreate": [
       {
@@ -65,16 +28,6 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-worktree-writes.sh",
             "statusMessage": "Checking worktree isolation"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"allow\"}}'",
-            "statusMessage": "Auto-approving Bash"
           }
         ]
       }

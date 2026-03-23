@@ -47,6 +47,8 @@ The best way to produce quality UI is to copy an existing one. When building a d
 
 4. **The gap between screenshots IS the bug.** This is objective — no subjective "does it look good." Either your layout matches the template or it doesn't. Fix the differences.
 
+5. **When the prompt adds features not in the wireframe:** Add new features in a way that preserves the wireframe's layout structure. Inline additions (badges on existing rows, tooltips on existing elements) are preferred over new layout sections (sidebars, panels, extra columns). If a feature requires a new layout section, place it BELOW the main content on mobile and as a narrow aside on desktop — never wider than 25% of the viewport.
+
 ### When the reference site's aesthetic conflicts with shadcn/ui defaults
 
 If the reference site uses a legacy aesthetic (custom fonts, table-based layout, non-card list items), do NOT abandon shadcn/ui entirely. Instead:
@@ -79,6 +81,8 @@ If the reference site uses a legacy aesthetic (custom fonts, table-based layout,
 ```
 
 **The rule: if it's clickable, use `Button`. If it shows a status message, use `Alert`. Override the visual tokens, not the component choice.** A raw `<button>` or `<div>` with inline styles loses focus management, keyboard handling, and ARIA attributes that shadcn provides for free.
+
+**Every clickable element must have a 44px minimum touch target.** This includes small visual elements like upvote arrows, star icons, and close buttons. Wrap small visuals in an accessible button: `<Button variant="ghost" size="icon" className="h-6 w-6 min-h-[44px] min-w-[44px]"><span className="text-xs">▲</span></Button>`.
 
 Save template screenshots to `/tmp/template-<domain>/` for reference throughout the build.
 
@@ -150,8 +154,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 Create `apps/web/src/app/(dashboard)/<page-name>/<page-name>-content.tsx` with `'use client'`. Use shadcn/ui components — not raw divs. Standard search page pattern:
 
-- State: `query`, `results`, `loading`, `searched`
-- Fetch: `/api/<domain>/<endpoint>?q=${encodeURIComponent(query)}` (relative URL — see CLAUDE.md "Frontend API URLs")
+- **URL state (not useState) for views:** Use `nuqs` hooks from `@/lib/url-state` for view switching, selected IDs, and search queries. This gives back button, deep linking, and shareable URLs for free:
+  ```tsx
+  import { useView, useSelectedId, useSearchQuery } from '@/lib/url-state';
+  const [view, setView] = useView();       // ?view=list|detail|search
+  const [id, setId] = useSelectedId();     // ?id=12345
+  const [q, setQ] = useSearchQuery();      // ?q=search+term
+  // Navigate: setView('detail'); setId(item.id);
+  // Back to list: setView('list'); setId(null);
+  ```
+- State: `results`, `loading`, `error` (view/query/id are URL params, not useState)
+- Fetch: `/api/<domain>/<endpoint>?q=${encodeURIComponent(q)}` (relative URL — see CLAUDE.md "Frontend API URLs")
 - Layout: `flex flex-1 flex-col gap-4 p-6 max-w-4xl mx-auto w-full`
 - Search bar: `Input` + `Button` with `onKeyDown Enter` handler
 - Four render states: loading (`Skeleton` cards), empty ("No results for..."), idle ("Search above to get started"), populated (result `Card` list with hover)

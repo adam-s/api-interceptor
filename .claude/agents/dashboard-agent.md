@@ -69,6 +69,7 @@ curl -s http://localhost:${API_PORT:-3001}/api | python3 -m json.tool
 - **API routes:** `curl -s http://localhost:${API_PORT:-3001}/api` lists all registered domains and routes
 - **Cached responses:** `tmp/cache/<domain>/` has real API responses saved as JSON. Cache routes: `./scripts/cache-routes.sh --domain <name>`
 - **Existing components:** `apps/web/src/components/ui/` has shadcn/ui (Card, Badge, Button, Input, Skeleton, Table, Sonner toast, etc.)
+- **URL state (routing):** `import { useView, useSelectedId, useSearchQuery } from '@/lib/url-state'` — use these instead of `useState` for view switching, detail IDs, and search queries. Gives back button + deep linking + shareable URLs.
 - **Python bridge:** `POST /api/python/:method` calls the Python worker for NLP, matching, stats
 - **Toast notifications:** Import `toast` from `sonner`. Use `toast.success()`, `toast.error()` for user feedback.
 

@@ -48,6 +48,19 @@ Test infrastructure and approaches.
 - [06: Vitest Setup](testing/06-vitest.md)
 - [16: E2E Testing with Playwright](testing/16-e2e.md)
 
+## Instruction Tuning
+
+What 46 iterations of launching AI agents on real websites taught us about writing instructions they actually follow.
+
+- [01: Forty-Six Iterations](instruction-tuning/01-the-loop.md) — Decision trees fail. Linear pipelines work.
+- [02: The Word "Should"](instruction-tuning/02-soft-language.md) — Obligation language controls agent behavior.
+- [03: The Model Already Knew](instruction-tuning/03-preflight.md) — PRE-FLIGHT saved 25 calls per run.
+- [04: One Soft Word](instruction-tuning/04-consistency.md) — Multi-file consistency is non-negotiable.
+- [05: 299 Lines to 153](instruction-tuning/05-shorter-is-louder.md) — Shorter instructions, better compliance.
+- [06: Five Commits to Build a Wall](instruction-tuning/06-worktree-walls.md) — Agent isolation is harder than sandboxing.
+- [07: The Most Common Pattern](instruction-tuning/07-anchoring.md) — Framing effects in instruction design.
+- [08: When Do You Stop](instruction-tuning/08-convergence.md) — Convergence is not a green scorecard.
+
 ## Guides
 
 Deep dives into specific areas.
