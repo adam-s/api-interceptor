@@ -53,6 +53,41 @@ Each iteration produces a batch of fresh agents that read ONLY the `.claude/` in
 
 This is [reflective programming](https://en.wikipedia.org/wiki/Reflective_programming) applied to AI agents — Claude Code examining, introspecting, and modifying its own instructions after every run.
 
+```mermaid
+graph TD
+    O[Orchestrator] -->|"launches 8 parallel agents<br/>in isolated worktrees"| A1[Agent 1]
+    O --> A2[Agent 2]
+    O --> AN[Agent N...]
+
+    A1 --> S[Score against 18-check scorecard]
+    A2 --> S
+    AN --> S
+
+    S --> D{All passed?}
+    D -- Yes --> C["Instructions converged"]
+    D -- No --> F["Diagnose: which rule<br/>was too soft or missing?"]
+    F --> R["Fix the instruction<br/>(generalized, not site-specific)"]
+    R --> CC["Consistency check<br/>across all .claude/ files"]
+    CC --> O
+```
+
+## Using the Skills
+
+In the Claude Code console, type a `/` command. The skill handles everything — setup, agents, monitoring, cleanup. Answer the prompts and watch it work.
+
+| Command | What it does | You provide |
+|---|---|---|
+| `/instruction-tuning` | Improve discovery instructions by testing agents on real sites. Launches parallel agents, scores them, fixes `.claude/` rules. | Passes (1 or 2), websites, cleanup preference |
+| `/instruction-dashboard-tuning` | Improve dashboard-building instructions. Discover API, build dashboard from wireframe, SOTA reviewer finds instruction gaps. | Passes, websites, cleanup preference |
+| `/app` | Build a complete app from a description. Asks questions, discovers APIs, builds dashboard. | Plain-language description of what you want |
+| `/api-discovery` | Discover one website's API. Full protocol: PRE-FLIGHT, GATHER, SCAN, CLASSIFY, BUILD. | Target URL |
+| `/dashboard-builder` | Build a Next.js page against existing API routes. | Page name, which routes to use |
+| `/visual-dev` | Screenshot + judge loop. 7 criteria, iterate until zero issues. | Page to review |
+| `/debug-logs` | Add targeted logs, read output, narrow the search, repeat. | What's broken |
+| `/systematic-testing` | Bottom-up validation. Test each layer before integration. | What to test |
+| `/ci-check` | Lint, build, typecheck, test. Run before committing. | Nothing — just run it |
+| `/ec2-deploy` | Deploy to production. Docker build, push, restart containers. | Nothing — just run it |
+
 ## How It Works
 
 Paste a URL. An AI agent connects a real browser, navigates the target site as a user, captures every network request via CDP, classifies each data transport (JSON, WebSocket, GraphQL, protobuf, embedded SSR, HLS, SSE), and generates typed proxy routes that return clean JSON. No API keys. No scraping guides. Just the real requests the browser makes.
@@ -169,39 +204,6 @@ interceptor/
     └── python/         IPC bridge worker (NLP, matching, stats)
 ```
 
-### Instruction Tuning Architecture
-
-```mermaid
-graph TD
-    O[Orchestrator] -->|"launches 8 parallel agents<br/>in isolated worktrees"| A1[Agent 1]
-    O --> A2[Agent 2]
-    O --> AN[Agent N...]
-
-    A1 --> S[Score against 18-check scorecard]
-    A2 --> S
-    AN --> S
-
-    S --> D{All passed?}
-    D -- Yes --> C["Instructions converged"]
-    D -- No --> F["Diagnose: which rule<br/>was too soft or missing?"]
-    F --> R["Fix the instruction<br/>(generalized, not site-specific)"]
-    R --> CC["Consistency check<br/>across all .claude/ files"]
-    CC --> O
-```
-
-### Dashboard Tuning Architecture
-
-```mermaid
-graph LR
-    SS["Screenshot of<br/>real website<br/>(wireframe)"] --> P1["Phase 1<br/>DISCOVERY"]
-    P1 --> P2["Phase 2<br/>BUILD"]
-    P2 --> P3["Phase 3<br/>REVIEW"]
-    P3 --> FIX[".claude/ fixes +<br/>framework code fixes"]
-    FIX -->|"discard worktree<br/>keep improvements"| SS
-```
-
-Three-phase pipeline: discover the API, build a dashboard matching the website screenshot as a wireframe, then a SOTA reviewer agent does code review + UI design review. The reviewer's findings improve instructions and framework code. The dashboard is throwaway — only the improvements matter.
-
 ### Key Endpoints
 
 | Endpoint | Purpose |
@@ -233,58 +235,6 @@ Three-phase pipeline: discover the API, build a dashboard matching the website s
 | `hooks/cleanup-agents.sh` | Kill zombies, remove worktrees, revert files | Yes — port ranges expand |
 | `hooks/guard-worktree-writes.sh` | Prevent agents from writing to main repo | Stable |
 | `hooks/create-worktree.sh` | Isolated worktrees outside repo tree | Stable |
-
-## Using the Skills
-
-All skills are invoked from the Claude Code console with `/skill-name`. The skills handle setup, agent launching, monitoring, and cleanup automatically.
-
-### Discovery Tuning — Improve the discovery protocol
-
-```
-/instruction-tuning
-```
-
-The skill will ask you 3 questions before launching:
-1. **Passes** — 1 (breadth) or 2 (breadth + deep dive). Default: 1.
-2. **Websites** — which sites to test (e.g., "reddit, youtube, twitch"). Max 8 per batch.
-3. **Cleanup** — A (full cleanup), B (keep worktrees), C (keep agents alive), D (keep both).
-
-Then it launches parallel discovery agents, monitors them live, scores results, and applies instruction fixes to `.claude/`.
-
-### Dashboard Tuning — Improve the dashboard-building skills
-
-```
-/instruction-dashboard-tuning
-```
-
-Same 3 questions, plus a 3-phase pipeline: discover API, build dashboard matching a website screenshot as wireframe, then a reviewer agent does code + UI design review. Findings improve `.claude/` instructions and framework code.
-
-### Build an App — Interactive API + dashboard builder
-
-```
-/app
-```
-
-Describe what you want in plain language (e.g., "compare ticket prices across sites"). The skill asks clarifying questions, explores the target sites with you, then builds domain plugins and a dashboard.
-
-### Discover a Single API
-
-```
-/api-discovery
-```
-
-Point it at a website. It runs the full discovery protocol (PRE-FLIGHT, GATHER, SCAN, CLASSIFY, BUILD) and creates a domain plugin with typed proxy routes.
-
-### Other Skills
-
-| Command | Purpose |
-| --- | --- |
-| `/dashboard-builder` | Build a Next.js dashboard page against existing API routes |
-| `/visual-dev` | Screenshot + judge loop for UI development |
-| `/debug-logs` | Iterative debugging with targeted logs |
-| `/systematic-testing` | Bottom-up validation of multi-layer systems |
-| `/ci-check` | Run local CI checks before committing |
-| `/ec2-deploy` | Deploy to EC2 production server |
 
 ## Tech Stack
 
