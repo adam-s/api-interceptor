@@ -15,6 +15,8 @@
 
 Paste a natural-language prompt. An AI agent connects a real browser, navigates the target site as a user, captures every network request via CDP, classifies each data transport (JSON, WebSocket, GraphQL, protobuf, embedded SSR), and generates typed proxy routes that return clean JSON. No API keys. No scraping guides. Just the real requests the browser makes.
 
+The agent handles the hard parts automatically: session harvest for auth-gated endpoints, click-intercept pagination that lets the browser manage cookies and CSRF, and encoded response decoding by tracing decoder functions in JS bundles.
+
 ```
 $ curl localhost:3001/api/example/search?q=boards
 
@@ -36,13 +38,13 @@ Two systems work together: **API discovery** turns websites into typed endpoints
 The agent follows a mandatory protocol before writing any code:
 
 1. **Connect** a browser via WebSocket with CDP traffic capture
-2. **Navigate** the target site as a real user
-3. **Capture** all network traffic — inspect every request and response
-4. **Classify** each data type's transport using the GATHER→SCAN→CLASSIFY→BUILD pipeline
-5. **Interact** — click, scroll, paginate to surface lazy-loaded endpoints
-6. **Build** typed proxy routes returning structured JSON
+2. **Gather** evidence — fetch HTML, JS bundles, and capture list + detail page traffic
+3. **Scan** all sources for transport markers (embedded JSON, XHR, GraphQL, WebSocket, HLS, gRPC, SSE, encoded)
+4. **Classify** — fill the 8-row Transport Elimination table with evidence for every row
+5. **Identify access gaps** — compare browser responses vs. direct HTTP to find auth-gated endpoints
+6. **Build** typed proxy routes for every transport found, with session harvest for auth-gated data and click-intercept pagination for multi-page results
 
-The pipeline scans all evidence sources simultaneously and fills an 8-row elimination table — every transport type marked present or absent with evidence. A route is built for every transport found, not just the first. DOM extraction is the absolute last resort.
+Every transport type is marked present or absent with evidence. A route is built for every transport found, not just the first. Routes aren't done until they return complete, paginated data that matches what the page displays.
 
 ### Instruction Tuning
 
@@ -94,6 +96,24 @@ Connect a browser and capture traffic:
 ./scripts/capture-traffic.sh --summary
 ```
 
+### Browser CLI
+
+Token-efficient browser control for agents. Each command returns minimal, structured output — no HTML dumps or verbose JSON.
+
+```bash
+./scripts/browser-cli.sh status                   # Check browser connection
+./scripts/browser-cli.sh navigate <url>            # Navigate + snapshot
+./scripts/browser-cli.sh snapshot                  # Accessibility tree
+./scripts/browser-cli.sh screenshot                # Save screenshot
+./scripts/browser-cli.sh click <selector>          # Click element
+./scripts/browser-cli.sh traffic                   # Show captured traffic
+./scripts/browser-cli.sh gather <url>              # Navigate + wait + snapshot + traffic
+./scripts/browser-cli.sh interact <selector>       # Clear traffic, click, return new traffic
+./scripts/browser-cli.sh paginate <selector> [max] # Click repeatedly, collect responses
+```
+
+The CLI wraps the `/browser/mcp/*` REST endpoints, which can also be called directly for programmatic access.
+
 ### Test Server
 
 Validate the discovery protocol against controlled fake sites before targeting real ones:
@@ -104,23 +124,29 @@ pnpm --filter @interceptor/test-server start   # Port 4444
 
 | Test Site | Transport Pattern |
 |---|---|
-| `/boardshop` | Embedded JSON + POST pagination + CSRF |
+| `/boardshop` | Embedded JSON, POST pagination, CSRF, session harvest, encoded pricing, click-intercept |
 | `/liveboard` | WebSocket + protobuf + crumb token |
 | `/streamshop` | GraphQL + HLS + IRC WebSocket |
 | `/databoard` | gRPC-Web + encoded responses + Bearer auth |
+
+The `domains/boardshop/` plugin serves as the reference implementation with 33 routes covering every supported transport type — from basic embedded JSON to session harvest with cookie elimination and click-intercept pagination.
 
 ## Architecture
 
 ```
 interceptor/
 ├── apps/
-│   ├── api/            Hono server — WebSocket, browser streaming, domain proxy
-│   └── web/            Next.js dashboard with auth
+│   ├── api/            Hono server — WebSocket, browser streaming, MCP endpoints, domain proxy
+│   └── web/            Next.js dashboard
 ├── packages/
 │   ├── browser/        Patchright automation + transport classifier
 │   ├── shared/         Types, validation, debug logging
 │   └── test-server/    Multi-transport fake sites for protocol validation
 ├── domains/            Generated domain plugins (ephemeral, per-branch)
+├── scripts/
+│   ├── browser-cli.sh  Token-efficient browser control CLI
+│   ├── connect-browser.sh  Launch browser with CDP capture
+│   └── ci-local.sh     Full CI checks
 ├── .claude/
 │   ├── CLAUDE.md       Agent mission, rules, constraints
 │   ├── rules/          Process gates (discovery, compliance, workflow)
@@ -152,7 +178,12 @@ graph TD
 |---|---|
 | `ws://localhost:3001/browser/stream` | CDP browser connection for traffic capture |
 | `GET /browser/traffic` | Captured request/response entries |
-| `GET /api/<domain>/<path>` | Proxy through browser session |
+| `GET /browser/mcp/status` | Browser connection status |
+| `POST /browser/mcp/navigate` | Navigate to URL, return accessibility snapshot |
+| `GET /browser/mcp/snapshot` | Current page accessibility tree |
+| `POST /browser/mcp/click` | Click element by selector or text |
+| `POST /browser/mcp/evaluate` | Run JavaScript in page context |
+| `GET /api/<domain>/<path>` | Proxy through domain plugin routes |
 | `GET /api` | List all registered domains and routes |
 
 ## Tech Stack
