@@ -26,7 +26,17 @@ Before connecting the browser, write down everything you already know about the 
 - Bot detection: [Cloudflare, Kasada, Akamai, DataDome, none known]
 - Embedded data pattern: [__NEXT_DATA__, data-deferred-state, data-sveltekit-fetched, window.__INITIAL_STATE__, etc.]
 - Known gotchas: [geo-restrictions, consent walls, login walls]
+- Real-time transports: [WebSocket URLs, SSE endpoints, live streaming, PubSub]
 ```
+
+**Real-time transport checklist.** Breadth-first discovery often misses streaming transports because they require specific page types. In PRE-FLIGHT, name where these might live:
+```
+- WebSocket: [chat pages, live feeds, real-time dashboards, notifications]
+- SSE: [streaming APIs, live updates, Firebase REST with Accept: text/event-stream]
+- HLS/DASH: [video player pages, live stream pages, VOD archives]
+- PubSub: [event feeds, channel subscriptions, real-time notifications]
+```
+If the site has ANY real-time features, you MUST navigate to those pages during GATHER.
 
 **Content hierarchy with pagination targets.** Every site has a hierarchy where you drill down to find paginated lists. Write yours out and name specific busy instances:
 
@@ -125,6 +135,7 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 - Low traffic (1-4 entries) is normal after one page load — navigate more pages, don't panic
 - **Traffic resets on navigation.** After `page.goto()` or `extractFromPage()`, previous traffic entries may be cleared. Always capture `/browser/traffic` BEFORE navigating to a new page. If you need traffic from the new page, wait and re-fetch traffic after the page loads.
 - **Browser connection drops.** If a browser command returns an error about closed context or lost connection, reconnect ONCE with `./scripts/connect-browser.sh`. Do not spend more than 2 calls reconnecting — if it fails twice, the browser session is dead, proceed with what you have.
+- **WebSocket traffic is NOT captured** by `/browser/traffic`. The traffic interceptor only captures HTTP requests via CDP Network events. To detect WebSocket, check JS bundles for `wss://` URLs or `new WebSocket(`, then test the URL directly via `page.evaluate`. You cannot rely on traffic capture for WS discovery.
 
 ---
 
