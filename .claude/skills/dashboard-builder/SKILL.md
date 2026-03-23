@@ -15,6 +15,43 @@ Create Next.js dashboard pages that consume domain proxy API endpoints. Each pag
 
 **Prompt compliance gate:** Before committing: list every prompt requirement, state evidence for each (curl output, screenshot, Patchright click). Any requirement without evidence = not done. Loop until all have evidence.
 
+## Design By Reference — Match a Real Website
+
+The best way to produce quality UI is to copy an existing one. When building a dashboard:
+
+1. **Pick a real website as the template.** Choose a well-designed site that serves similar data. Examples:
+   - YouTube downloader → Invidious, Piped, or YouTube itself
+   - Reddit client → old.reddit.com or Teddit
+   - Finance dashboard → TradingView or Yahoo Finance
+   - Job search → LinkedIn jobs or Indeed
+
+2. **Screenshot the template.** Capture the target site at 1280x800 and 375x800 (mobile):
+   ```bash
+   node -e "
+   const { chromium } = require('patchright');
+   (async () => {
+     const browser = await chromium.launch();
+     const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+     await page.goto('TARGET_URL', { waitUntil: 'networkidle' });
+     await page.screenshot({ path: '/tmp/template-desktop.png' });
+     await page.setViewportSize({ width: 375, height: 800 });
+     await page.screenshot({ path: '/tmp/template-mobile.png' });
+     await browser.close();
+   })();
+   "
+   ```
+
+3. **Build to match.** After each change, screenshot your work AND read the template screenshot. Compare:
+   - Layout structure (grid columns, sidebar, header position)
+   - Information density (items per row, spacing between cards)
+   - Typography hierarchy (title size vs metadata size)
+   - Color usage (dark theme, accent colors, muted text)
+   - Component patterns (card shapes, badges, thumbnails)
+
+4. **The gap between screenshots IS the bug.** This is objective — no subjective "does it look good." Either your layout matches the template or it doesn't. Fix the differences.
+
+Save template screenshots to `/tmp/template-<domain>/` for reference throughout the build.
+
 ## Visual Quality Standard
 
 - **Spacing**: `gap-4`/`gap-6` between sections; `p-4` inside cards — no arbitrary pixels
