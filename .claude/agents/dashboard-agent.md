@@ -44,6 +44,8 @@ Split components by view — one file per view, one shared types file. Do NOT wr
 
 `@interceptor/shared` includes Node.js-only code (rate-limiter, fs). Do NOT import it in client components. Use `@/lib/debug` for browser-side DEBUG logging, or `console.debug` with a prefix.
 
+`apps/web/src/lib/debug.ts` is pre-created in every worktree — do not recreate it. Import directly: `import { DEBUG } from '@/lib/debug'`.
+
 ## Setup (ONCE)
 
 ```bash
@@ -82,6 +84,22 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
    - detail (clicked into an item)
    - mobile (375px viewport)
    - wide (1920px viewport)
+
+   **Enumeration is a written artifact, not a thought exercise.** Before writing any `.tsx` file, add a comment block at the top of the main content file:
+   ```tsx
+   /*
+    * States:
+    * - idle: [description]
+    * - loading: [description]
+    * - populated: [description]
+    * - empty: [description]
+    * - error: [description]
+    * - detail-loading: [description]
+    * - detail-populated: [description]
+    * - mobile 375px: [description]
+    */
+   ```
+   This comment is required evidence for the reviewer. A component file without it is not compliant.
 
 2. **Build ONE component** — not the whole page at once.
 

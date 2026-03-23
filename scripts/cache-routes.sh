@@ -16,6 +16,21 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Precondition: verify API server is reachable
+if ! curl -sf --max-time 5 "http://localhost:${PORT}/api" > /dev/null 2>&1; then
+  echo "ERROR: API server not reachable at localhost:${PORT}. Start it first."
+  exit 1
+fi
+
+# Precondition: verify requested domain is registered
+if [ -n "$DOMAIN" ]; then
+  if ! curl -s "http://localhost:${PORT}/api" | python3 -c "import sys,json; d=json.load(sys.stdin); names=[x['name'] for x in d.get('domains',[])]; exit(0 if '${DOMAIN}' in names else 1)" 2>/dev/null; then
+    echo "ERROR: Domain '${DOMAIN}' is not registered on localhost:${PORT}."
+    echo "Registered domains: $(curl -s "http://localhost:${PORT}/api" | python3 -c "import sys,json; d=json.load(sys.stdin); print(', '.join(x['name'] for x in d.get('domains',[])))")"
+    exit 1
+  fi
+fi
+
 # Get all domains and routes from the API index
 ROUTES_JSON=$(curl -s "http://localhost:${PORT}/api")
 

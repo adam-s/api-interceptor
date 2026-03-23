@@ -41,8 +41,27 @@ The best way to produce quality UI is to copy an existing one. When building a d
    - Typography hierarchy (title size vs metadata size)
    - Color usage (dark theme, accent colors, muted text)
    - Component patterns (card shapes, badges, thumbnails)
+   - **Interactive controls** (upvote arrows, flag icons, hide/collapse buttons, vote affordances — if the template shows a control on each item, your dashboard must too)
+   - **Element presence on every row/card** (check every row in both screenshots, not just the first)
+   - **Navigation separators and spacing** (pipes, dots, dashes between nav links)
 
 4. **The gap between screenshots IS the bug.** This is objective — no subjective "does it look good." Either your layout matches the template or it doesn't. Fix the differences.
+
+### When the reference site's aesthetic conflicts with shadcn/ui defaults
+
+If the reference site uses a legacy aesthetic (custom fonts, table-based layout, non-card list items), do NOT abandon shadcn/ui entirely. Instead:
+1. Use shadcn/ui for **structure and behavior primitives** (Input, Button, Skeleton, Alert, Badge, Sheet) — these handle focus, accessibility, ARIA, and interaction.
+2. Override **visual tokens only** with a scoped CSS class or inline `style` prop for brand colors and typography.
+3. Never write a 400+ line custom CSS file to replace shadcn primitives. If you find yourself writing `.custom-search-input { border: 1px solid #ccc; }`, stop and use `<Input className="..." style={{ ... }} />` instead.
+
+```tsx
+// Use shadcn Input with overridden visual tokens — not a raw <input>
+<Input
+  className="w-36 h-6 text-[9pt]"
+  style={{ fontFamily: 'Verdana, sans-serif', borderColor: '#ccc' }}
+  placeholder="Search..."
+/>
+```
 
 Save template screenshots to `/tmp/template-<domain>/` for reference throughout the build.
 
@@ -60,6 +79,8 @@ Save template screenshots to `/tmp/template-<domain>/` for reference throughout 
 Domain plugins registered, `pnpm run dev` (ports 3000/3001).
 
 **Verify the data layer returns real data before building UI.** For HTTP routes: curl. For WebSocket streams: connect and observe messages. For any protocol: the verification must produce observable output proving real data flows end-to-end. If you can't verify it, you can't build on it.
+
+**Type-verify the API response.** After curl-verifying an endpoint, compare the curl JSON output field names against your TypeScript response interface. If a field in your interface does not appear in the curl output (or vice versa), fix the type before writing any component code. `as ResponseType` does not validate at runtime — mismatched fields produce `undefined` silently.
 
 **Routes must use network interception, not DOM extraction.** Every route that serves data must intercept a network request (XHR, WebSocket, GraphQL, etc.) — not parse rendered HTML via `page.evaluate()`. If a route uses `page.evaluate()` for data extraction, it violates the discovery protocol and must be rewritten. The Transport Elimination table from `discovery.md` must exist before any route is created.
 
@@ -95,6 +116,8 @@ Run `pnpm biome check --write --unsafe .` before manual lint cleanup. Only manua
 1. Plan: data endpoints, interactions, layout, multi-domain composition
 2. `mkdir -p apps/web/src/app/\(dashboard\)/<page-name>`
 3. Create `page.tsx` importing a `<PageContent />` client component
+
+**Layout group placement rule:** Pages that match a full-page reference site design (their own header, footer, and nav) should still be placed inside `(dashboard)/` and must add a local `layout.tsx` that returns `{children}` directly to opt out of the shared shell. Do NOT place the page outside the `(dashboard)` group — that removes it from the app's routing conventions and makes it invisible to the sidebar. If the reference site has its own nav/header, implement that nav inside the page component, not at the layout level.
 
 ## Step 4: Client Component Template
 
@@ -360,6 +383,7 @@ These principles override the implementation patterns in this skill file. They d
 11. **Sequential fetches need progress narration.** Show which source is being queried. `"Searching Source B... (2 of 3)"` not a generic spinner for 30 seconds.
 12. **Normalize before merging.** Different formats of the same entity must produce the same key. `"Austin, TX"` and `"Austin TX"` must match. Trim, lowercase, strip punctuation.
 13. **Mobile is a different product.** Test at 375px for: overlapping text, truncated inputs, hidden hover-only elements, 44px minimum touch targets, single-column layout.
+14. **`dangerouslySetInnerHTML` requires a sanitization decision.** If an API returns HTML fragments, make one of these choices: (a) sanitize in the API route handler using `sanitize-html` before sending to the client, (b) sanitize in the component using `DOMPurify.sanitize(html)` before passing to `dangerouslySetInnerHTML`, or (c) document specifically why the source is trusted and what prevents injection. A biome-ignore comment alone is not sufficient documentation.
 
 ## Loading & Error Patterns
 
@@ -368,6 +392,7 @@ These principles override the implementation patterns in this skill file. They d
 - **Retry with backoff:** Wrap fetches in a retry helper (2 retries, exponential backoff). On permanent failure, show a per-source "Retry" button — don't make the user redo the entire flow.
 - **Error messages:** Map HTTP status codes to actionable strings. Never show raw status codes to users.
 - **Caching:** Store fetched results in state so navigating between views doesn't re-fetch. Only re-fetch on explicit user action.
+- **Every fetch — primary AND secondary — must set error state on failure.** Item fetches, detail fetches, and sub-list loads triggered by user interaction all require explicit error surfacing. A catch block that only calls `DEBUG()` and returns without calling `setError()` or `toast.error()` is a silent failure. Rule: if a catch block does not call `setError`, `toast.error`, or `setItemError`, it must have a comment explaining why the failure is intentional and non-user-impacting.
 
 ## Verification with Diverse Data
 
@@ -377,6 +402,8 @@ After building a dashboard, verify it works with **at least 3 different inputs**
 - Different matching outcomes (all sources match, partial match, no match)
 
 If the dashboard only works for the first input you tested, it's not done.
+
+**Verify utility functions with boundary values.** Time-relative functions (`timeAgo`, `formatDate`, `relativeTime`) must be tested with edge cases before shipping: a timestamp 30 seconds ago, 90 seconds ago, 90 minutes ago, 25 hours ago, 8 days ago. Test inline: `console.log(timeAgo(Date.now()/1000 - 30))` — confirm it returns "30 seconds ago", not "0 minutes ago".
 
 ## Definition of Done
 
