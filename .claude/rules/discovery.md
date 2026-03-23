@@ -102,7 +102,12 @@ If it returns different items, this is a confirmed paginated XHR API. Record the
 
 **Before concluding embedded/SSR:** Check if ANY endpoint with pagination params (`page`, `offset`, `cursor`) appeared in initial traffic. If yes, test it directly (see above). Only conclude "no XHR" after testing discovered endpoints AND trying 3+ pages with 100+ items.
 
-**1e. Repeat on a second page type.** Intercept at a different level of the content hierarchy.
+**1e. GATHER stop condition.** GATHER is done when you have:
+- At least one confirmed XHR/API endpoint with pagination (tested via fetch()), OR
+- Confirmed embedded data on 2+ page types, OR
+- 5+ distinct API endpoints visible in traffic
+
+If you already have enough endpoints, do NOT keep navigating to more pages. Move to SCAN. If you have fewer than 3 endpoints after 2 page types, try one more page type — but no more than 3 total.
 
 **1f. Capture final traffic.**
 
@@ -114,7 +119,7 @@ curl -s http://localhost:PORT/browser/traffic > /tmp/traffic-all.json
 - Browser only — no `rateLimitedFetch`, no `curl`, no direct HTML/JS fetching
 - `page.evaluate` for interaction (clicking, scrolling) AND for testing discovered API endpoints via `fetch()`. Using `page.evaluate("fetch(...)")` tests the API — this is allowed. Do NOT use `page.evaluate` to read `__NEXT_DATA__`, Redux state, or DOM text in GATHER — that belongs in SCAN.
 - For cross-origin API endpoints (different subdomain), always use `{credentials: "include"}` in fetch() to forward browser cookies. Without it, WAF-gated APIs return 403.
-- `browserFetch` is a route-handler method, NOT an HTTP endpoint. Do NOT try `curl /browser/fetch`. During discovery, use `page.evaluate("fetch(...)")` instead.
+- `browserFetch` is a route-handler method for route code. During discovery, use `POST /browser/mcp/fetch` instead — it runs fetch() in the browser context with all cookies: `curl -s -X POST http://localhost:PORT/browser/mcp/fetch -H 'Content-Type: application/json' -d '{"url":"..."}'`
 - Low traffic (1-4 entries) is normal after one page load — navigate more pages, don't panic
 
 ---
@@ -136,11 +141,11 @@ for e in d.get('entries',[]):
 
 **2a-CHECK (MANDATORY).** Scan traffic for pagination params. If ANY endpoint has `page=`, `offset=`, `cursor=`, `limit=` in the URL or POST body, test page 2 NOW:
 ```bash
-curl -s -X POST http://localhost:PORT/browser/mcp/evaluate \
+curl -s -X POST http://localhost:PORT/browser/mcp/fetch \
   -H 'Content-Type: application/json' \
-  -d '{"script":"fetch(\"/api/path?page=2\", {credentials:\"include\"}).then(r=>r.json()).then(d=>JSON.stringify({keys:Object.keys(d),count:d.items?.length??d.data?.length??\"unknown\"}).slice(0,500))"}'
+  -d '{"url":"/api/path?page=2"}'
 ```
-If it returns data, mark JSON API (XHR) ✓ in the elimination table immediately. For cross-origin endpoints (different subdomain), `credentials: "include"` forwards browser cookies.
+If it returns data with `status: 200`, mark JSON API (XHR) ✓ in the elimination table immediately. The browser's cookies are forwarded automatically.
 
 **2b.** Fetch HTML of 2 page types + largest JS bundle. Use `page.evaluate("fetch(url).then(r=>r.text())")` or direct curl if no auth needed.
 
@@ -156,7 +161,15 @@ grep -oE 'type="hidden"[^>]*value="[^"]*"|meta name="[^"]*" content="[^"]*"' pag
 grep -oE 'wss://[^"'\'' ]+|new WebSocket\(|\.m3u8|MediaSource|protobuf|EventSource|graphql|/gql|grpc|application/grpc' bundle.js
 ```
 
-**2e. Access Gap table.** For each API endpoint in traffic, try direct HTTP (no cookies):
+**2d-GRAPHQL.** If traffic, HTML, or JS shows a GraphQL endpoint (`/graphql`, `/gql`, `graphql` in URL), introspect it in ONE call:
+```bash
+curl -s -X POST http://localhost:PORT/browser/mcp/fetch \
+  -H 'Content-Type: application/json' \
+  -d '{"url":"/api/graphql","method":"POST","headers":{"Content-Type":"application/json"},"body":{"query":"{__schema{queryType{fields{name}}}}"}}'
+```
+This reveals ALL available queries in one call. If it works, mark GraphQL ✓ and plan routes for each query.
+
+**2e. Access Gap table.** Make ONE curl per endpoint — no repeated tests. If you get 429, that IS the answer: mark Gap=Y. Do not retry.
 
 ```
 | Endpoint | Browser status | Direct HTTP status | Gap? |

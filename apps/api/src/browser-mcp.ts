@@ -184,4 +184,53 @@ browserMcp.post('/traffic/clear', (c) => {
 	return c.json({ cleared });
 });
 
+// POST /fetch — make an HTTP request through the browser's session (cookies, WAF tokens)
+// This runs fetch() inside the browser page context, forwarding all cookies.
+// Use for testing API endpoints during discovery without writing route code.
+browserMcp.post('/fetch', async (c) => {
+	const browser = requireBrowser();
+	if (!browser) {
+		return c.json({ error: 'No active browser — connect via /browser/stream first' }, 503);
+	}
+	const { url, method, headers, body } = await c.req.json<{
+		url: string;
+		method?: string;
+		headers?: Record<string, string>;
+		body?: unknown;
+	}>();
+	if (!url) {
+		return c.json({ error: 'Missing required field: url' }, 400);
+	}
+	const page = browser.getPage();
+	if (!page) {
+		return c.json({ error: 'Browser page not available' }, 503);
+	}
+	try {
+		const fetchScript = `
+			(async () => {
+				const opts = {
+					method: ${JSON.stringify(method || 'GET')},
+					credentials: 'include',
+					${headers ? `headers: ${JSON.stringify(headers)},` : ''}
+					${body ? `body: JSON.stringify(${JSON.stringify(body)}),` : ''}
+				};
+				if (opts.body) opts.headers = { 'Content-Type': 'application/json', ...opts.headers };
+				const res = await fetch(${JSON.stringify(url)}, opts);
+				const ct = res.headers.get('content-type') || '';
+				const text = await res.text();
+				let data;
+				try { data = JSON.parse(text); } catch { data = text; }
+				return { status: res.status, contentType: ct, data };
+			})()
+		`;
+		const result = await page.evaluate(fetchScript);
+		return c.json(result);
+	} catch (err) {
+		return c.json(
+			{ error: `Browser fetch failed: ${err instanceof Error ? err.message : String(err)}` },
+			502,
+		);
+	}
+});
+
 export { browserMcp };

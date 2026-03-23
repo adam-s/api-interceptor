@@ -164,7 +164,7 @@ Your port is XXXX.
 | 2a-CHECK: traffic scanned for pagination params, page 2 tested if found | |
 | page.evaluate used for interaction + fetch() testing only in GATHER (not for reading __NEXT_DATA__ or DOM data) | |
 | Used {credentials:"include"} for cross-origin fetch() calls | |
-| Did NOT try curl /browser/fetch (browserFetch is route-handler only) | |
+| Used /browser/mcp/fetch for discovery-phase API testing (not page.evaluate) | |
 | Full elimination table (all 8 rows ✓ or ✗) | |
 | Route built for EVERY ✓ transport | |
 | Used GATHER→SCAN→CLASSIFY→BUILD pipeline | |
