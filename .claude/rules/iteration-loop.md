@@ -37,9 +37,9 @@ pnpm --filter web dev > /tmp/web-server.log 2>&1 &
 sleep 6 && curl -s http://localhost:3001/health
 ```
 
-## Returning to Base
+## Returning to Main
 
 1. Commit domain work, append discoveries to `memory/base-fixes-needed.md`
-2. `git checkout base` — strip domain artifacts
+2. `git checkout main` — strip domain artifacts
 3. Apply fixes, clear file, run CI, commit
 4. Delete old test branch, cut new one

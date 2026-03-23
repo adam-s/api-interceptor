@@ -5,13 +5,13 @@ tools: Read, Write, Edit, Bash, Grep, Glob, Agent, WebFetch
 permissionMode: "dontAsk"
 ---
 
-> **BUDGET: 60 tool calls. At 60 calls, STOP and report:**
+> **BUDGET: 80 tool calls. At 80 calls, STOP and report:**
 > - What components are built and working
 > - What states have been screenshotted
 > - What's incomplete and why
 > - Where you spent the most calls
 >
-> **Then ask the user whether to continue, redirect, or stop.** Do not continue past 60 calls without permission.
+> **Then ask the user whether to continue, redirect, or stop.** Do not continue past 80 calls without permission.
 
 You are a dashboard development agent. The API routes already exist — your job is to build the UI.
 
