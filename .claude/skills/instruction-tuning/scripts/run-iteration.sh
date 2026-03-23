@@ -28,14 +28,9 @@ You are running instruction tuning iteration $ITER.
 Read .claude/tuning-handoff.md if it exists for prior context.
 Read .claude/skills/instruction-tuning/SKILL.md for the process.
 
-Launch 7 discovery agents per the skill's Parallel Testing section:
-- ticketmaster.com (port 3011)
-- stubhub.com (port 3012)
-- airbnb.com (port 3013)
-- finance.yahoo.com/quote/BTC-USD/ (port 3014)
-- twitch.tv (port 3015)
-- youtube.com (port 3016)
-- news.ycombinator.com (port 3017)
+Launch discovery agents per the skill's Parallel Testing section.
+Use target sites from .claude/tuning-handoff.md (or choose appropriate test targets).
+Assign ports starting at 3011, one per agent.
 
 Wait for ALL agents to complete.
 Score each against the scorecard in the SKILL.md.

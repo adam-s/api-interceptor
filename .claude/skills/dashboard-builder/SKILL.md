@@ -19,11 +19,7 @@ Create Next.js dashboard pages that consume domain proxy API endpoints. Each pag
 
 The best way to produce quality UI is to copy an existing one. When building a dashboard:
 
-1. **Pick a real website as the template.** Choose a well-designed site that serves similar data. Examples:
-   - YouTube downloader → Invidious, Piped, or YouTube itself
-   - Reddit client → old.reddit.com or Teddit
-   - Finance dashboard → TradingView or Yahoo Finance
-   - Job search → LinkedIn jobs or Indeed
+1. **Pick a real website as the template.** Choose a well-designed site that serves similar data. The gap between your screenshot and the template IS the bug. See `/packages/test-server` for test site examples and `/domains/boardshop/` for reference domain patterns.
 
 2. **Screenshot the template.** Capture the target site at 1280x800 and 375x800 (mobile):
    ```bash

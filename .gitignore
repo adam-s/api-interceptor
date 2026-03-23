@@ -27,10 +27,9 @@ data/browser-profiles/*/
 # App builder temp spec
 prompts/.app-spec.md
 
-# Domain plugins (created by agents, boardshop + youtube are tracked)
+# Domain plugins (created by agents, only boardshop is the reference example)
 domains/*/
 !domains/boardshop/
-!domains/youtube/
 
 # Cached API responses for offline dashboard dev
 tmp/cache/

@@ -27,7 +27,7 @@ Have a conversation with the developer. Ask these questions — skip any already
 
 ### Sites
 > Which website(s)? Can you give me a specific URL with the data you want?
-> Example: "stubhub.com — here's a Lakers game page with 400+ ticket listings: [url]"
+> Example: "example.com — here's a page with 400+ listings: [url]"
 
 A specific URL is 10x more valuable than a site name. It tells us the page structure, item count, and exactly where to look.
 

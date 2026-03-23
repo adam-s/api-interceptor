@@ -12,16 +12,12 @@
 
 import { registerDomain } from '@interceptor/browser/handler/domain-loader';
 import { plugin as boardshop } from '@interceptor/domain-boardshop';
-import { plugin as youtube } from '@interceptor/domain-youtube';
 import { registerRateLimit } from '@interceptor/shared';
 
 // ─── Domain plugins ──────────────────────────────────────────────────
 
 registerDomain(boardshop);
-registerDomain(youtube);
 
 // ─── Outbound rate limits (per-hostname) ─────────────────────────────
 
 registerRateLimit('api.boardshop.example.com', { maxPerMinute: 30, retryOn429: 2 });
-registerRateLimit('www.youtube.com', { maxPerMinute: 30, retryOn429: 2 });
-registerRateLimit('suggestqueries-clients6.youtube.com', { maxPerMinute: 60, retryOn429: 0 });

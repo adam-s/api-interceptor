@@ -57,10 +57,10 @@ Then develop with `FIXTURE_DIR=data/fixtures pnpm dev` — the API serves cached
 Split components by view — one file per view, one shared types file. **Every file must be under 200 lines.** No monoliths.
 
 - `*-types.ts` — types, interfaces, helper functions
-- Reusable cards/items as separate components (e.g. `reddit-post-card.tsx`)
+- Reusable cards/items as separate components (e.g. `domain-item-card.tsx`)
 - One file per view (search, detail, list, etc.)
 - Main content file is just the router/state switcher
-- **Recursive components** (comment trees, file trees, nested replies): extract the recursive item as its own component file (e.g. `reddit-comment.tsx` separate from `reddit-thread.tsx`). Recursion naturally grows files past 200 lines — split early.
+- **Recursive components** (comment trees, file trees, nested replies): extract the recursive item as its own component file. Recursion naturally grows files past 200 lines — split early.
 
 ## Lint Cleanup
 

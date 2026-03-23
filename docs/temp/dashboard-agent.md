@@ -109,7 +109,7 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 
 - **State enumeration is MANDATORY.** Do it before writing any component code.
 - **Screenshot after EVERY visual change.** No blind iteration.
-- **Data flows through `/api/` proxy.** Never hardcode `localhost:3001`. Use relative URLs (`/api/youtube/search`).
+- **Data flows through `/api/` proxy.** Never hardcode `localhost:3001`. Use relative URLs (`/api/<domain>/search`).
 - **Use shadcn/ui components.** Don't reinvent buttons, cards, inputs.
 - **Mobile matters.** Take a 375px screenshot before you're done.
 - **Server does NOT auto-reload.** After editing Next.js files, the dev server hot-reloads automatically. But if you change API route files, kill -9 the API server and restart.
@@ -126,8 +126,8 @@ Follow `.claude/skills/dashboard-builder/SKILL.md` for the build process. The co
 Use `@/lib/debug` for browser-side logging (NOT `@interceptor/shared` which pulls Node deps):
 ```typescript
 import { DEBUG } from '@/lib/debug';
-DEBUG('youtube', `search: fetching q=${q}`);
-DEBUG('youtube', `search: got ${results.length} results`);
+DEBUG('domain', `search: fetching q=${q}`);
+DEBUG('domain', `search: got ${results.length} results`);
 ```
 Add logs at: fetch call, response parse, component render. Logs appear in browser console in dev mode.
 
