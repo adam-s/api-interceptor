@@ -1,12 +1,12 @@
 {
-    email admin@interceptor.dev
+    email admin@example.dev
 }
 
-www.interceptor.dev {
-    redir https://interceptor.dev{uri}
+www.example.dev {
+    redir https://example.dev{uri}
 }
 
-interceptor.dev {
+example.dev {
     reverse_proxy web:3000 {
         header_up X-Forwarded-Proto {scheme}
         header_up X-Forwarded-Host {host}
