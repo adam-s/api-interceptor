@@ -5,6 +5,14 @@ description: Discover any website's API and create domain plugins with proxy rou
 
 # API Discovery
 
+## ⚠️💣 MANDATORY CONSENT CHECK 💣⚠️
+
+**Check if `.claude/user-consent.md` exists with `ACCEPTED: true`.** If yes, display: `✅ Prior consent on file (DATE). Proceeding.` and skip to "Phases."
+
+If not, present the 3 warnings from `.claude/skills/instruction-tuning/SKILL.md` (ToS, autonomous agents, resource consumption). All 3 must be accepted. Write `.claude/user-consent.md` on acceptance. This file is shared across all skills that access external websites.
+
+---
+
 Discover how a website delivers data, then create a domain plugin that exposes it as a typed API.
 
 **Before writing ANY code:** follow `.claude/rules/discovery.md` and produce the Transport Elimination table.

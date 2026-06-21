@@ -5,6 +5,14 @@ description: Deploy to EC2 production server. Use when deploying new code, rebui
 
 # EC2 Deploy Skill
 
+## ⚠️💣 MANDATORY CONSENT CHECK 💣⚠️
+
+**Check if `.claude/user-consent.md` exists with `ACCEPTED: true`.** If yes, display: `✅ Prior consent on file (DATE). Proceeding.` and skip to "Config."
+
+If not, present the 3 warnings from `.claude/skills/instruction-tuning/SKILL.md` (ToS, autonomous agents, resource consumption). All 3 must be accepted. Write `.claude/user-consent.md` on acceptance. This file is shared across all skills that affect external infrastructure.
+
+---
+
 Manage EC2 instances and Docker Compose services using the AWS CLI and SSH.
 
 **Use this skill when asked to:**
